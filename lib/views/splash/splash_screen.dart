@@ -176,37 +176,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                         ],
                       ),
                     ),
-                    const SizedBox(height: 32),
-
-                    // Quick Jump Badges (Tables, History, Settings)
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildQuickLink(
-                          label: 'Dining Tables',
-                          icon: Icons.table_restaurant,
-                          onTap: () => _launchMode(context, CashierNavTab.tables),
-                        ),
-                        const SizedBox(width: 12),
-                        _buildQuickLink(
-                          label: 'Receipt Archive & PDF',
-                          icon: Icons.receipt_long,
-                          onTap: () => _launchMode(context, CashierNavTab.history),
-                        ),
-                        const SizedBox(width: 12),
-                        _buildQuickLink(
-                          label: 'Catalog & Photos',
-                          icon: Icons.inventory_2,
-                          onTap: () => _launchMode(context, CashierNavTab.products),
-                        ),
-                        const SizedBox(width: 12),
-                        _buildQuickLink(
-                          label: 'Hardware Settings',
-                          icon: Icons.settings,
-                          onTap: () => _launchMode(context, CashierNavTab.settings),
-                        ),
-                      ],
-                    ),
+                    
                   ],
                 ),
               ),

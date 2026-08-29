@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../app_config.dart';
@@ -136,7 +136,7 @@ class _ReceiptPreviewDialogState extends State<ReceiptPreviewDialog> {
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
       child: Container(
         width: 390,
-        constraints: const BoxConstraints(maxHeight: 700),
+        constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.88),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
@@ -162,10 +162,10 @@ class _ReceiptPreviewDialogState extends State<ReceiptPreviewDialog> {
                       Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: AppConfig.accentGreen.withValues(alpha: 0.2),
+                          color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Icon(Icons.receipt_long, color: AppConfig.accentGreen, size: 20),
+                        child: const Icon(Icons.receipt_long, color: Colors.white, size: 20),
                       ),
                       const SizedBox(width: 10),
                       Column(
@@ -178,7 +178,7 @@ class _ReceiptPreviewDialogState extends State<ReceiptPreviewDialog> {
                           if (order.orderNumber != null)
                             Text(
                               'Order #${order.orderNumber}',
-                              style: const TextStyle(color: AppConfig.accentCyan, fontSize: 11, fontWeight: FontWeight.w600),
+                              style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11, fontWeight: FontWeight.w600),
                             ),
                         ],
                       ),
@@ -349,7 +349,7 @@ class _ReceiptPreviewDialogState extends State<ReceiptPreviewDialog> {
                         flex: 2,
                         child: ElevatedButton.icon(
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppConfig.accentGreen,
+                            backgroundColor: const Color(0xFF0F172A),
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),

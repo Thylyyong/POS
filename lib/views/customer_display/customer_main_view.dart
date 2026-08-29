@@ -1,10 +1,14 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../../app_config.dart';
+import '../../../database/settings_dao.dart';
+import '../../../models/store_settings_model.dart';
 import '../../../services/presentation_service.dart';
-import 'widgets/qr_display.dart';
+import '../../../widgets/app_logo_widget.dart';
+import '../cashier/cashier_main_layout.dart';
+import '../cashier/widgets/nav_sidebar.dart';
 
 class CustomerMainView extends StatefulWidget {
   const CustomerMainView({super.key});
@@ -15,8 +19,10 @@ class CustomerMainView extends StatefulWidget {
 
 class _CustomerMainViewState extends State<CustomerMainView> {
   final PresentationService _presentationService = PresentationService();
+  final SettingsDao _settingsDao = SettingsDao();
 
   PresentationPayload _payload = PresentationPayload(state: CfdScreenState.idle);
+  StoreSettingsModel _settings = const StoreSettingsModel();
   String _currentTime = '';
   Timer? _clockTimer;
   StreamSubscription<PresentationPayload>? _payloadSub;
@@ -25,10 +31,10 @@ class _CustomerMainViewState extends State<CustomerMainView> {
   void initState() {
     super.initState();
     _payload = _presentationService.latestPayload;
+    _loadSettings();
     _updateClock();
     _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) => _updateClock());
 
-    // Listen to real-time events from Main Cashier Display
     _payloadSub = _presentationService.listenOnCustomerDisplay((payload) {
       if (mounted) {
         setState(() {
@@ -38,10 +44,19 @@ class _CustomerMainViewState extends State<CustomerMainView> {
     });
   }
 
+  Future<void> _loadSettings() async {
+    try {
+      final s = await _settingsDao.getSettings();
+      if (mounted) {
+        setState(() => _settings = s);
+      }
+    } catch (_) {}
+  }
+
   void _updateClock() {
     if (mounted) {
       setState(() {
-        _currentTime = DateFormat('hh:mm:ss a • EEE, MMM d').format(DateTime.now());
+        _currentTime = DateFormat('hh:mm a').format(DateTime.now());
       });
     }
   }
@@ -56,433 +71,409 @@ class _CustomerMainViewState extends State<CustomerMainView> {
   @override
   Widget build(BuildContext parentContext) {
     final canPop = Navigator.maybeOf(parentContext)?.canPop() ?? false;
-    return Theme(
-      data: AppConfig.darkTheme,
-      child: Scaffold(
-        backgroundColor: const Color(0xFF0F172A),
-        body: SafeArea(
-          child: Column(
-            children: [
-              // Top CFD Header
-              _buildCfdHeader(parentContext, canPop),
+    final storeName = _settings.storeName.isNotEmpty ? _settings.storeName : 'The Culinary Canvas';
 
-                  // Dynamic Body based on State
-                  Expanded(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 350),
-                      switchInCurve: Curves.easeOutCubic,
-                      switchOutCurve: Curves.easeInCubic,
-                      transitionBuilder: (child, animation) {
-                        return FadeTransition(
-                          opacity: animation,
-                          child: ScaleTransition(
-                            scale: Tween<double>(begin: 0.98, end: 1.0).animate(animation),
-                            child: child,
-                          ),
-                        );
-                      },
-                      child: _buildCurrentStateView(),
-                    ),
-                  ),
-
-                  // Bottom CFD Footer Bar
-                  _buildCfdFooter(),
-                ],
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: SafeArea(
+        child: Column(
+          children: [
+            // ── Top Slim Header Bar ─────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
               ),
-            ),
-          ),
-        );
-      }
-
-  Widget _buildCfdHeader(BuildContext ctx, bool canPop) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-      decoration: const BoxDecoration(
-        color: Color(0xFF1E293B),
-        border: Border(bottom: BorderSide(color: Color(0xFF334155), width: 1.5)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              if (canPop) ...[
-                IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white, size: 22),
-                  tooltip: 'Back to Cashier',
-                  onPressed: () {
-                    Navigator.maybeOf(ctx)?.pop();
-                  },
-                ),
-                const SizedBox(width: 8),
-              ],
-              const Icon(Icons.storefront, color: AppConfig.accentGreen, size: 28),
-              const SizedBox(width: 12),
-              const Text(
-                'CUSTOMER FACING DISPLAY',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 18,
-                  letterSpacing: 1.2,
-                ),
-              ),
-            ],
-          ),
-          Row(
-            children: [
-              const Icon(Icons.access_time, color: Color(0xFF94A3B8), size: 16),
-              const SizedBox(width: 6),
-              Text(
-                _currentTime,
-                style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 13, fontWeight: FontWeight.w500),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCurrentStateView() {
-    switch (_payload.state) {
-      case CfdScreenState.idle:
-        return _buildIdleView();
-      case CfdScreenState.cartActive:
-      case CfdScreenState.paymentPending:
-        return _buildCartActiveView();
-      case CfdScreenState.paymentQr:
-        return _buildPaymentQrView();
-      case CfdScreenState.paymentSuccess:
-        return _buildPaymentSuccessView();
-    }
-  }
-
-  // 1. Idle View (Welcome screen with restaurant ambiance)
-  Widget _buildIdleView() {
-    return Center(
-      key: const ValueKey('idle_view'),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: AppConfig.accentGreen.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-              border: Border.all(color: AppConfig.accentGreen.withValues(alpha: 0.4), width: 2),
-            ),
-            child: const Icon(Icons.restaurant_menu, size: 80, color: AppConfig.accentGreen),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Welcome to Our Restaurant!',
-            style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Your live order items and totals will appear here.',
-            style: TextStyle(fontSize: 16, color: Color(0xFF94A3B8)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // 2. Cart Active View (Real Product Photo Thumbnails + Items Table + Amount Due)
-  Widget _buildCartActiveView() {
-    final currency = _payload.currencySymbol;
-
-    return Row(
-      key: const ValueKey('cart_active_view'),
-      children: [
-        // Left Column: Items Table with Product Images
-        Expanded(
-          flex: 6,
-          child: Container(
-            margin: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF334155)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Table Header
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  decoration: const BoxDecoration(
-                    border: Border(bottom: BorderSide(color: Color(0xFF334155))),
-                  ),
-                  child: const Row(
-                    children: [
-                      Expanded(flex: 5, child: Text('ITEM / PRODUCT', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF94A3B8), fontSize: 13))),
-                      Expanded(flex: 2, child: Text('QTY', textAlign: TextAlign.center, style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF94A3B8), fontSize: 13))),
-                      Expanded(flex: 3, child: Text('PRICE', textAlign: TextAlign.right, style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF94A3B8), fontSize: 13))),
-                    ],
-                  ),
-                ),
-                // Items List with Real Product Image Thumbnails
-                Expanded(
-                  child: ListView.separated(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: _payload.items.length,
-                    separatorBuilder: (_, _) => const Divider(height: 16, color: Color(0xFF334155)),
-                    itemBuilder: (context, index) {
-                      final item = _payload.items[index];
-                      final imagePath = item['imagePath'] as String?;
-                      ImageProvider? imgProvider;
-                      if (imagePath != null && imagePath.trim().isNotEmpty) {
-                        if (imagePath.trim().startsWith('assets/')) {
-                          imgProvider = AssetImage(imagePath.trim());
-                        } else if (File(imagePath.trim()).existsSync()) {
-                          imgProvider = FileImage(File(imagePath.trim()));
-                        }
+              child: Row(
+                children: [
+                  // Dashboard Navigation Button (Replaces back arrow)
+                  IconButton(
+                    icon: const Icon(Icons.dashboard_outlined, color: Color(0xFF0F172A), size: 22),
+                    tooltip: 'Go to Dashboard',
+                    onPressed: () {
+                      if (canPop) {
+                        Navigator.of(parentContext).pop();
                       }
-
-                      return Row(
-                        children: [
-                          // Product Image Thumbnail from Assets or Local Storage
-                          Container(
-                            width: 46,
-                            height: 46,
-                            margin: const EdgeInsets.only(right: 12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF334155),
-                              borderRadius: BorderRadius.circular(10),
-                              image: imgProvider != null
-                                  ? DecorationImage(
-                                      image: imgProvider,
-                                      fit: BoxFit.cover,
-                                    )
-                                  : null,
-                            ),
-                            child: imgProvider == null
-                                ? const Icon(Icons.fastfood, size: 22, color: AppConfig.accentCyan)
-                                : null,
-                          ),
-
-                          Expanded(
-                            flex: 5,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item['productName'] ?? '',
-                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.white),
-                                ),
-                                if (item['notes'] != null && (item['notes'] as String).isNotEmpty)
-                                  Text(
-                                    '* ${item['notes']}',
-                                    style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: Color(0xFF94A3B8)),
-                                  ),
-                              ],
-                            ),
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Text(
-                              '${item['quantity']}',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppConfig.accentCyan),
-                            ),
-                          ),
-                          Expanded(
-                            flex: 3,
-                            child: Text(
-                              '$currency${((item['totalPrice'] ?? 0.0) as num).toStringAsFixed(2)}',
-                              textAlign: TextAlign.right,
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                            ),
-                          ),
-                        ],
+                      Navigator.of(parentContext).pushAndRemoveUntil(
+                        MaterialPageRoute(
+                          builder: (_) => const CashierMainLayout(initialTab: CashierNavTab.dashboard),
+                        ),
+                        (route) => false,
                       );
                     },
                   ),
-                ),
-              ],
-            ),
-          ),
-        ),
+                  const SizedBox(width: 8),
 
-        // Right Column: Summary Card & Big Total Due & Payment Method
-        Expanded(
-          flex: 4,
-          child: Container(
-            margin: const EdgeInsets.only(top: 20, bottom: 20, right: 20),
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: const Color(0xFF1E293B),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFF334155)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text('ORDER AMOUNT', style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8))),
-                const SizedBox(height: 20),
-                _buildSummaryRow('Subtotal', '$currency${_payload.subtotal.toStringAsFixed(2)}'),
-                if (_payload.discountAmount > 0)
-                  _buildSummaryRow('Discount', '-$currency${_payload.discountAmount.toStringAsFixed(2)}', color: AppConfig.accentRose),
-                if (_payload.taxAmount > 0)
-                  _buildSummaryRow('Tax / VAT', '$currency${_payload.taxAmount.toStringAsFixed(2)}'),
-                
-                const Spacer(),
-                const Divider(height: 32, color: Color(0xFF334155)),
-
-                // Big Total Amount Due Box
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0F172A),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppConfig.accentGreen.withValues(alpha: 0.4)),
+                  Text(
+                    storeName,
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A),
+                      letterSpacing: -0.3,
+                    ),
                   ),
-                  child: Column(
-                    children: [
-                      const Text(
-                        'TOTAL AMOUNT DUE',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF94A3B8)),
+                  const Spacer(),
+
+                  // Live Clock
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.access_time, size: 14, color: Color(0xFF64748B)),
+                        const SizedBox(width: 6),
+                        Text(
+                          _currentTime,
+                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // ── Main Dual-Column Content: 30% Order / 70% Store Logo Showcase ──
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // ── Left Column (30% Width): Order Items Table & Totals ────
+                  Expanded(
+                    flex: 30,
+                    child: Container(
+                      margin: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.02),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        '$currency${_payload.totalAmount.toStringAsFixed(2)}',
-                        style: const TextStyle(fontSize: 38, fontWeight: FontWeight.bold, color: AppConfig.accentGreen),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          // Table Header (QTY, ITEM, PRICE)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
+                              border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+                            ),
+                            child: const Row(
+                              children: [
+                                SizedBox(
+                                  width: 36,
+                                  child: Text(
+                                    'QTY',
+                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B), letterSpacing: 0.5),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Text(
+                                    'ITEM',
+                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B), letterSpacing: 0.5),
+                                  ),
+                                ),
+                                Text(
+                                  'PRICE',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B), letterSpacing: 0.5),
+                                ),
+                              ],
+                            ),
+                          ),
+
+                          // Items List
+                          Expanded(
+                            child: _payload.items.isEmpty
+                                ? Center(
+                                    child: Column(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Icon(Icons.receipt_long_outlined, size: 42, color: const Color(0xFFCBD5E1)),
+                                        const SizedBox(height: 10),
+                                        const Text(
+                                          'No items currently added',
+                                          style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : ListView.separated(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                    itemCount: _payload.items.length,
+                                    separatorBuilder: (_, __) => const Divider(height: 12, color: Color(0xFFF1F5F9)),
+                                    itemBuilder: (context, index) {
+                                      final item = _payload.items[index];
+                                      final qty = item['quantity'] ?? 1;
+                                      final name = item['productName'] ?? '';
+                                      final price = (item['totalPrice'] as num?)?.toDouble() ?? 0.0;
+
+                                      return Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          SizedBox(
+                                            width: 36,
+                                            child: Text(
+                                              '$qty',
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.bold,
+                                                color: Color(0xFF0F172A),
+                                              ),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            child: Text(
+                                              name,
+                                              style: const TextStyle(
+                                                fontSize: 13.5,
+                                                fontWeight: FontWeight.w600,
+                                                color: Color(0xFF0F172A),
+                                              ),
+                                            ),
+                                          ),
+                                          Text(
+                                            '${_payload.currencySymbol}${price.toStringAsFixed(2)}',
+                                            style: const TextStyle(
+                                              fontSize: 13.5,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF0F172A),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  ),
+                          ),
+
+                          // Summary Footer Card
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: const BoxDecoration(
+                              color: Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.vertical(bottom: Radius.circular(15)),
+                              border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
+                            ),
+                            child: Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text('Subtotal', style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
+                                    Text(
+                                      '${_payload.currencySymbol}${_payload.subtotal.toStringAsFixed(2)}',
+                                      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 4),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text('VAT (10%)', style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
+                                    Text(
+                                      '${_payload.currencySymbol}${_payload.taxAmount.toStringAsFixed(2)}',
+                                      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                                    ),
+                                  ],
+                                ),
+                                if (_payload.discountAmount > 0) ...[
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      const Text('Discount', style: TextStyle(fontSize: 12.5, color: AppConfig.accentRose)),
+                                      Text(
+                                        '-${_payload.currencySymbol}${_payload.discountAmount.toStringAsFixed(2)}',
+                                        style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: AppConfig.accentRose),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                                const Divider(height: 16, color: Color(0xFFE2E8F0)),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    const Text(
+                                      'Total Due',
+                                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                    ),
+                                    Text(
+                                      '${_payload.currencySymbol}${_payload.totalAmount.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w900,
+                                        color: Color(0xFF0F172A),
+                                        letterSpacing: -0.5,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
 
-                // Payment Status Indicator
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 10),
-                  decoration: BoxDecoration(
-                    color: AppConfig.accentCyan.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppConfig.accentCyan.withValues(alpha: 0.3)),
-                  ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.payment, color: AppConfig.accentCyan, size: 18),
-                      SizedBox(width: 8),
-                      Text(
-                        'Cash or Mobile QR Accepted',
-                        style: TextStyle(color: AppConfig.accentCyan, fontWeight: FontWeight.bold, fontSize: 13),
+                  // ── Right Column (70% Width): Prominent Store Logo & Branding Showcase ──
+                  Expanded(
+                    flex: 70,
+                    child: Container(
+                      margin: const EdgeInsets.fromLTRB(0, 14, 14, 14),
+                      padding: const EdgeInsets.all(32),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.02),
+                            blurRadius: 10,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                    ],
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Status Badge
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF059669),
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Live Customer Display',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF0F172A),
+                                    letterSpacing: 0.3,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 24),
+
+                          // Large Store Logo (Showcased prominently)
+                          AppLogoWidget(
+                            logoPath: _settings.logoPath,
+                            size: 130,
+                            borderRadius: 28,
+                            fallbackIcon: Icons.restaurant,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.08),
+                                blurRadius: 20,
+                                offset: const Offset(0, 8),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+
+                          // Store Title
+                          Text(
+                            storeName,
+                            style: const TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF0F172A),
+                              letterSpacing: -0.5,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+
+                          // Store Address / Tagline
+                          Text(
+                            _settings.storeAddress.isNotEmpty
+                                ? _settings.storeAddress
+                                : 'Welcome! Enjoy your dining experience with us.',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.w500,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+
+                          if (_payload.state == CfdScreenState.paymentQr ||
+                              (_payload.qrData != null && _payload.qrData!.isNotEmpty)) ...[
+                            const SizedBox(height: 24),
+                            Container(
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: const Color(0xFFE2E8F0)),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  QrImageView(
+                                    data: _payload.qrData!,
+                                    version: QrVersions.auto,
+                                    size: 90,
+                                    backgroundColor: Colors.transparent,
+                                  ),
+                                  const SizedBox(width: 14),
+                                  const Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'SCAN TO PAY',
+                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                      ),
+                                      SizedBox(height: 2),
+                                      Text(
+                                        'Scan with your camera or banking app',
+                                        style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // 3. Payment QR View
-  Widget _buildPaymentQrView() {
-    return Center(
-      key: const ValueKey('payment_qr_view'),
-      child: CfdQrDisplay(
-        qrData: _payload.qrData ?? '',
-        totalAmount: _payload.totalAmount,
-        currencySymbol: _payload.currencySymbol,
-      ),
-    );
-  }
-
-  // 4. Payment Success View
-  Widget _buildPaymentSuccessView() {
-    final currency = _payload.currencySymbol;
-    return Center(
-      key: const ValueKey('payment_success_view'),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(28),
-            decoration: BoxDecoration(
-              color: AppConfig.accentGreen.withValues(alpha: 0.2),
-              shape: BoxShape.circle,
-              border: Border.all(color: AppConfig.accentGreen, width: 3),
-            ),
-            child: const Icon(Icons.check_circle, size: 84, color: AppConfig.accentGreen),
-          ),
-          const SizedBox(height: 24),
-          const Text(
-            'Payment Received!',
-            style: TextStyle(fontSize: 34, fontWeight: FontWeight.bold, color: Colors.white),
-          ),
-          const SizedBox(height: 10),
-          Text(
-            'Receipt #${_payload.receiptNo ?? ""} • Total Paid: $currency${_payload.totalAmount.toStringAsFixed(2)}',
-            style: const TextStyle(fontSize: 18, color: AppConfig.accentCyan, fontWeight: FontWeight.w600),
-          ),
-          if ((_payload.changeAmount ?? 0) > 0) ...[
-            const SizedBox(height: 8),
-            Text(
-              'Change Due: $currency${_payload.changeAmount!.toStringAsFixed(2)}',
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppConfig.accentAmber),
+                ],
+              ),
             ),
           ],
-          const SizedBox(height: 24),
-          if (_payload.thankYouNote != null && _payload.thankYouNote!.isNotEmpty)
-            Text(
-              _payload.thankYouNote!,
-              style: const TextStyle(fontSize: 16, fontStyle: FontStyle.italic, color: Color(0xFF94A3B8)),
-            )
-          else
-            const Text(
-              'Thank you for your visit! Have a great day.',
-              style: TextStyle(fontSize: 16, color: Color(0xFF94A3B8)),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSummaryRow(String label, String value, {Color? color}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(fontSize: 16, color: Color(0xFF94A3B8))),
-          Text(value, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color ?? Colors.white)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCfdFooter() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-      decoration: const BoxDecoration(
-        color: Color(0xFF1E293B),
-        border: Border(top: BorderSide(color: Color(0xFF334155), width: 1.5)),
-      ),
-      child: const Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.verified, color: AppConfig.accentGreen, size: 16),
-              SizedBox(width: 6),
-              Text(
-                '100% Offline Dual-Screen Mirroring Active',
-                style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
-              ),
-            ],
-          ),
-          Text(
-            'Powered by OmniPOS',
-            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
-          ),
-        ],
+        ),
       ),
     );
   }

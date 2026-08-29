@@ -4,7 +4,7 @@ import 'package:sqflite/sqflite.dart';
 
 class DbHelper {
   static const String _dbName = 'omni_pos.db';
-  static const int _dbVersion = 3;
+  static const int _dbVersion = 4;
 
   static DbHelper? _instance;
   static Database? _database;
@@ -64,6 +64,7 @@ class DbHelper {
         category_id TEXT NOT NULL,
         subcategory_id TEXT,
         name TEXT NOT NULL,
+        description TEXT,
         price REAL NOT NULL,
         cost REAL NOT NULL DEFAULT 0.0,
         barcode TEXT,
@@ -240,6 +241,12 @@ class DbHelper {
 
       // Seed default tables
       await _seedDefaultTables(db);
+    }
+    if (oldVersion < 4) {
+      // Add description column to products (nullable, safe)
+      try {
+        await db.execute('ALTER TABLE products ADD COLUMN description TEXT');
+      } catch (_) {}
     }
   }
 

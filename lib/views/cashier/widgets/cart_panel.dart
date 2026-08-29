@@ -23,7 +23,6 @@ class CartPanel extends StatelessWidget {
     );
 
     return Container(
-      width: 400,
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(left: BorderSide(color: Color(0xFFE2E8F0), width: 1.5)),
@@ -60,9 +59,12 @@ class _CartHeader extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: const BoxDecoration(
+      
+      decoration:  BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
         color: Color(0xFF0F172A), // Slate-900 for distinct contrast
-        border: Border(bottom: BorderSide(color: Color(0xFF1E293B))),
+        border: Border(bottom: BorderSide(color: Color.fromRGBO(234, 236, 239, 1))),
+    
       ),
       child: Column(
         children: [
@@ -72,7 +74,7 @@ class _CartHeader extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  const Icon(Icons.shopping_cart, color: AppConfig.accentGreen, size: 20),
+                  const Icon(Icons.shopping_cart, color: Color.fromARGB(255, 209, 223, 218), size: 20),
                   const SizedBox(width: 8),
                   const Text(
                     'Current Order',
@@ -82,13 +84,13 @@ class _CartHeader extends StatelessWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     decoration: BoxDecoration(
-                      color: AppConfig.accentGreen.withValues(alpha: 0.2),
+                      color: Colors.white.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
                       '$itemCount items',
                       style: const TextStyle(
-                        color: AppConfig.accentGreen,
+                        color: Colors.white,
                         fontWeight: FontWeight.bold,
                         fontSize: 11,
                       ),
@@ -555,28 +557,28 @@ class _CartTotalsPanelState extends State<_CartTotalsPanel> {
               ),
               Text(
                 '$curr${cart.totalAmount.toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppConfig.accentGreenDark),
+                style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
               ),
             ],
           ),
           const SizedBox(height: 14),
 
           // ── Checkout Action Buttons ──────────────────────────────────────────
-          // Row 1: Hold / Save Order (allows creating order 001, then taking order 002 without immediate payment!)
+          // Row 1: Hold / Save Order
           SizedBox(
             width: double.infinity,
-            height: 42,
+            height: 40,
             child: OutlinedButton.icon(
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppConfig.accentAmber,
-                side: const BorderSide(color: AppConfig.accentAmber, width: 1.5),
+                foregroundColor: const Color(0xFF475569),
+                side: const BorderSide(color: Color(0xFFCBD5E1)),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
               ),
               onPressed: !isEmpty && !_isProcessing ? _handleSaveAsPending : null,
-              icon: const Icon(Icons.bookmark_add_outlined, size: 18),
+              icon: const Icon(Icons.bookmark_border, size: 17),
               label: const Text(
-                'Save / Hold Order (Pay Later)',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                'Hold Order (Pay Later)',
+                style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12.5),
               ),
             ),
           ),
@@ -590,14 +592,14 @@ class _CartTotalsPanelState extends State<_CartTotalsPanel> {
                   height: 48,
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppConfig.accentGreen,
+                      backgroundColor: const Color(0xFF0F172A),
                       foregroundColor: Colors.white,
-                      disabledBackgroundColor: AppConfig.accentGreen.withValues(alpha: 0.4),
+                      disabledBackgroundColor: const Color(0xFF0F172A).withValues(alpha: 0.35),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       elevation: 0,
                     ),
                     onPressed: !isEmpty && !_isProcessing ? _handleCashCheckout : null,
-                    icon: const Icon(Icons.payments, size: 18),
+                    icon: const Icon(Icons.payments_outlined, size: 18),
                     label: const Text('CASH PAY', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   ),
                 ),
@@ -608,9 +610,9 @@ class _CartTotalsPanelState extends State<_CartTotalsPanel> {
                   height: 48,
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppConfig.accentCyan,
+                      backgroundColor: const Color(0xFF2563EB),
                       foregroundColor: Colors.white,
-                      disabledBackgroundColor: AppConfig.accentCyan.withValues(alpha: 0.4),
+                      disabledBackgroundColor: const Color(0xFF2563EB).withValues(alpha: 0.35),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       elevation: 0,
                     ),

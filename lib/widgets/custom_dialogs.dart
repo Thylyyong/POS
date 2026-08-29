@@ -37,6 +37,13 @@ class _CashPaymentDialogState extends State<CashPaymentDialog> {
     });
   }
 
+  void _addIncrement(double amount) {
+    setState(() {
+      final current = double.tryParse(_tenderedInput) ?? widget.totalAmount;
+      _tenderedInput = (current + amount).toStringAsFixed(2);
+    });
+  }
+
   void _appendDigit(String digit) {
     setState(() {
       if (digit == '.' && _tenderedInput.contains('.')) return;
@@ -76,21 +83,20 @@ class _CashPaymentDialogState extends State<CashPaymentDialog> {
       if (total >= 100) ...[
         (total / 50).ceil() * 50.0,
         (total / 100).ceil() * 100.0,
-        ((total / 100).ceil() + 1) * 100.0,
       ],
     }.toList()..sort();
 
     return Dialog(
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: ConstrainedBox(
         constraints: BoxConstraints(
-          maxWidth: 520,
-          maxHeight: MediaQuery.of(context).size.height * 0.92,
+          maxWidth: 480,
+          maxHeight: MediaQuery.of(context).size.height * 0.88,
         ),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -101,12 +107,12 @@ class _CashPaymentDialogState extends State<CashPaymentDialog> {
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.payments, color: AppConfig.accentGreen, size: 28),
-                      SizedBox(width: 10),
+                      Icon(Icons.payments_outlined, color: Color(0xFF0F172A), size: 22),
+                      SizedBox(width: 8),
                       Text(
                         'Cash Payment & Change',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF0F172A),
                         ),
@@ -114,7 +120,9 @@ class _CashPaymentDialogState extends State<CashPaymentDialog> {
                     ],
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Color(0xFF64748B)),
+                    icon: const Icon(Icons.close, color: Color(0xFF64748B), size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
                     onPressed: () {
                       if (Navigator.of(context).canPop()) {
                         Navigator.of(context).pop(null);
@@ -123,14 +131,14 @@ class _CashPaymentDialogState extends State<CashPaymentDialog> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
-              // Total Due vs Change Calculation
+              // Total Due vs Change Calculation Card
               Container(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
                 child: Row(
@@ -139,29 +147,29 @@ class _CashPaymentDialogState extends State<CashPaymentDialog> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('TOTAL DUE', style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 4),
+                          const Text('TOTAL DUE', style: TextStyle(color: Color(0xFF64748B), fontSize: 10, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 2),
                           Text(
                             '$currency${widget.totalAmount.toStringAsFixed(2)}',
-                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                           ),
                         ],
                       ),
                     ),
-                    Container(height: 40, width: 1, color: const Color(0xFFCBD5E1)),
-                    const SizedBox(width: 16),
+                    Container(height: 36, width: 1, color: const Color(0xFFCBD5E1)),
+                    const SizedBox(width: 14),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('CHANGE DUE', style: TextStyle(color: Color(0xFF64748B), fontSize: 11, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 4),
+                          const Text('CHANGE DUE', style: TextStyle(color: Color(0xFF64748B), fontSize: 10, fontWeight: FontWeight.bold)),
+                          const SizedBox(height: 2),
                           Text(
                             '$currency${_changeAmount.toStringAsFixed(2)}',
                             style: TextStyle(
-                              fontSize: 24,
+                              fontSize: 20,
                               fontWeight: FontWeight.bold,
-                              color: _isExactOrOver ? AppConfig.accentGreenDark : AppConfig.accentRose,
+                              color: _isExactOrOver ? const Color(0xFF059669) : AppConfig.accentRose,
                             ),
                           ),
                         ],
@@ -170,7 +178,7 @@ class _CashPaymentDialogState extends State<CashPaymentDialog> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
 
               // Quick Amount Suggestion Chips
               SingleChildScrollView(
@@ -179,16 +187,17 @@ class _CashPaymentDialogState extends State<CashPaymentDialog> {
                   children: quickDenominations.map((amount) {
                     final isExact = (amount - widget.totalAmount).abs() < 0.01;
                     return Padding(
-                      padding: const EdgeInsets.only(right: 8),
+                      padding: const EdgeInsets.only(right: 6),
                       child: ActionChip(
-                        backgroundColor: isExact ? AppConfig.accentGreen.withValues(alpha: 0.15) : const Color(0xFFF1F5F9),
-                        side: BorderSide(color: isExact ? AppConfig.accentGreen : const Color(0xFFCBD5E1)),
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        backgroundColor: isExact ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+                        side: BorderSide(color: isExact ? const Color(0xFF0F172A) : const Color(0xFFCBD5E1)),
                         label: Text(
                           isExact ? 'Exact ($currency${amount.toStringAsFixed(2)})' : '$currency${amount.toStringAsFixed(2)}',
                           style: TextStyle(
-                            color: isExact ? AppConfig.accentGreenDark : const Color(0xFF334155),
+                            color: isExact ? Colors.white : const Color(0xFF334155),
                             fontWeight: FontWeight.bold,
-                            fontSize: 12,
+                            fontSize: 11.5,
                           ),
                         ),
                         onPressed: () => _addQuickTender(amount),
@@ -197,27 +206,27 @@ class _CashPaymentDialogState extends State<CashPaymentDialog> {
                   }).toList(),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
 
-              // Tendered Input Display
+              // Tendered Input Display Box
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: _isExactOrOver ? AppConfig.accentGreen : AppConfig.accentRose,
+                    color: _isExactOrOver ? const Color(0xFF0F172A) : AppConfig.accentRose,
                     width: 1.5,
                   ),
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Cash Tendered:', style: TextStyle(color: Color(0xFF64748B), fontSize: 14)),
+                    const Text('Cash Tendered:', style: TextStyle(color: Color(0xFF64748B), fontSize: 13)),
                     Text(
                       _tenderedInput.isEmpty ? '$currency 0.00' : '$currency $_tenderedInput',
                       style: const TextStyle(
-                        fontSize: 22,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF0F172A),
                       ),
@@ -225,45 +234,45 @@ class _CashPaymentDialogState extends State<CashPaymentDialog> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
 
-              // Numpad Grid
+              // Responsive Numeric Keypad (4 columns x 4 rows)
               GridView.count(
-                crossAxisCount: 4,
                 shrinkWrap: true,
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                childAspectRatio: 1.55,
                 physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: 4,
+                mainAxisSpacing: 6,
+                crossAxisSpacing: 6,
+                childAspectRatio: 2.1,
                 children: [
                   _buildNumKey('1'),
                   _buildNumKey('2'),
                   _buildNumKey('3'),
-                  _buildActionKey('C', _clear, color: AppConfig.accentRose),
+                  _buildActionKey('⌫', _backspace, color: const Color(0xFF64748B)),
                   _buildNumKey('4'),
                   _buildNumKey('5'),
                   _buildNumKey('6'),
-                  _buildActionKey('⌫', _backspace, color: AppConfig.accentAmber),
+                  _buildActionKey('C', _clear, color: AppConfig.accentRose),
                   _buildNumKey('7'),
                   _buildNumKey('8'),
                   _buildNumKey('9'),
+                  _buildActionKey('Exact', () => _addQuickTender(widget.totalAmount), color: const Color(0xFF0F172A)),
                   _buildNumKey('00'),
-                  _buildNumKey('.'),
                   _buildNumKey('0'),
-                  _buildNumKey('50'),
-                  _buildNumKey('100'),
+                  _buildNumKey('.'),
+                  _buildActionKey('+10', () => _addIncrement(10), color: const Color(0xFF2563EB)),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
 
               // Complete Payment Button
               SizedBox(
-                height: 52,
+                height: 46,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _isExactOrOver ? AppConfig.accentGreen : const Color(0xFFCBD5E1),
+                    backgroundColor: _isExactOrOver ? const Color(0xFF0F172A) : const Color(0xFFCBD5E1),
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     elevation: 0,
                   ),
                   onPressed: _isExactOrOver
@@ -274,12 +283,12 @@ class _CashPaymentDialogState extends State<CashPaymentDialog> {
                           }
                         }
                       : null,
-                  icon: const Icon(Icons.check_circle, size: 22),
+                  icon: const Icon(Icons.check_circle, size: 18),
                   label: Text(
                     _isExactOrOver
                         ? 'Complete Cash Sale ($currency${_tenderedAmount.toStringAsFixed(2)})'
                         : 'Amount Less Than Total Due',
-                    style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                    style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold),
                   ),
                 ),
               ),
@@ -303,7 +312,7 @@ class _CashPaymentDialogState extends State<CashPaymentDialog> {
         ),
         child: Text(
           label,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
         ),
       ),
     );
@@ -316,13 +325,13 @@ class _CashPaymentDialogState extends State<CashPaymentDialog> {
       child: Container(
         alignment: Alignment.center,
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
+          color: color.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withValues(alpha: 0.4)),
+          border: Border.all(color: color.withValues(alpha: 0.25)),
         ),
         child: Text(
           label,
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color),
+          style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: color),
         ),
       ),
     );
@@ -380,124 +389,132 @@ class _QrPaymentDialogState extends State<QrPaymentDialog> {
     return Dialog(
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Container(
-        width: 420,
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Header
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.qr_code_2, color: AppConfig.accentCyan, size: 28),
-                    SizedBox(width: 10),
-                    Text(
-                      'Customer QR Payment',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                    ),
-                  ],
-                ),
-                IconButton(
-                  icon: const Icon(Icons.close, color: Color(0xFF64748B)),
-                  onPressed: () {
-                    if (Navigator.of(context).canPop()) {
-                      Navigator.of(context).pop(false);
-                    }
-                  },
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-
-            // Amount Display Card
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: Row(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 380,
+          maxHeight: MediaQuery.of(context).size.height * 0.88,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header
+              Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('TOTAL DUE:', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold, fontSize: 13)),
-                  Text(
-                    '$currency${widget.totalAmount.toStringAsFixed(2)}',
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppConfig.accentGreenDark),
+                  const Row(
+                    children: [
+                      Icon(Icons.qr_code_2, color: Color(0xFF0F172A), size: 22),
+                      SizedBox(width: 8),
+                      Text(
+                        'Customer QR Payment',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                      ),
+                    ],
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Color(0xFF64748B), size: 20),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () {
+                      if (Navigator.of(context).canPop()) {
+                        Navigator.of(context).pop(false);
+                      }
+                    },
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 20),
+              const SizedBox(height: 12),
 
-            // High-Resolution Dynamic QR Code Container
-            Center(
-              child: Container(
-                padding: const EdgeInsets.all(16),
+              // Amount Display Card
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppConfig.accentCyan.withValues(alpha: 0.18),
-                      blurRadius: 16,
-                      spreadRadius: 2,
-                    ),
-                  ],
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
-                child: QrImageView(
-                  data: widget.qrPayload,
-                  version: QrVersions.auto,
-                  size: 190.0,
-                  backgroundColor: Colors.white,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('TOTAL DUE:', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold, fontSize: 11.5)),
+                    Text(
+                      '$currency${widget.totalAmount.toStringAsFixed(2)}',
+                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
-            // Countdown Timer
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.timer_outlined, color: AppConfig.accentAmber, size: 18),
-                const SizedBox(width: 6),
-                Text(
-                  'Expires in $minutes:$seconds',
-                  style: const TextStyle(color: Color(0xFF92400E), fontWeight: FontWeight.w600, fontSize: 13),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Confirm Button
-            SizedBox(
-              height: 50,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppConfig.accentGreen,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
-                ),
-                onPressed: () {
-                  widget.onPaymentConfirmed?.call();
-                  if (Navigator.of(context).canPop()) {
-                    Navigator.of(context).pop(true);
-                  }
-                },
-                icon: const Icon(Icons.done_all, size: 22),
-                label: const Text(
-                  'Confirm Payment Received',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+              // Dynamic QR Code Container
+              Center(
+                child: Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(12),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 10,
+                        spreadRadius: 1,
+                      ),
+                    ],
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: QrImageView(
+                    data: widget.qrPayload,
+                    version: QrVersions.auto,
+                    size: 140.0,
+                    backgroundColor: Colors.white,
+                  ),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 10),
+
+              // Countdown Timer
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.timer_outlined, color: AppConfig.accentAmber, size: 16),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Expires in $minutes:$seconds',
+                    style: const TextStyle(color: Color(0xFF92400E), fontWeight: FontWeight.w600, fontSize: 12),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 14),
+
+              // Confirm Button
+              SizedBox(
+                height: 44,
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    elevation: 0,
+                  ),
+                  onPressed: () {
+                    widget.onPaymentConfirmed?.call();
+                    if (Navigator.of(context).canPop()) {
+                      Navigator.of(context).pop(true);
+                    }
+                  },
+                  icon: const Icon(Icons.done_all, size: 18),
+                  label: const Text(
+                    'Confirm Payment Received',
+                    style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

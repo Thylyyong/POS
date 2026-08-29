@@ -105,6 +105,7 @@ class Product {
   final String categoryId;
   final String? subcategoryId;
   final String name;
+  final String? description;
   final double price;
   final double cost;
   final String? barcode;
@@ -118,6 +119,7 @@ class Product {
     required this.categoryId,
     this.subcategoryId,
     required this.name,
+    this.description,
     required this.price,
     this.cost = 0.0,
     this.barcode,
@@ -133,6 +135,7 @@ class Product {
       'category_id': categoryId,
       'subcategory_id': subcategoryId,
       'name': name,
+      'description': description,
       'price': price,
       'cost': cost,
       'barcode': barcode,
@@ -149,6 +152,7 @@ class Product {
       categoryId: map['category_id'] as String,
       subcategoryId: map['subcategory_id'] as String?,
       name: map['name'] as String,
+      description: map['description'] as String?,
       price: (map['price'] as num).toDouble(),
       cost: (map['cost'] as num?)?.toDouble() ?? 0.0,
       barcode: map['barcode'] as String?,
@@ -166,6 +170,7 @@ class Product {
     String? categoryId,
     String? subcategoryId,
     String? name,
+    String? description,
     double? price,
     double? cost,
     String? barcode,
@@ -179,6 +184,7 @@ class Product {
       categoryId: categoryId ?? this.categoryId,
       subcategoryId: subcategoryId ?? this.subcategoryId,
       name: name ?? this.name,
+      description: description ?? this.description,
       price: price ?? this.price,
       cost: cost ?? this.cost,
       barcode: barcode ?? this.barcode,

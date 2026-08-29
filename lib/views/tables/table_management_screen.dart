@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../app_config.dart';
 import '../../controllers/cart_controller.dart';
@@ -50,7 +50,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.table_restaurant, color: AppConfig.accentGreen, size: 26),
+                    Icon(Icons.table_restaurant_outlined, color: Color(0xFF0F172A), size: 24),
                     SizedBox(width: 10),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -74,7 +74,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                 const Spacer(),
 
                 // Metric Badges
-                _buildMetricBadge('Available', '${tableCtrl.availableCount}', AppConfig.accentGreen),
+                _buildMetricBadge('Available', '${tableCtrl.availableCount}', const Color(0xFF059669)),
                 const SizedBox(width: 10),
                 _buildMetricBadge('Occupied', '${tableCtrl.occupiedCount}', AppConfig.accentAmber),
                 const SizedBox(width: 10),
@@ -84,13 +84,13 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                 // "+ Add Table / VIP Room" Button
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppConfig.accentGreen,
+                    backgroundColor: const Color(0xFF0F172A),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   onPressed: () => _showAddTableDialog(context),
-                  icon: const Icon(Icons.add_circle_outline, size: 18),
+                  icon: const Icon(Icons.add, size: 18),
                   label: const Text('Add Table / Room', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
@@ -99,37 +99,41 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
 
           // ── Filter Chips Bar ────────────────────────────────────────────────
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
             color: const Color(0xFFF1F5F9),
-            child: Row(
-              children: [
-                const Text(
-                  'Filters: ',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF475569)),
-                ),
-                const SizedBox(width: 8),
-                _buildStatusFilterChip(tableCtrl, 'All Status', null),
-                const SizedBox(width: 6),
-                _buildStatusFilterChip(tableCtrl, 'Available Only', TableStatus.available),
-                const SizedBox(width: 6),
-                _buildStatusFilterChip(tableCtrl, 'Occupied Only', TableStatus.occupied),
-                const SizedBox(width: 16),
-                Container(height: 20, width: 1, color: const Color(0xFFCBD5E1)),
-                const SizedBox(width: 16),
-                _buildTypeFilterChip(tableCtrl, 'All Types', null),
-                const SizedBox(width: 6),
-                _buildTypeFilterChip(tableCtrl, 'Standard', TableType.standard),
-                const SizedBox(width: 6),
-                _buildTypeFilterChip(tableCtrl, 'VIP Suites', TableType.vipRoom),
-                const SizedBox(width: 6),
-                _buildTypeFilterChip(tableCtrl, 'Patio / Outdoor', TableType.outdoor),
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.refresh, color: AppConfig.accentGreen),
-                  tooltip: 'Refresh Floor',
-                  onPressed: () => tableCtrl.loadTables(),
-                ),
-              ],
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  const Text(
+                    'Filters: ',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF475569)),
+                  ),
+                  const SizedBox(width: 8),
+                  _buildStatusFilterChip(tableCtrl, 'All Status', null),
+                  const SizedBox(width: 6),
+                  _buildStatusFilterChip(tableCtrl, 'Available Only', TableStatus.available),
+                  const SizedBox(width: 6),
+                  _buildStatusFilterChip(tableCtrl, 'Occupied Only', TableStatus.occupied),
+                  const SizedBox(width: 16),
+                  Container(height: 20, width: 1, color: const Color(0xFFCBD5E1)),
+                  const SizedBox(width: 16),
+                  _buildTypeFilterChip(tableCtrl, 'All Types', null),
+                  const SizedBox(width: 6),
+                  _buildTypeFilterChip(tableCtrl, 'Standard', TableType.standard),
+                  const SizedBox(width: 6),
+                  _buildTypeFilterChip(tableCtrl, 'VIP Suites', TableType.vipRoom),
+                  const SizedBox(width: 6),
+                  _buildTypeFilterChip(tableCtrl, 'Patio / Outdoor', TableType.outdoor),
+                  const SizedBox(width: 16),
+                  IconButton(
+                    icon: const Icon(Icons.refresh, color: AppConfig.accentGreen),
+                    tooltip: 'Refresh Floor',
+                    onPressed: () => tableCtrl.loadTables(),
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -144,18 +148,23 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                           style: TextStyle(color: Color(0xFF94A3B8), fontSize: 15),
                         ),
                       )
-                    : GridView.builder(
-                        padding: const EdgeInsets.all(24),
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 4,
-                          childAspectRatio: 1.25,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                        ),
-                        itemCount: tables.length,
-                        itemBuilder: (context, index) {
-                          final table = tables[index];
-                          return _buildTableCard(context, table, cartCtrl, posCtrl, tableCtrl);
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          final crossAxisCount = (constraints.maxWidth / 240).floor().clamp(2, 4);
+                          return GridView.builder(
+                            padding: const EdgeInsets.all(20),
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: crossAxisCount,
+                              childAspectRatio: 0.98,
+                              crossAxisSpacing: 14,
+                              mainAxisSpacing: 14,
+                            ),
+                            itemCount: tables.length,
+                            itemBuilder: (context, index) {
+                              final table = tables[index];
+                              return _buildTableCard(context, table, cartCtrl, posCtrl, tableCtrl);
+                            },
+                          );
                         },
                       ),
           ),
@@ -195,14 +204,14 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
       label: Text(label),
       selected: isSelected,
       onSelected: (_) => ctrl.setFilterStatus(status),
-      selectedColor: AppConfig.accentGreen.withValues(alpha: 0.18),
+      selectedColor: const Color(0xFF0F172A),
       backgroundColor: Colors.white,
       labelStyle: TextStyle(
         fontSize: 12,
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-        color: isSelected ? AppConfig.accentGreenDark : const Color(0xFF475569),
+        color: isSelected ? Colors.white : const Color(0xFF475569),
       ),
-      side: BorderSide(color: isSelected ? AppConfig.accentGreen : const Color(0xFFCBD5E1)),
+      side: BorderSide(color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFCBD5E1)),
     );
   }
 
@@ -261,37 +270,39 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
           children: [
             // Row 1: Table # + Status Badge + Menu popup
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: isVip ? AppConfig.accentPurple.withValues(alpha: 0.15) : const Color(0xFF0F172A).withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Row(
-                        children: [
-                          if (isVip) ...[
-                            const Icon(Icons.star, size: 14, color: AppConfig.accentPurple),
-                            const SizedBox(width: 4),
-                          ],
-                          Text(
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isVip ? AppConfig.accentPurple.withValues(alpha: 0.15) : const Color(0xFF0F172A).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (isVip) ...[
+                          const Icon(Icons.star, size: 14, color: AppConfig.accentPurple),
+                          const SizedBox(width: 4),
+                        ],
+                        Flexible(
+                          child: Text(
                             table.tableNumber,
+                            overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                              fontSize: 14,
                               color: isVip ? AppConfig.accentPurple : const Color(0xFF0F172A),
                             ),
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
+                const SizedBox(width: 6),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
                     color: statusColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
@@ -299,15 +310,19 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                   child: Text(
                     table.status.displayName,
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 9.5,
                       fontWeight: FontWeight.bold,
                       color: statusColor,
                     ),
                   ),
                 ),
-                PopupMenuButton<String>(
-                  icon: const Icon(Icons.more_vert, size: 18, color: Color(0xFF94A3B8)),
-                  padding: EdgeInsets.zero,
+                const SizedBox(width: 2),
+                SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: PopupMenuButton<String>(
+                    icon: const Icon(Icons.more_vert, size: 18, color: Color(0xFF94A3B8)),
+                    padding: EdgeInsets.zero,
                   onSelected: (val) {
                     if (val == 'free') {
                       tableCtrl.freeTable(table.id);
@@ -339,7 +354,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                     ),
                   ],
                 ),
-              ],
+             ), ],
             ),
 
             // Row 2: Table Name & Capacity
@@ -424,7 +439,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                     )
                   : ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppConfig.accentGreen,
+                        backgroundColor: const Color(0xFF0F172A),
                         foregroundColor: Colors.white,
                         padding: EdgeInsets.zero,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

@@ -8,7 +8,11 @@ class StoreSettingsModel {
   final String footerNote;
   final String? logoPath;
 
-  // Hardware Toggles
+  // Display & Template Layout Customizations
+  final double fontSizeScale; // 0.9 (Small), 1.0 (Normal), 1.15 (Large), 1.30 (XL)
+  final String gridTemplate; // '3x6' (Large Cards), '4x6' (Standard Grid), '5x5' (High Density)
+
+  // System & Peripheral Settings
   final bool autoPrintOnPayment;
   final bool autoKickCashDrawer;
   final bool cfdEnabled;
@@ -25,6 +29,8 @@ class StoreSettingsModel {
     this.defaultTaxRate = 10.0,
     this.footerNote = 'Thank you for dining with us!\nPlease visit again.',
     this.logoPath,
+    this.fontSizeScale = 1.0,
+    this.gridTemplate = '4x6',
     this.autoPrintOnPayment = true,
     this.autoKickCashDrawer = true,
     this.cfdEnabled = true,
@@ -43,6 +49,8 @@ class StoreSettingsModel {
       'default_tax_rate': defaultTaxRate.toString(),
       'footer_note': footerNote,
       'logo_path': logoPath ?? '',
+      'font_size_scale': fontSizeScale.toString(),
+      'grid_template': gridTemplate,
       'auto_print_on_payment': autoPrintOnPayment ? '1' : '0',
       'auto_kick_cash_drawer': autoKickCashDrawer ? '1' : '0',
       'cfd_enabled': cfdEnabled ? '1' : '0',
@@ -62,6 +70,8 @@ class StoreSettingsModel {
       defaultTaxRate: double.tryParse(map['default_tax_rate'] ?? '10.0') ?? 10.0,
       footerNote: map['footer_note'] ?? 'Thank you for dining with us!\nPlease visit again.',
       logoPath: (map['logo_path']?.isNotEmpty ?? false) ? map['logo_path'] : null,
+      fontSizeScale: double.tryParse(map['font_size_scale'] ?? '1.0') ?? 1.0,
+      gridTemplate: map['grid_template'] ?? '4x6',
       autoPrintOnPayment: (map['auto_print_on_payment'] ?? '1') == '1',
       autoKickCashDrawer: (map['auto_kick_cash_drawer'] ?? '1') == '1',
       cfdEnabled: (map['cfd_enabled'] ?? '1') == '1',
@@ -80,6 +90,8 @@ class StoreSettingsModel {
     double? defaultTaxRate,
     String? footerNote,
     String? logoPath,
+    double? fontSizeScale,
+    String? gridTemplate,
     bool? autoPrintOnPayment,
     bool? autoKickCashDrawer,
     bool? cfdEnabled,
@@ -96,6 +108,8 @@ class StoreSettingsModel {
       defaultTaxRate: defaultTaxRate ?? this.defaultTaxRate,
       footerNote: footerNote ?? this.footerNote,
       logoPath: logoPath ?? this.logoPath,
+      fontSizeScale: fontSizeScale ?? this.fontSizeScale,
+      gridTemplate: gridTemplate ?? this.gridTemplate,
       autoPrintOnPayment: autoPrintOnPayment ?? this.autoPrintOnPayment,
       autoKickCashDrawer: autoKickCashDrawer ?? this.autoKickCashDrawer,
       cfdEnabled: cfdEnabled ?? this.cfdEnabled,

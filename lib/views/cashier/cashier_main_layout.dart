@@ -37,36 +37,51 @@ class _CashierMainLayoutState extends State<CashierMainLayout> {
 
   @override
   Widget build(BuildContext context) {
+    final isPosTab = _currentTab == CashierNavTab.pos;
+
     return PopScope(
-      canPop: false, // Prevents accidentally popping root cashier screen
+      canPop: false,
       child: Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
         body: Column(
           children: [
-            // Global error banners (settings + POS)
+            // Global error banners
             _SettingsErrorBanner(),
             _PosErrorBanner(),
 
             Expanded(
-              child: Row(
-                children: [
-                  // 1. Sidebar navigation rail
-                  NavSidebar(
-                    currentTab: _currentTab,
-                    onTabChanged: (tab) => setState(() => _currentTab = tab),
-                  ),
-
-                  // 2. Main content area
-                  Expanded(
-                    child: Column(
+              child: isPosTab
+                  // ── POS tab: no sidebar, top bar + full-width cashier layout ──
+                  ? Column(
                       children: [
-                        // Store name + hardware status
-                        const TopHeaderBar(),
-
-                        // Body — animated cross-fade on tab switch
+                        TopHeaderBar(onNavigate: _navigateToTab),
+                        Expanded(
+                          child: Row(
+                            children: [
+                              const Expanded(flex: 65, child: ItemGrid()),
+                              Expanded(
+                                flex: 35,
+                                child: CartPanel(
+                                  onOpenTablePicker: () =>
+                                      _navigateToTab(CashierNavTab.tables),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    )
+                  // ── Other tabs: light sidebar + sub-screen ─────────────────
+                  : Row(
+                      children: [
+                        NavSidebar(
+                          currentTab: _currentTab,
+                          onTabChanged: (tab) =>
+                              setState(() => _currentTab = tab),
+                        ),
                         Expanded(
                           child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 220),
+                            duration: const Duration(milliseconds: 200),
                             switchInCurve: Curves.easeOut,
                             switchOutCurve: Curves.easeIn,
                             transitionBuilder: (child, animation) =>
@@ -79,9 +94,6 @@ class _CashierMainLayoutState extends State<CashierMainLayout> {
                         ),
                       ],
                     ),
-                  ),
-                ],
-              ),
             ),
           ],
         ),
@@ -92,14 +104,8 @@ class _CashierMainLayoutState extends State<CashierMainLayout> {
   Widget _buildView(CashierNavTab tab) {
     switch (tab) {
       case CashierNavTab.pos:
-        return Row(
-          children: [
-            const Expanded(child: ItemGrid()),
-            CartPanel(
-              onOpenTablePicker: () => _navigateToTab(CashierNavTab.tables),
-            ),
-          ],
-        );
+        // This case is handled above; won't be reached normally
+        return const SizedBox.shrink();
       case CashierNavTab.tables:
         return TableManagementScreen(
           onSwitchToPos: () => _navigateToTab(CashierNavTab.pos),
@@ -118,14 +124,12 @@ class _CashierMainLayoutState extends State<CashierMainLayout> {
   }
 }
 
-// ── Error banner helpers — only rebuild when error string changes ──────────────
+// ── Error banner helpers ────────────────────────────────────────────────────
 
 class _SettingsErrorBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final error = context.select<SettingsController, String?>(
-      (c) => c.error,
-    );
+    final error = context.select<SettingsController, String?>((c) => c.error);
     if (error == null) return const SizedBox.shrink();
     return ErrorBanner(
       message: error,
@@ -137,9 +141,7 @@ class _SettingsErrorBanner extends StatelessWidget {
 class _PosErrorBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final error = context.select<PosController, String?>(
-      (c) => c.error,
-    );
+    final error = context.select<PosController, String?>((c) => c.error);
     if (error == null) return const SizedBox.shrink();
     return ErrorBanner(
       message: error,

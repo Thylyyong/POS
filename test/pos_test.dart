@@ -147,4 +147,22 @@ void main() {
       expect(bytes.length, greaterThan(20));
     });
   });
+
+  group('StoreSettingsModel Display & Template Tests', () {
+    test('Stores and serializes custom font scale and grid template', () {
+      const model = StoreSettingsModel(
+        storeName: 'Artisan Cafe',
+        fontSizeScale: 1.15,
+        gridTemplate: '3x6',
+      );
+
+      final map = model.toMap();
+      expect(map['font_size_scale'], '1.15');
+      expect(map['grid_template'], '3x6');
+
+      final reconstructed = StoreSettingsModel.fromMap(map);
+      expect(reconstructed.fontSizeScale, 1.15);
+      expect(reconstructed.gridTemplate, '3x6');
+    });
+  });
 }

@@ -26,8 +26,7 @@ class AppLogoWidget extends StatelessWidget {
   bool get _hasFileLogo =>
       logoPath != null &&
       logoPath!.trim().isNotEmpty &&
-      !logoPath!.trim().startsWith('assets/') &&
-      File(logoPath!.trim()).existsSync();
+      !logoPath!.trim().startsWith('assets/');
 
   ImageProvider? get _imageProvider {
     if (_hasAssetLogo) {
@@ -48,10 +47,10 @@ class AppLogoWidget extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: hasImage ? Colors.transparent : AppConfig.accentGreen,
+        color: hasImage ? Colors.transparent : const Color(0xFF0F172A),
         gradient: !hasImage
             ? const LinearGradient(
-                colors: [AppConfig.accentGreen, AppConfig.accentCyan],
+                colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               )
@@ -60,9 +59,9 @@ class AppLogoWidget extends StatelessWidget {
         boxShadow: boxShadow ??
             [
               BoxShadow(
-                color: AppConfig.accentGreen.withValues(alpha: 0.25),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
               ),
             ],
       ),
@@ -80,7 +79,7 @@ class AppLogoWidget extends StatelessWidget {
                     height: size,
                     decoration: const BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [AppConfig.accentGreen, AppConfig.accentCyan],
+                        colors: [Color(0xFF0F172A), Color(0xFF1E293B)],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),

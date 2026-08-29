@@ -69,14 +69,14 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.receipt_long, color: AppConfig.accentGreen, size: 26),
+                    Icon(Icons.receipt_long_outlined, color: Color(0xFF0F172A), size: 24),
                     SizedBox(width: 10),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Receipt Archive & PDF Folder',
-                          style: TextStyle(color: Color(0xFF0F172A), fontSize: 18, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: Color(0xFF0F172A), fontSize: 17, fontWeight: FontWeight.bold),
                         ),
                         Text(
                           'View receipts, open saved PDF files, reprint, or share',
@@ -90,8 +90,8 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
 
                 // Search Bar
                 SizedBox(
-                  width: 300,
-                  height: 42,
+                  width: 280,
+                  height: 38,
                   child: TextField(
                     onChanged: (val) {
                       _searchQuery = val;
@@ -109,11 +109,11 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
 
                 // Refresh Button
                 IconButton(
-                  icon: const Icon(Icons.refresh, color: AppConfig.accentGreen),
+                  icon: const Icon(Icons.refresh, color: Color(0xFF64748B), size: 20),
                   tooltip: 'Refresh',
                   onPressed: _loadData,
                 ),
@@ -133,13 +133,13 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                 _buildTabButton(
                   tab: HistoryTab.orders,
                   title: 'Order Transactions (${_orders.length})',
-                  icon: Icons.receipt,
+                  icon: Icons.receipt_long_outlined,
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 _buildTabButton(
                   tab: HistoryTab.folder,
-                  title: '📁 Saved PDF Folder (${_pdfFiles.length} files)',
-                  icon: Icons.folder_open,
+                  title: 'Saved PDF Folder (${_pdfFiles.length} files)',
+                  icon: Icons.folder_outlined,
                 ),
                 const Spacer(),
                 const Text(
@@ -153,7 +153,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
           // Content Body
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: AppConfig.accentGreen))
+                ? const Center(child: CircularProgressIndicator(color: Color(0xFF0F172A)))
                 : _activeTab == HistoryTab.orders
                     ? _buildOrdersListView(context, settings, currency, posCtrl)
                     : _buildPdfFolderView(context, settings),
@@ -173,12 +173,12 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
       onTap: () => setState(() => _activeTab = tab),
       borderRadius: BorderRadius.circular(8),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: isSelected ? Colors.white : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? AppConfig.accentGreen : Colors.transparent,
+            color: isSelected ? const Color(0xFFE2E8F0) : Colors.transparent,
           ),
           boxShadow: isSelected
               ? [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4, offset: const Offset(0, 1))]
@@ -187,7 +187,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: isSelected ? AppConfig.accentGreenDark : const Color(0xFF64748B)),
+            Icon(icon, size: 16, color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF64748B)),
             const SizedBox(width: 8),
             Text(
               title,
@@ -239,23 +239,26 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
             children: [
               // Receipt Number & Order ID
               Expanded(
-                flex: 4,
+                flex: 5,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Text(
-                          order.receiptNo,
-                          style: const TextStyle(
-                            color: Color(0xFF0F172A),
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            fontFamily: 'monospace',
+                        Flexible(
+                          child: Text(
+                            order.receiptNo,
+                            style: const TextStyle(
+                              color: Color(0xFF0F172A),
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              fontFamily: 'monospace',
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                         if (order.orderNumber != null) ...[
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 6),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
@@ -263,15 +266,15 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
-                              'Order #${order.orderNumber}',
-                              style: const TextStyle(color: AppConfig.accentGreenDark, fontSize: 11, fontWeight: FontWeight.bold),
+                              '#${order.orderNumber}',
+                              style: const TextStyle(color: AppConfig.accentGreenDark, fontSize: 10.5, fontWeight: FontWeight.bold),
                             ),
                           ),
                         ],
                       ],
                     ),
                     const SizedBox(height: 2),
-                    Text(dateStr, style: const TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+                    Text(dateStr, style: const TextStyle(color: Color(0xFF64748B), fontSize: 11.5)),
                   ],
                 ),
               ),

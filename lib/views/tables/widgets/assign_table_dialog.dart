@@ -118,11 +118,14 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
     return Dialog(
       backgroundColor: Colors.white,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 620, maxHeight: 700),
+        constraints: BoxConstraints(
+          maxWidth: 580,
+          maxHeight: MediaQuery.of(context).size.height * 0.88,
+        ),
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -132,12 +135,12 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.table_restaurant, color: AppConfig.accentGreen, size: 26),
+                      Icon(Icons.table_restaurant_outlined, color: Color(0xFF0F172A), size: 24),
                       SizedBox(width: 10),
                       Text(
                         'Select Table & Customer',
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 17,
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF0F172A),
                         ),
@@ -450,10 +453,10 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: isSelectedOccupied
-                            ? (cartCtrl.isEmpty ? AppConfig.accentAmber : AppConfig.accentPurple)
-                            : AppConfig.accentGreen,
+                            ? (cartCtrl.isEmpty ? AppConfig.accentAmber : const Color(0xFF0F172A))
+                            : const Color(0xFF0F172A),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                       onPressed: _isLoadingOrder ? null : () => _handleConfirm(cartCtrl, posCtrl),
                       icon: _isLoadingOrder
@@ -499,16 +502,16 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: isSelected ? AppConfig.accentGreen.withValues(alpha: 0.15) : const Color(0xFFF1F5F9),
+          color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: isSelected ? AppConfig.accentGreen : const Color(0xFFCBD5E1)),
+          border: Border.all(color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFCBD5E1)),
         ),
         child: Text(
           label,
           style: TextStyle(
             fontSize: 11,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-            color: isSelected ? AppConfig.accentGreenDark : const Color(0xFF475569),
+            color: isSelected ? Colors.white : const Color(0xFF475569),
           ),
         ),
       ),

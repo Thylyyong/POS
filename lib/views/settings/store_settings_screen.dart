@@ -1,13 +1,10 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../app_config.dart';
 import '../../controllers/settings_controller.dart';
 import '../../models/store_settings_model.dart';
-import '../../services/presentation_service.dart';
 import '../../widgets/app_logo_widget.dart';
 import '../../widgets/image_picker_dialog.dart';
-import '../customer_display/customer_main_view.dart';
 
 class StoreSettingsScreen extends StatefulWidget {
   const StoreSettingsScreen({super.key});
@@ -26,13 +23,10 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
   late TextEditingController _currencyCtrl;
   late TextEditingController _taxCtrl;
   late TextEditingController _footerCtrl;
-  late TextEditingController _printerIpCtrl;
-  late TextEditingController _qrTemplateCtrl;
 
-  late bool _autoPrint;
-  late bool _autoDrawer;
+  late double _fontSizeScale;
+  late String _gridTemplate;
   late bool _cfdEnabled;
-  late bool _is80mm;
   String? _logoPath;
   bool _isSaving = false;
 
@@ -47,13 +41,10 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
     _currencyCtrl = TextEditingController(text: s.currencySymbol);
     _taxCtrl = TextEditingController(text: s.defaultTaxRate.toString());
     _footerCtrl = TextEditingController(text: s.footerNote);
-    _printerIpCtrl = TextEditingController(text: s.printerIpOrAddress);
-    _qrTemplateCtrl = TextEditingController(text: s.qrPayloadTemplate);
 
-    _autoPrint = s.autoPrintOnPayment;
-    _autoDrawer = s.autoKickCashDrawer;
+    _fontSizeScale = s.fontSizeScale;
+    _gridTemplate = s.gridTemplate;
     _cfdEnabled = s.cfdEnabled;
-    _is80mm = s.isPaperSize80mm;
     _logoPath = s.logoPath;
   }
 
@@ -66,15 +57,10 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
     _currencyCtrl.dispose();
     _taxCtrl.dispose();
     _footerCtrl.dispose();
-    _printerIpCtrl.dispose();
-    _qrTemplateCtrl.dispose();
     super.dispose();
   }
 
-  bool get _hasLogo =>
-      _logoPath != null &&
-      _logoPath!.trim().isNotEmpty &&
-      (_logoPath!.trim().startsWith('assets/') || File(_logoPath!.trim()).existsSync());
+  bool get _hasLogo => _logoPath != null && _logoPath!.trim().isNotEmpty;
 
   Future<void> _pickStoreLogo() async {
     final pickedPath = await ImagePickerDialog.pickImage(
@@ -106,13 +92,13 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.settings, color: AppConfig.accentGreen, size: 26),
+                    Icon(Icons.settings_outlined, color: Color(0xFF0F172A), size: 24),
                     SizedBox(width: 10),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Store & Hardware Settings',
+                          'Store & App Settings',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -120,7 +106,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                           ),
                         ),
                         Text(
-                          'Configure store profile logo, thermal printer, tax, and dual-screen CFD',
+                          'Configure store profile info, display font size, and product grid template',
                           style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                         ),
                       ],
@@ -129,14 +115,15 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                 ),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppConfig.accentGreen,
+                    backgroundColor: const Color(0xFF0F172A),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   onPressed: _isSaving ? null : () => _saveSettings(context),
-                  icon: const Icon(Icons.save, size: 18),
-                  label: Text(_isSaving ? 'Saving...' : 'Save Settings', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  icon: const Icon(Icons.save_outlined, size: 18),
+                  label: Text(_isSaving ? 'Saving...' : 'Save Settings',
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
             ),
@@ -151,8 +138,9 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Column 1: Store Info, Logo & Financial
+                    // Column 1: Store Profile & Information
                     Expanded(
+                      flex: 5,
                       child: Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
@@ -160,15 +148,25 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(color: const Color(0xFFE2E8F0)),
                           boxShadow: [
-                            BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 2)),
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.02),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
                           ],
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              'Store Profile & Brand Logo',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                            const Row(
+                              children: [
+                                Icon(Icons.storefront_outlined, color: Color(0xFF0F172A), size: 20),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Store Profile & Identity',
+                                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 16),
 
@@ -177,26 +175,37 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                               children: [
                                 AppLogoWidget(
                                   logoPath: _logoPath,
-                                  size: 72,
-                                  borderRadius: 16,
+                                  size: 64,
+                                  borderRadius: 14,
                                   fallbackIcon: Icons.storefront,
                                 ),
-                                const SizedBox(width: 16),
+                                const SizedBox(width: 14),
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       OutlinedButton.icon(
                                         onPressed: _pickStoreLogo,
-                                        icon: const Icon(Icons.photo_camera, size: 16),
-                                        label: Text(_hasLogo ? 'Change Profile Logo' : 'Upload Store Logo'),
+                                        style: OutlinedButton.styleFrom(
+                                          side: const BorderSide(color: Color(0xFFCBD5E1)),
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                        ),
+                                        icon: const Icon(Icons.photo_camera_outlined, size: 16),
+                                        label: Text(_hasLogo ? 'Change Store Logo' : 'Upload Store Logo',
+                                            style: const TextStyle(fontSize: 12.5)),
                                       ),
                                       if (_hasLogo) ...[
-                                        const SizedBox(height: 4),
+                                        const SizedBox(height: 2),
                                         TextButton(
                                           onPressed: () => setState(() => _logoPath = null),
-                                          style: TextButton.styleFrom(foregroundColor: AppConfig.accentRose, padding: EdgeInsets.zero),
-                                          child: const Text('Remove Logo', style: TextStyle(fontSize: 12)),
+                                          style: TextButton.styleFrom(
+                                            foregroundColor: AppConfig.accentRose,
+                                            padding: EdgeInsets.zero,
+                                            minimumSize: Size.zero,
+                                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          ),
+                                          child: const Text('Remove Logo', style: TextStyle(fontSize: 11.5)),
                                         ),
                                       ],
                                     ],
@@ -208,13 +217,21 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
 
                             TextFormField(
                               controller: _nameCtrl,
-                              decoration: const InputDecoration(labelText: 'Store Name'),
-                              validator: (v) => v!.isEmpty ? 'Required' : null,
+                              decoration: const InputDecoration(
+                                labelText: 'Store Name',
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              ),
+                              validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
                             ),
                             const SizedBox(height: 12),
                             TextFormField(
                               controller: _addressCtrl,
-                              decoration: const InputDecoration(labelText: 'Store Address'),
+                              decoration: const InputDecoration(
+                                labelText: 'Store Address',
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              ),
                             ),
                             const SizedBox(height: 12),
                             Row(
@@ -222,14 +239,22 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                                 Expanded(
                                   child: TextFormField(
                                     controller: _phoneCtrl,
-                                    decoration: const InputDecoration(labelText: 'Phone'),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Phone',
+                                      border: OutlineInputBorder(),
+                                      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
                                   child: TextFormField(
                                     controller: _emailCtrl,
-                                    decoration: const InputDecoration(labelText: 'Email'),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Email',
+                                      border: OutlineInputBorder(),
+                                      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -240,7 +265,11 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                                 Expanded(
                                   child: TextFormField(
                                     controller: _currencyCtrl,
-                                    decoration: const InputDecoration(labelText: 'Currency Symbol (\$, €, £, etc)'),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Currency Symbol (\$, €, £, etc)',
+                                      border: OutlineInputBorder(),
+                                      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
@@ -248,7 +277,11 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                                   child: TextFormField(
                                     controller: _taxCtrl,
                                     keyboardType: TextInputType.number,
-                                    decoration: const InputDecoration(labelText: 'Default Tax Rate (%)'),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Default Tax Rate (%)',
+                                      border: OutlineInputBorder(),
+                                      contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -256,8 +289,12 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                             const SizedBox(height: 12),
                             TextFormField(
                               controller: _footerCtrl,
-                              maxLines: 3,
-                              decoration: const InputDecoration(labelText: 'Receipt Footer Message'),
+                              maxLines: 2,
+                              decoration: const InputDecoration(
+                                labelText: 'Receipt Footer Message',
+                                border: OutlineInputBorder(),
+                                contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                              ),
                             ),
                           ],
                         ),
@@ -265,110 +302,155 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                     ),
                     const SizedBox(width: 20),
 
-                    // Column 2: Hardware Peripherals & Dual Screen
+                    // Column 2: Display Font Size, Product Grid Template & Options
                     Expanded(
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                          boxShadow: [
-                            BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 2)),
-                          ],
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Thermal Printer & Customer Display',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                      flex: 5,
+                      child: Column(
+                        children: [
+                          // App Display Font Size Card
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.02),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 16),
-                            SwitchListTile(
-                              title: const Text('Auto-Print Receipt on Checkout', style: TextStyle(fontWeight: FontWeight.w600)),
-                              subtitle: const Text('Sends ESC/POS print job immediately on payment completion', style: TextStyle(fontSize: 12)),
-                              value: _autoPrint,
-                              activeThumbColor: AppConfig.accentGreen,
-                              onChanged: (v) => setState(() => _autoPrint = v),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Row(
+                                  children: [
+                                    Icon(Icons.format_size, color: Color(0xFF0F172A), size: 20),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Display Font Size',
+                                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Adjust the global text size across all POS screens and tables',
+                                  style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                ),
+                                const SizedBox(height: 14),
+
+                                // Font scale selector pills
+                                Row(
+                                  children: [
+                                    _buildFontSizeOption('Small', '90%', 0.90),
+                                    const SizedBox(width: 8),
+                                    _buildFontSizeOption('Normal', '100%', 1.00),
+                                    const SizedBox(width: 8),
+                                    _buildFontSizeOption('Large', '115%', 1.15),
+                                    const SizedBox(width: 8),
+                                    _buildFontSizeOption('Extra', '130%', 1.30),
+                                  ],
+                                ),
+                              ],
                             ),
-                            const Divider(),
-                            SwitchListTile(
-                              title: const Text('Auto-Kick Cash Drawer', style: TextStyle(fontWeight: FontWeight.w600)),
-                              subtitle: const Text('Sends pulse signal to open cash drawer on cash sales', style: TextStyle(fontSize: 12)),
-                              value: _autoDrawer,
-                              activeThumbColor: AppConfig.accentGreen,
-                              onChanged: (v) => setState(() => _autoDrawer = v),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Product Grid Template Card
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.02),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                            const Divider(),
-                            SwitchListTile(
-                              title: const Text('Secondary Display (CFD)', style: TextStyle(fontWeight: FontWeight.w600)),
-                              subtitle: const Text('Enable Customer Facing Display mirroring via Android Presentation', style: TextStyle(fontSize: 12)),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Row(
+                                  children: [
+                                    Icon(Icons.grid_view_rounded, color: Color(0xFF0F172A), size: 20),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Product Grid Template & Card Size',
+                                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Select column template density for menu cards on the cashier screen',
+                                  style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                ),
+                                const SizedBox(height: 14),
+
+                                // 3x6, 4x6, 5x5 Template Choices
+                                Row(
+                                  children: [
+                                    _buildTemplateOption(
+                                      templateKey: '3x6',
+                                      title: '3x6 Template',
+                                      subtitle: '3 Columns • Large Cards',
+                                      icon: Icons.view_comfortable,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    _buildTemplateOption(
+                                      templateKey: '4x6',
+                                      title: '4x6 Template',
+                                      subtitle: '4 Columns • Balanced',
+                                      icon: Icons.grid_view,
+                                    ),
+                                    const SizedBox(width: 10),
+                                    _buildTemplateOption(
+                                      templateKey: '5x5',
+                                      title: '5x5 Template',
+                                      subtitle: '5 Columns • Compact',
+                                      icon: Icons.view_compact,
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Customer Screen (CFD) Toggle Card
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.02),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('Secondary Customer Screen (CFD)',
+                                  style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                              subtitle: const Text('Enable dual-screen live order and QR mirroring',
+                                  style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
                               value: _cfdEnabled,
-                              activeThumbColor: AppConfig.accentCyan,
+                              activeThumbColor: const Color(0xFF0F172A),
                               onChanged: (v) => setState(() => _cfdEnabled = v),
                             ),
-
-                            // Dual-Screen Duplicate / Preview Button
-                            Container(
-                              margin: const EdgeInsets.symmetric(vertical: 8),
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF1F5F9),
-                                borderRadius: BorderRadius.circular(10),
-                                border: Border.all(color: const Color(0xFFCBD5E1)),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.screen_share, color: AppConfig.accentCyan, size: 24),
-                                  const SizedBox(width: 10),
-                                  const Expanded(
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        Text('Customer Screen UI & Mirroring', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A))),
-                                        Text('Cast to dual-screen hardware or view customer screen UI', style: TextStyle(fontSize: 11, color: Color(0xFF64748B))),
-                                      ],
-                                    ),
-                                  ),
-                                  ElevatedButton.icon(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: AppConfig.accentCyan,
-                                      foregroundColor: Colors.white,
-                                    ),
-                                    onPressed: () async {
-                                      // 1. Trigger hardware cast
-                                      await PresentationService().showCustomerDisplay();
-                                      // 2. Open preview in app
-                                      if (context.mounted) {
-                                        Navigator.of(context).push(
-                                          MaterialPageRoute(builder: (_) => const CustomerMainView()),
-                                        );
-                                      }
-                                    },
-                                    icon: const Icon(Icons.open_in_new, size: 16),
-                                    label: const Text('Duplicate Screen', style: TextStyle(fontWeight: FontWeight.bold)),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const Divider(),
-                            TextFormField(
-                              controller: _printerIpCtrl,
-                              decoration: const InputDecoration(
-                                labelText: 'Network Printer IP (e.g. 192.168.1.100)',
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            TextFormField(
-                              controller: _qrTemplateCtrl,
-                              decoration: const InputDecoration(
-                                labelText: 'Dynamic QR Payment URL Template',
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -381,11 +463,109 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
     );
   }
 
+  Widget _buildFontSizeOption(String label, String scaleLabel, double scaleValue) {
+    final isSelected = (_fontSizeScale - scaleValue).abs() < 0.01;
+
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _fontSizeScale = scaleValue),
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                scaleLabel,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  fontWeight: FontWeight.w600,
+                  color: isSelected ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTemplateOption({
+    required String templateKey,
+    required String title,
+    required String subtitle,
+    required IconData icon,
+  }) {
+    final isSelected = _gridTemplate == templateKey;
+
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _gridTemplate = templateKey),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
+              width: 1.5,
+            ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                icon,
+                size: 24,
+                color: isSelected ? Colors.white : const Color(0xFF0F172A),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: isSelected ? Colors.white : const Color(0xFF0F172A),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  fontSize: 10.5,
+                  color: isSelected ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _saveSettings(BuildContext context) async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isSaving = true);
       try {
-        final updated = StoreSettingsModel(
+        final current = context.read<SettingsController>().settings;
+        final updated = current.copyWith(
           storeName: _nameCtrl.text.trim(),
           storeAddress: _addressCtrl.text.trim(),
           storePhone: _phoneCtrl.text.trim(),
@@ -394,12 +574,9 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
           defaultTaxRate: double.tryParse(_taxCtrl.text) ?? 10.0,
           footerNote: _footerCtrl.text.trim(),
           logoPath: _logoPath,
-          autoPrintOnPayment: _autoPrint,
-          autoKickCashDrawer: _autoDrawer,
+          fontSizeScale: _fontSizeScale,
+          gridTemplate: _gridTemplate,
           cfdEnabled: _cfdEnabled,
-          isPaperSize80mm: _is80mm,
-          printerIpOrAddress: _printerIpCtrl.text.trim(),
-          qrPayloadTemplate: _qrTemplateCtrl.text.trim(),
         );
 
         await context.read<SettingsController>().updateSettings(updated);
@@ -407,8 +584,15 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Settings saved successfully!'),
-              backgroundColor: AppConfig.accentGreen,
+              content: Row(
+                children: [
+                  Icon(Icons.check_circle, color: Colors.white, size: 18),
+                  SizedBox(width: 8),
+                  Text('Settings saved successfully!'),
+                ],
+              ),
+              backgroundColor: Color(0xFF0F172A),
+              behavior: SnackBarBehavior.floating,
             ),
           );
         }

@@ -3,6 +3,7 @@ import 'package:excel/excel.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
 import '../database/order_dao.dart';
 import '../models/order_model.dart';
@@ -12,6 +13,30 @@ class ExcelExportService {
   static final ExcelExportService _instance = ExcelExportService._internal();
   factory ExcelExportService() => _instance;
   ExcelExportService._internal();
+
+  /// Request storage permission on Android (handles Android 11 Scoped Storage / MANAGE_EXTERNAL_STORAGE)
+  Future<bool> requestStoragePermission() async {
+    if (!Platform.isAndroid) return true;
+
+    try {
+      // Check if MANAGE_EXTERNAL_STORAGE is already granted
+      if (await Permission.manageExternalStorage.isGranted) {
+        return true;
+      }
+
+      // Request MANAGE_EXTERNAL_STORAGE for Android 11 (API 30+)
+      final requestedManage = await Permission.manageExternalStorage.request();
+      if (requestedManage.isGranted) {
+        return true;
+      }
+
+      // Fallback for standard storage permissions
+      final storageStatus = await Permission.storage.request();
+      return storageStatus.isGranted;
+    } catch (_) {
+      return false;
+    }
+  }
 
   /// Export Sales Report to .xlsx File in Device Documents/Downloads directory
   Future<String> exportSalesReport({
@@ -187,9 +212,10 @@ class ExcelExportService {
     final timestampStr = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
     final fileName = 'OmniPOS_Report_$timestampStr.xlsx';
 
-    // 1. Try public Downloads folder (/storage/emulated/0/Download/POS_Reports)
+    // 1. Request Android 11 Storage Permission & write to public Downloads folder
     String? finalPath;
     try {
+      await requestStoragePermission();
       const publicDownloadDir = '/storage/emulated/0/Download/POS_Reports';
       final dir = Directory(publicDownloadDir);
       if (!await dir.exists()) {

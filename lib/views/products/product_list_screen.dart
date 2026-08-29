@@ -59,7 +59,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
         children: [
           // Header Bar
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
             decoration: const BoxDecoration(
               color: Colors.white,
               border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
@@ -68,51 +68,55 @@ class _ProductListScreenState extends State<ProductListScreen> {
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.inventory_2, color: AppConfig.accentGreen, size: 26),
+                    Icon(Icons.inventory_2_outlined, color: Color(0xFF0F172A), size: 24),
                     SizedBox(width: 10),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           'Product & SKU Catalog',
-                          style: TextStyle(color: Color(0xFF0F172A), fontSize: 18, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: Color(0xFF0F172A), fontSize: 17, fontWeight: FontWeight.bold),
                         ),
                         Text(
-                          'Manage menu items, upload photos, prices, barcodes and stock',
-                          style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                          'Manage menu items, photos, prices, barcodes and stock',
+                          style: TextStyle(color: Color(0xFF64748B), fontSize: 11.5),
                         ),
                       ],
                     ),
                   ],
                 ),
                 const Spacer(),
-                SizedBox(
-                  width: 280,
-                  height: 42,
-                  child: TextField(
-                    onChanged: (val) => setState(() => _searchQuery = val),
-                    style: const TextStyle(color: Color(0xFF0F172A), fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: 'Search items...',
-                      prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
-                      fillColor: const Color(0xFFF1F5F9),
-                      filled: true,
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                Flexible(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 240),
+                    child: SizedBox(
+                      height: 38,
+                      child: TextField(
+                        onChanged: (val) => setState(() => _searchQuery = val),
+                        style: const TextStyle(color: Color(0xFF0F172A), fontSize: 13),
+                        decoration: InputDecoration(
+                          hintText: 'Search items...',
+                          prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
+                          fillColor: const Color(0xFFF1F5F9),
+                          filled: true,
+                          border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                          enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                        ),
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppConfig.accentGreen,
+                    backgroundColor: const Color(0xFF0F172A),
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                   ),
                   onPressed: () => _showAddEditProductDialog(context, null),
-                  
+                  icon: const Icon(Icons.add, size: 16),
                   label: const Text('Add Product', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
@@ -142,7 +146,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         child: Text('No products found', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 15)),
                       )
                     : ListView.separated(
-                        padding: const EdgeInsets.all(24),
+                        padding: const EdgeInsets.all(20),
                         itemCount: _filteredProducts.length,
                         separatorBuilder: (_, _) => const SizedBox(height: 10),
                         itemBuilder: (context, index) {
@@ -156,10 +160,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
                           if (imgPath != null && imgPath.isNotEmpty) {
                             if (imgPath.startsWith('assets/')) {
                               imgProvider = AssetImage(imgPath);
-                            } else if (File(imgPath).existsSync()) {
+                            } else {
                               imgProvider = FileImage(File(imgPath));
                             }
                           }
+                          final hasDesc = product.description != null && product.description!.trim().isNotEmpty;
 
                           return Container(
                             decoration: BoxDecoration(
@@ -175,25 +180,26 @@ class _ProductListScreenState extends State<ProductListScreen> {
                               children: [
                                 // Photo Thumbnail or Icon
                                 Container(
-                                  width: 52,
-                                  height: 52,
+                                  width: 50,
+                                  height: 50,
                                   decoration: BoxDecoration(
                                     color: AppConfig.accentGreen.withValues(alpha: 0.12),
                                     borderRadius: BorderRadius.circular(10),
-                                    image: imgProvider != null
-                                        ? DecorationImage(
+                                  ),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(10),
+                                    child: imgProvider != null
+                                        ? Image(
                                             image: imgProvider,
                                             fit: BoxFit.cover,
+                                            errorBuilder: (_, __, ___) => const Icon(Icons.fastfood, color: AppConfig.accentGreenDark, size: 24),
                                           )
-                                        : null,
+                                        : const Icon(Icons.fastfood, color: AppConfig.accentGreenDark, size: 24),
                                   ),
-                                  child: imgProvider == null
-                                      ? const Icon(Icons.fastfood, color: AppConfig.accentGreenDark, size: 24)
-                                      : null,
                                 ),
-                                const SizedBox(width: 16),
+                                const SizedBox(width: 14),
 
-                                // Product Name & SKU
+                                // Product Name, Subtitle & SKU
                                 Expanded(
                                   flex: 4,
                                   child: Column(
@@ -206,11 +212,22 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                           fontSize: 15,
                                           fontWeight: FontWeight.bold,
                                         ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
                                       ),
+                                      if (hasDesc) ...[
+                                        const SizedBox(height: 1),
+                                        Text(
+                                          product.description!,
+                                          style: const TextStyle(color: Color(0xFF64748B), fontSize: 11.5),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
                                       const SizedBox(height: 2),
                                       Text(
                                         'SKU: ${product.barcode ?? "N/A"} • ${category.name}',
-                                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                                        style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
                                       ),
                                     ],
                                   ),
@@ -226,7 +243,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                         '$currency${product.price.toStringAsFixed(2)}',
                                         style: const TextStyle(
                                           color: AppConfig.accentGreenDark,
-                                          fontSize: 16,
+                                          fontSize: 15,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
@@ -240,7 +257,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
                                 // Stock Status Badge
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
                                   decoration: BoxDecoration(
                                     color: product.inStock
                                         ? AppConfig.accentGreen.withValues(alpha: 0.12)
@@ -251,12 +268,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                     product.inStock ? 'IN STOCK' : 'OUT OF STOCK',
                                     style: TextStyle(
                                       color: product.inStock ? AppConfig.accentGreenDark : AppConfig.accentRose,
-                                      fontSize: 11,
+                                      fontSize: 10.5,
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
                                 ),
-                                const SizedBox(width: 12),
+                                const SizedBox(width: 8),
 
                                 // Actions (Edit Photo & Info, Delete)
                                 IconButton(
@@ -303,6 +320,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
   void _showAddEditProductDialog(BuildContext context, Product? existing) {
     final posCtrl = context.read<PosController>();
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
+    final descCtrl = TextEditingController(text: existing?.description ?? '');
     final priceCtrl = TextEditingController(text: existing != null ? existing.price.toString() : '');
     final costCtrl = TextEditingController(text: existing != null ? existing.cost.toString() : '0.0');
     final barcodeCtrl = TextEditingController(text: existing?.barcode ?? '');
@@ -314,12 +332,23 @@ class _ProductListScreenState extends State<ProductListScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
+          final hasImg = localImagePath != null && localImagePath!.trim().isNotEmpty;
+          ImageProvider? previewProvider;
+          if (hasImg) {
+            final path = localImagePath!.trim();
+            if (path.startsWith('assets/')) {
+              previewProvider = AssetImage(path);
+            } else {
+              previewProvider = FileImage(File(path));
+            }
+          }
+
           return Dialog(
             backgroundColor: Colors.white,
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             child: Container(
-              width: 480,
-              constraints: const BoxConstraints(maxHeight: 700),
+              width: 500,
+              constraints: const BoxConstraints(maxHeight: 720),
               padding: const EdgeInsets.all(24),
               child: SingleChildScrollView(
                 child: Column(
@@ -330,7 +359,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          existing == null ? 'Add New Product + Photo' : 'Edit Product & Photo',
+                          existing == null ? 'Add New Product' : 'Edit Product Details',
                           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                         ),
                         IconButton(
@@ -361,39 +390,40 @@ class _ProductListScreenState extends State<ProductListScreen> {
                           color: const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: const Color(0xFFCBD5E1), style: BorderStyle.solid),
-                          image: (localImagePath != null &&
-                                  localImagePath!.trim().isNotEmpty &&
-                                  (localImagePath!.trim().startsWith('assets/') ||
-                                      File(localImagePath!.trim()).existsSync()))
-                              ? DecorationImage(
-                                  image: localImagePath!.trim().startsWith('assets/')
-                                      ? AssetImage(localImagePath!.trim()) as ImageProvider
-                                      : FileImage(File(localImagePath!.trim())),
-                                  fit: BoxFit.cover,
-                                )
-                              : null,
                         ),
-                        child: (localImagePath != null &&
-                                localImagePath!.trim().isNotEmpty &&
-                                (localImagePath!.trim().startsWith('assets/') ||
-                                    File(localImagePath!.trim()).existsSync()))
-                            ? Align(
-                                alignment: Alignment.topRight,
-                                child: Container(
-                                  margin: const EdgeInsets.all(8),
-                                  decoration: BoxDecoration(
-                                    color: Colors.black54,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: IconButton(
-                                    icon: const Icon(Icons.delete_forever, color: Colors.white, size: 20),
-                                    tooltip: 'Remove photo',
-                                    onPressed: () {
-                                      setDialogState(() {
-                                        localImagePath = null;
-                                      });
-                                    },
-                                  ),
+                        child: previewProvider != null
+                            ? ClipRRect(
+                                borderRadius: BorderRadius.circular(11),
+                                child: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    Image(
+                                      image: previewProvider,
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, __, ___) => const Center(
+                                        child: Icon(Icons.broken_image, color: Color(0xFF94A3B8), size: 36),
+                                      ),
+                                    ),
+                                    Align(
+                                      alignment: Alignment.topRight,
+                                      child: Container(
+                                        margin: const EdgeInsets.all(8),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black54,
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: IconButton(
+                                          icon: const Icon(Icons.delete_forever, color: Colors.white, size: 20),
+                                          tooltip: 'Remove photo',
+                                          onPressed: () {
+                                            setDialogState(() {
+                                              localImagePath = null;
+                                            });
+                                          },
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               )
                             : const Column(
@@ -406,7 +436,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                     style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 13),
                                   ),
                                   Text(
-                                    'Select JPG/PNG image from your machine/gallery',
+                                    'Select JPG/PNG image from assets or gallery',
                                     style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
                                   ),
                                 ],
@@ -418,6 +448,15 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     TextField(
                       controller: nameCtrl,
                       decoration: const InputDecoration(labelText: 'Item Name', border: OutlineInputBorder()),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: descCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Subtitle / Description (Optional)',
+                        hintText: 'e.g. Double espresso with frothed milk',
+                        border: OutlineInputBorder(),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     Row(
@@ -479,7 +518,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: AppConfig.accentGreen, foregroundColor: Colors.white),
+                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F172A), foregroundColor: Colors.white),
                             onPressed: () async {
                               if (nameCtrl.text.trim().isEmpty) return;
                               final price = double.tryParse(priceCtrl.text) ?? 0.0;
@@ -489,6 +528,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                 id: existing?.id ?? 'prod_${DateTime.now().millisecondsSinceEpoch}',
                                 categoryId: selectedCatId,
                                 name: nameCtrl.text.trim(),
+                                description: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
                                 price: price,
                                 cost: cost,
                                 barcode: barcodeCtrl.text.trim().isEmpty ? null : barcodeCtrl.text.trim(),
@@ -514,8 +554,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   ],
                 ),
               ),
-            ),
-          );
+          ),);
         },
       ),
     );

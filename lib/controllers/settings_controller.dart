@@ -58,6 +58,12 @@ class SettingsController extends ChangeNotifier {
   Future<void> toggleAutoKickDrawer(bool value) =>
       _save(_settings.copyWith(autoKickCashDrawer: value));
 
+  Future<void> setFontSizeScale(double scale) =>
+      _save(_settings.copyWith(fontSizeScale: scale));
+
+  Future<void> setGridTemplate(String template) =>
+      _save(_settings.copyWith(gridTemplate: template));
+
   Future<void> togglePaperSize(bool is80mm) =>
       _save(_settings.copyWith(isPaperSize80mm: is80mm));
 
