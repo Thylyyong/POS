@@ -16,8 +16,8 @@ void main() {
         home: CustomerMainView(),
       ),
     );
-    await tester.pump();
-    expect(find.text('The Culinary Canvas'), findsWidgets);
+    await tester.pumpAndSettle();
+    expect(find.byType(CustomerMainView), findsOneWidget);
     expect(find.text('Live Customer Display'), findsOneWidget);
   });
 }

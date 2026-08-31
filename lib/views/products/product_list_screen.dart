@@ -140,7 +140,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
           // Products List
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator(color: AppConfig.accentGreen))
+                ? const Center(child: CircularProgressIndicator(color: ColorTheme.buttonPrimary))
                 : _filteredProducts.isEmpty
                     ? const Center(
                         child: Text('No products found', style: TextStyle(color: Color(0xFF94A3B8), fontSize: 15)),
@@ -183,18 +183,19 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                   width: 50,
                                   height: 50,
                                   decoration: BoxDecoration(
-                                    color: AppConfig.accentGreen.withValues(alpha: 0.12),
+                                    color: ColorTheme.neutral100,
                                     borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(color: ColorTheme.neutral300),
                                   ),
                                   child: ClipRRect(
                                     borderRadius: BorderRadius.circular(10),
                                     child: imgProvider != null
                                         ? Image(
-                                            image: imgProvider,
-                                            fit: BoxFit.cover,
-                                            errorBuilder: (_, __, ___) => const Icon(Icons.fastfood, color: AppConfig.accentGreenDark, size: 24),
-                                          )
-                                        : const Icon(Icons.fastfood, color: AppConfig.accentGreenDark, size: 24),
+                                             image: imgProvider,
+                                             fit: BoxFit.cover,
+                                             errorBuilder: (context, error, stackTrace) => const Icon(Icons.fastfood, color: ColorTheme.primary400, size: 24),
+                                           )
+                                        : const Icon(Icons.fastfood, color: ColorTheme.primary400, size: 24),
                                   ),
                                 ),
                                 const SizedBox(width: 14),
@@ -208,7 +209,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                       Text(
                                         product.name,
                                         style: const TextStyle(
-                                          color: Color(0xFF0F172A),
+                                          color: ColorTheme.neutral800,
                                           fontSize: 15,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -219,7 +220,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                         const SizedBox(height: 1),
                                         Text(
                                           product.description!,
-                                          style: const TextStyle(color: Color(0xFF64748B), fontSize: 11.5),
+                                          style: const TextStyle(color: ColorTheme.neutral600, fontSize: 11.5),
                                           maxLines: 1,
                                           overflow: TextOverflow.ellipsis,
                                         ),
@@ -227,7 +228,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                       const SizedBox(height: 2),
                                       Text(
                                         'SKU: ${product.barcode ?? "N/A"} • ${category.name}',
-                                        style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
+                                        style: const TextStyle(color: ColorTheme.neutral500, fontSize: 11),
                                       ),
                                     ],
                                   ),
@@ -242,14 +243,14 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                       Text(
                                         '$currency${product.price.toStringAsFixed(2)}',
                                         style: const TextStyle(
-                                          color: AppConfig.accentGreenDark,
+                                          color: ColorTheme.primary400,
                                           fontSize: 15,
                                           fontWeight: FontWeight.bold,
                                         ),
                                       ),
                                       Text(
                                         'Cost: $currency${product.cost.toStringAsFixed(2)}',
-                                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 11),
+                                        style: const TextStyle(color: ColorTheme.neutral600, fontSize: 11),
                                       ),
                                     ],
                                   ),
@@ -260,14 +261,17 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                   padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3.5),
                                   decoration: BoxDecoration(
                                     color: product.inStock
-                                        ? AppConfig.accentGreen.withValues(alpha: 0.12)
-                                        : AppConfig.accentRose.withValues(alpha: 0.12),
+                                        ? ColorTheme.neutral100
+                                        : ColorTheme.statusRedBg,
                                     borderRadius: BorderRadius.circular(6),
+                                    border: Border.all(
+                                      color: product.inStock ? ColorTheme.neutral300 : ColorTheme.statusRed,
+                                    ),
                                   ),
                                   child: Text(
                                     product.inStock ? 'IN STOCK' : 'OUT OF STOCK',
                                     style: TextStyle(
-                                      color: product.inStock ? AppConfig.accentGreenDark : AppConfig.accentRose,
+                                      color: product.inStock ? ColorTheme.primary400 : ColorTheme.statusRed,
                                       fontSize: 10.5,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -300,19 +304,24 @@ class _ProductListScreenState extends State<ProductListScreen> {
   Widget _buildCategoryFilterChip(String label, String id) {
     final isSelected = _filterCategoryId == id;
     return Padding(
-      padding: const EdgeInsets.only(right: 6),
+      padding: const EdgeInsets.only(right: 8),
       child: ChoiceChip(
         label: Text(label),
         selected: isSelected,
         onSelected: (_) => setState(() => _filterCategoryId = id),
-        selectedColor: AppConfig.accentGreen.withValues(alpha: 0.18),
-        backgroundColor: Colors.white,
+        selectedColor: ColorTheme.buttonPrimary,
+        backgroundColor: ColorTheme.cardBg,
         labelStyle: TextStyle(
-          fontSize: 12,
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-          color: isSelected ? AppConfig.accentGreenDark : const Color(0xFF475569),
+          fontSize: 12.5,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+          color: isSelected ? Colors.white : ColorTheme.primary400,
         ),
-        side: BorderSide(color: isSelected ? AppConfig.accentGreen : const Color(0xFFCBD5E1)),
+        side: BorderSide(
+          color: isSelected ? ColorTheme.buttonPrimary : ColorTheme.neutral300,
+          width: 1.2,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+        showCheckmark: false,
       ),
     );
   }
@@ -400,7 +409,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                     Image(
                                       image: previewProvider,
                                       fit: BoxFit.cover,
-                                      errorBuilder: (_, __, ___) => const Center(
+                                      errorBuilder: (context, error, stackTrace) => const Center(
                                         child: Icon(Icons.broken_image, color: Color(0xFF94A3B8), size: 36),
                                       ),
                                     ),
@@ -429,15 +438,15 @@ class _ProductListScreenState extends State<ProductListScreen> {
                             : const Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.add_a_photo_outlined, size: 36, color: AppConfig.accentGreenDark),
+                                  Icon(Icons.add_a_photo_outlined, size: 36, color: ColorTheme.primary400),
                                   SizedBox(height: 8),
                                   Text(
                                     'Click to Upload / Pick Product Photo',
-                                    style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold, fontSize: 13),
+                                    style: TextStyle(color: ColorTheme.neutral800, fontWeight: FontWeight.bold, fontSize: 13),
                                   ),
                                   Text(
                                     'Select JPG/PNG image from assets or gallery',
-                                    style: TextStyle(color: Color(0xFF64748B), fontSize: 11),
+                                    style: TextStyle(color: ColorTheme.neutral600, fontSize: 11),
                                   ),
                                 ],
                               ),
@@ -501,7 +510,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         const Text('In Stock Availability', style: TextStyle(fontWeight: FontWeight.bold)),
                         Switch(
                           value: inStock,
-                          activeThumbColor: AppConfig.accentGreen,
+                          activeThumbColor: ColorTheme.buttonPrimary,
                           onChanged: (val) => setDialogState(() => inStock = val),
                         ),
                       ],
@@ -518,7 +527,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F172A), foregroundColor: Colors.white),
+                            style: ElevatedButton.styleFrom(backgroundColor: ColorTheme.buttonPrimary, foregroundColor: Colors.white),
                             onPressed: () async {
                               if (nameCtrl.text.trim().isEmpty) return;
                               final price = double.tryParse(priceCtrl.text) ?? 0.0;

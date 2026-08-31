@@ -128,7 +128,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                   _buildTypeFilterChip(tableCtrl, 'Patio / Outdoor', TableType.outdoor),
                   const SizedBox(width: 16),
                   IconButton(
-                    icon: const Icon(Icons.refresh, color: AppConfig.accentGreen),
+                    icon: const Icon(Icons.refresh, color: ColorTheme.primary400),
                     tooltip: 'Refresh Floor',
                     onPressed: () => tableCtrl.loadTables(),
                   ),
@@ -140,7 +140,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
           // ── Tables Grid ─────────────────────────────────────────────────────
           Expanded(
             child: tableCtrl.isLoading
-                ? const Center(child: CircularProgressIndicator(color: AppConfig.accentGreen))
+                ? const Center(child: CircularProgressIndicator(color: ColorTheme.buttonPrimary))
                 : tables.isEmpty
                     ? const Center(
                         child: Text(
@@ -573,7 +573,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: AppConfig.accentGreen, foregroundColor: Colors.white),
+                        style: ElevatedButton.styleFrom(backgroundColor: ColorTheme.buttonPrimary, foregroundColor: Colors.white),
                         onPressed: () async {
                           if (numCtrl.text.trim().isEmpty) return;
                           await tableCtrl.addTable(

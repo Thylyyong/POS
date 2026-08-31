@@ -328,7 +328,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
                           itemCount: dashCtrl.topItems.length.clamp(0, 5),
-                          separatorBuilder: (_, __) => const Divider(height: 16, color: Color(0xFFF1F5F9)),
+                          separatorBuilder: (context, index) => const Divider(height: 16, color: Color(0xFFF1F5F9)),
                           itemBuilder: (context, index) {
                             final item = dashCtrl.topItems[index];
                             final name = item.productName;
@@ -548,7 +548,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ? const Center(child: Text('No order transactions found', style: TextStyle(color: Color(0xFF94A3B8))))
                 : ListView.separated(
                     itemCount: orders.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
+                    separatorBuilder: (context, index) => const Divider(height: 1, color: Color(0xFFF1F5F9)),
                     itemBuilder: (context, index) {
                       final order = orders[index];
                       final dateStr = DateFormat('MMM d, yyyy • hh:mm a').format(order.createdAt);
@@ -593,26 +593,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.white,
+        backgroundColor: ColorTheme.cardBg,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.check_circle_outline, color: Color(0xFF059669), size: 22),
-            SizedBox(width: 8),
-            Text('Excel Report Exported', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            const Icon(Icons.check_circle_outline, color: ColorTheme.buttonPrimary, size: 22),
+            const SizedBox(width: 8),
+            const Text('Excel Report Exported', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ColorTheme.neutral800)),
           ],
         ),
         content: Text(
           'Saved successfully to:\n$filePath',
-          style: const TextStyle(fontSize: 12, color: Color(0xFF475569)),
+          style: const TextStyle(fontSize: 12, color: ColorTheme.neutral600),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Close'),
+            child: const Text('Close', style: TextStyle(color: ColorTheme.neutral600)),
           ),
           ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF0F172A), foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: ColorTheme.buttonPrimary, foregroundColor: Colors.white),
             onPressed: () {
               OpenFilex.open(filePath);
               Navigator.of(ctx).pop();

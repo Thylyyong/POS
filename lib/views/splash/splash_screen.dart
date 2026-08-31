@@ -79,7 +79,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       fallbackIcon: Icons.point_of_sale,
                       boxShadow: [
                         BoxShadow(
-                          color: AppConfig.accentGreen.withValues(alpha: 0.3),
+                          color: ColorTheme.buttonPrimary.withValues(alpha: 0.2),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         ),
@@ -93,14 +93,14 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       style: const TextStyle(
                         fontSize: 26,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F172A),
+                        color: ColorTheme.neutral800,
                         letterSpacing: 0.5,
                       ),
                     ),
                     const SizedBox(height: 4),
                     const Text(
                       'Enterprise Offline Dual-Screen Point of Sale',
-                      style: TextStyle(fontSize: 14, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                      style: TextStyle(fontSize: 14, color: ColorTheme.neutral600, fontWeight: FontWeight.w500),
                     ),
                     const SizedBox(height: 12),
 
@@ -108,19 +108,19 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppConfig.accentGreen.withValues(alpha: 0.12),
+                        color: ColorTheme.neutral100,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppConfig.accentGreen.withValues(alpha: 0.4)),
+                        border: Border.all(color: ColorTheme.neutral300),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.cloud_off, size: 14, color: AppConfig.accentGreenDark),
+                          Icon(Icons.cloud_off, size: 14, color: ColorTheme.primary400),
                           SizedBox(width: 6),
                           Text(
                             '100% OFFLINE READY • DUAL-SCREEN ENABLED',
                             style: TextStyle(
-                              color: AppConfig.accentGreenDark,
+                              color: ColorTheme.primary400,
                               fontSize: 11,
                               fontWeight: FontWeight.bold,
                             ),
@@ -136,7 +136,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF94A3B8),
+                        color: ColorTheme.neutral500,
                         letterSpacing: 1.5,
                       ),
                     ),
@@ -154,7 +154,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                               title: 'Point of Sale (POS)',
                               subtitle: 'Cashier terminal, menu catalog, table assignments, and checkout',
                               icon: Icons.storefront,
-                              accentColor: AppConfig.accentGreen,
+                              accentColor: ColorTheme.buttonPrimary,
                               buttonLabel: 'Launch POS Mode',
                               onTap: () => _launchMode(context, CashierNavTab.pos),
                             ),
@@ -264,20 +264,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
           ),
         ),
       ),
-    );
-  }
-
-  Widget _buildQuickLink({
-    required String label,
-    required IconData icon,
-    required VoidCallback onTap,
-  }) {
-    return ActionChip(
-      backgroundColor: Colors.white,
-      side: const BorderSide(color: Color(0xFFCBD5E1)),
-      avatar: Icon(icon, size: 16, color: const Color(0xFF475569)),
-      label: Text(label, style: const TextStyle(color: Color(0xFF334155), fontSize: 12, fontWeight: FontWeight.w600)),
-      onPressed: onTap,
     );
   }
 }

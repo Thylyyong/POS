@@ -1,8 +1,10 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pos_flutter/controllers/cart_controller.dart';
+import 'package:pos_flutter/database/order_dao.dart';
 import 'package:pos_flutter/models/order_model.dart';
 import 'package:pos_flutter/models/product_model.dart';
 import 'package:pos_flutter/models/store_settings_model.dart';
+import 'package:pos_flutter/services/excel_export_service.dart';
 import 'package:pos_flutter/services/presentation_service.dart';
 import 'package:pos_flutter/services/printer_service.dart';
 
@@ -163,6 +165,40 @@ void main() {
       final reconstructed = StoreSettingsModel.fromMap(map);
       expect(reconstructed.fontSizeScale, 1.15);
       expect(reconstructed.gridTemplate, '3x6');
+    });
+  });
+
+  group('ExcelExportService Tests', () {
+    test('exportSalesReport generates valid report file', () async {
+      final exportService = ExcelExportService();
+      final metrics = SalesMetrics(
+        totalRevenue: 150.0,
+        totalCost: 60.0,
+        grossProfit: 90.0,
+        totalOrders: 5,
+        totalItemsSold: 12,
+        averageOrderValue: 30.0,
+        cashRevenue: 100.0,
+        qrRevenue: 50.0,
+        cashOrderCount: 3,
+        qrOrderCount: 2,
+      );
+
+      const settings = StoreSettingsModel(
+        storeName: 'OmniPOS Test Store',
+        currencySymbol: '\$',
+      );
+
+      final filePath = await exportService.exportSalesReport(
+        metrics: metrics,
+        orders: [],
+        topItems: [],
+        logs: [],
+        settings: settings,
+      );
+
+      expect(filePath.isNotEmpty, true);
+      expect(filePath.endsWith('.xlsx'), true);
     });
   });
 }

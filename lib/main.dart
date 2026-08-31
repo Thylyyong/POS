@@ -1,7 +1,10 @@
+import 'dart:io';
 import 'dart:ui';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'app_config.dart';
 import 'controllers/controllers.dart';
 import 'database/database.dart';
@@ -17,7 +20,7 @@ class PosCustomScrollBehavior extends MaterialScrollBehavior {
       BuildContext context, Widget child, ScrollableDetails details) {
     return GlowingOverscrollIndicator(
       axisDirection: details.direction,
-      color: AppConfig.accentGreen.withValues(alpha: 0.2),
+      color: ColorTheme.buttonPrimary.withValues(alpha: 0.2),
       child: child,
     );
   }
@@ -42,11 +45,19 @@ class PosCustomScrollBehavior extends MaterialScrollBehavior {
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize SQLite FFI for Windows & Linux desktop support
+  if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) {
+    sqfliteFfiInit();
+    databaseFactory = databaseFactoryFfi;
+  }
+
   // Enforce Landscape Orientation on Commercial Android POS Terminals
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.landscapeLeft,
-    DeviceOrientation.landscapeRight,
-  ]);
+  if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.landscapeLeft,
+      DeviceOrientation.landscapeRight,
+    ]);
+  }
 
   // Initialize SQLite Database schema & initial seeding
   await DbHelper().database;

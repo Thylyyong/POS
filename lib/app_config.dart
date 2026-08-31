@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+export 'core/theme/color_theme.dart';
+import 'core/theme/color_theme.dart';
 
 class AppConfig {
   static const String appName = 'OmniPOS Dual-Screen';
@@ -6,63 +8,63 @@ class AppConfig {
   static const String defaultCurrency = '\$';
   static const double defaultTaxRate = 10.0;
 
-  // ── Light Theme Palette (Modern Premium Minimalist Slate) ──────────────────
+  // ── Light Theme Palette (aligned with ColorTheme) ──────────────────
   // Backgrounds
-  static const Color bgBase        = Color(0xFFF8FAFC); // slate-50
-  static const Color bgSurface     = Color(0xFFFFFFFF); // pure white cards
-  static const Color bgMuted       = Color(0xFFF1F5F9); // slate-100
-  static const Color bgDark        = Color(0xFF0F172A); // slate-900
+  static const Color bgBase        = ColorTheme.screenBg; // Color(0xFFF5F5F5)
+  static const Color bgSurface     = ColorTheme.cardBg;   // Color(0xFFFFFFFF)
+  static const Color bgMuted       = ColorTheme.neutral100; // Color(0xFFF2F2F2)
+  static const Color bgDark        = ColorTheme.primary600; // Color(0xFF111935)
 
   // Borders
-  static const Color border        = Color(0xFFE2E8F0); // slate-200
-  static const Color borderStrong  = Color(0xFFCBD5E1); // slate-300
+  static const Color border        = ColorTheme.neutral300; // Color(0xFFE0E0E0)
+  static const Color borderStrong  = ColorTheme.neutral200; // Color(0xFFCACACA)
 
   // Sidebar / Nav
-  static const Color sidebarBg     = Color(0xFFFFFFFF); // pure white light sidebar
-  static const Color sidebarBorder = Color(0xFFE2E8F0); // slate-200
+  static const Color sidebarBg     = ColorTheme.cardBg;     // Color(0xFFFFFFFF)
+  static const Color sidebarBorder = ColorTheme.neutral300; // Color(0xFFE0E0E0)
 
-  // Brand / Accents (Sleek Slate & Indigo/Teal)
-  static const Color accentPrimary    = Color(0xFF0F172A); // slate-900 primary
-  static const Color accentBlue       = Color(0xFF2563EB); // royal blue-600
-  static const Color accentTeal       = Color(0xFF0D9488); // teal-600
-  static const Color accentCyan       = Color(0xFF0284C7); // sky-600
-  static const Color accentAmber      = Color(0xFFD97706); // amber-600
-  static const Color accentRose       = Color(0xFFE11D48); // rose-600
-  static const Color accentPurple     = Color(0xFF7C3AED); // violet-600
-  static const Color accentOrange     = Color(0xFFEA580C); // orange-600
+  // Brand / Accents
+  static const Color accentPrimary    = ColorTheme.buttonPrimary; // Color(0xFF2B3042)
+  static const Color accentBlue       = ColorTheme.primary500;    // Color(0xFF3D5AF1)
+  static const Color accentTeal       = Color(0xFF0D9488);
+  static const Color accentCyan       = ColorTheme.semanticBlue;   // Color(0xFF2196F3)
+  static const Color accentAmber      = ColorTheme.semanticOrange; // Color(0xFFFF9800)
+  static const Color accentRose       = ColorTheme.semanticRed;    // Color(0xFFD6212F)
+  static const Color accentPurple     = ColorTheme.secondary400;   // Color(0xFF9811E7)
+  static const Color accentOrange     = ColorTheme.semanticOrange; // Color(0xFFFF9800)
 
-  // Emerald/Green (Subtle, strictly for positive finance & metrics)
-  static const Color accentGreen      = Color(0xFF10B981); // emerald-500
-  static const Color accentGreenDark  = Color(0xFF059669); // emerald-600
+  // Emerald/Green
+  static const Color accentGreen      = ColorTheme.semanticGreen;  // Color(0xFF12974F)
+  static const Color accentGreenDark  = Color(0xFF0F7D41);
 
   // Text
-  static const Color textPrimary   = Color(0xFF0F172A); // slate-900
-  static const Color textSecondary = Color(0xFF64748B); // slate-500
-  static const Color textMuted     = Color(0xFF94A3B8); // slate-400
-  static const Color textOnDark    = Color(0xFFF8FAFC); // for dark surfaces
+  static const Color textPrimary   = ColorTheme.primary400;    // Color(0xFF2B3042)
+  static const Color textSecondary = ColorTheme.neutral600;    // Color(0xFF575757)
+  static const Color textMuted     = ColorTheme.neutral500;    // Color(0xFF9E9E9E)
+  static const Color textOnDark    = ColorTheme.neutral50;     // Color(0xFFFDFFFC)
 
   // Legacy aliases
-  static const Color primaryDark    = Color(0xFF0F172A);
-  static const Color primarySurface = Color(0xFF1E293B);
-  static const Color primaryCard    = Color(0xFF334155);
-  static const Color surfaceBorder  = Color(0xFFCBD5E1);
+  static const Color primaryDark    = ColorTheme.primary600;
+  static const Color primarySurface = ColorTheme.primary400;
+  static const Color primaryCard    = ColorTheme.grey;
+  static const Color surfaceBorder  = ColorTheme.neutral300;
 
   // Category color palette
   static const List<Color> categoryColors = [
-    Color(0xFF0F172A),
-    Color(0xFF2563EB),
-    Color(0xFF0D9488),
-    Color(0xFFD97706),
-    Color(0xFF7C3AED),
-    Color(0xFF0284C7),
-    Color(0xFFE11D48),
-    Color(0xFF475569),
+    ColorTheme.primary400,
+    ColorTheme.primary500,
+    ColorTheme.secondary400,
+    ColorTheme.semanticGreen,
+    ColorTheme.semanticOrange,
+    ColorTheme.semanticBlue,
+    ColorTheme.semanticRed,
+    ColorTheme.grey,
   ];
 
   // Table status colors
-  static const Color tableAvailable    = Color(0xFF059669);
-  static const Color tableOccupied     = Color(0xFFD97706);
-  static const Color tableBillRequest  = Color(0xFF2563EB);
+  static const Color tableAvailable    = ColorTheme.statusGreen;
+  static const Color tableOccupied     = ColorTheme.statusOrange;
+  static const Color tableBillRequest  = ColorTheme.primary500;
 
   // ── Light ThemeData ───────────────────────────────────────────────────────
   static ThemeData get lightTheme {

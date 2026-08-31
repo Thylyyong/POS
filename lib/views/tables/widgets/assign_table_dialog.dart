@@ -185,14 +185,14 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
                               Icon(
                                 Icons.restaurant,
                                 size: 18,
-                                color: _selectedOrderType == 'DINE_IN' ? AppConfig.accentGreen : const Color(0xFF64748B),
+                                color: _selectedOrderType == 'DINE_IN' ? ColorTheme.primary400 : ColorTheme.neutral600,
                               ),
                               const SizedBox(width: 8),
                               Text(
                                 'Dine-In (Table)',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: _selectedOrderType == 'DINE_IN' ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                                  color: _selectedOrderType == 'DINE_IN' ? ColorTheme.primary400 : ColorTheme.neutral600,
                                 ),
                               ),
                             ],
@@ -315,18 +315,18 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
                                 decoration: BoxDecoration(
                                   color: isSelected
                                       ? (table.isOccupied
-                                          ? AppConfig.accentAmber.withValues(alpha: 0.15)
-                                          : AppConfig.accentGreen.withValues(alpha: 0.1))
+                                          ? ColorTheme.statusOrangeBg
+                                          : ColorTheme.primary50.withValues(alpha: 0.15))
                                       : isAvailable
-                                          ? const Color(0xFFF8FAFC)
-                                          : const Color(0xFFFEF3C7),
+                                          ? ColorTheme.cardBg
+                                          : ColorTheme.statusOrangeBg,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
                                     color: isSelected
-                                        ? (table.isOccupied ? AppConfig.accentAmber : AppConfig.accentGreen)
+                                        ? (table.isOccupied ? ColorTheme.statusOrange : ColorTheme.buttonPrimary)
                                         : isAvailable
-                                            ? const Color(0xFFE2E8F0)
-                                            : AppConfig.accentAmber.withValues(alpha: 0.6),
+                                            ? ColorTheme.neutral300
+                                            : ColorTheme.statusOrange.withValues(alpha: 0.6),
                                     width: isSelected ? 2 : 1,
                                   ),
                                 ),
@@ -343,8 +343,8 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
                                             fontWeight: FontWeight.bold,
                                             fontSize: 16,
                                             color: isSelected
-                                                ? (table.isOccupied ? const Color(0xFF92400E) : AppConfig.accentGreenDark)
-                                                : const Color(0xFF0F172A),
+                                                ? (table.isOccupied ? ColorTheme.statusOrange : ColorTheme.buttonPrimary)
+                                                : ColorTheme.neutral800,
                                           ),
                                         ),
                                         Container(

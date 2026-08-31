@@ -70,7 +70,7 @@ class _ReceiptPreviewDialogState extends State<ReceiptPreviewDialog> {
               ),
             ],
           ),
-          backgroundColor: result.success ? AppConfig.accentGreen : AppConfig.accentRose,
+          backgroundColor: result.success ? ColorTheme.buttonPrimary : ColorTheme.semanticRed,
           duration: const Duration(seconds: 3),
           behavior: SnackBarBehavior.floating,
         ),
@@ -104,7 +104,7 @@ class _ReceiptPreviewDialogState extends State<ReceiptPreviewDialog> {
               Text('Printing Receipt #${widget.order.receiptNo}...'),
             ],
           ),
-          backgroundColor: AppConfig.accentGreen,
+          backgroundColor: ColorTheme.buttonPrimary,
           duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
         ),
@@ -199,15 +199,15 @@ class _ReceiptPreviewDialogState extends State<ReceiptPreviewDialog> {
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                color: AppConfig.accentGreen.withValues(alpha: 0.12),
+                color: ColorTheme.neutral100,
                 child: Row(
                   children: [
-                    const Icon(Icons.check_circle, size: 14, color: AppConfig.accentGreen),
+                    const Icon(Icons.check_circle, size: 14, color: ColorTheme.primary400),
                     const SizedBox(width: 6),
                     Expanded(
                       child: Text(
                         'Saved to ${_saveResult!.downloadsPath != null ? "App & Downloads" : "App Docs"} • ${order.receiptNo}.md',
-                        style: const TextStyle(fontSize: 11, color: AppConfig.accentGreenDark, fontWeight: FontWeight.w600),
+                        style: const TextStyle(fontSize: 11, color: ColorTheme.primary400, fontWeight: FontWeight.w600),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -373,15 +373,15 @@ class _ReceiptPreviewDialogState extends State<ReceiptPreviewDialog> {
                     width: double.infinity,
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: saved ? AppConfig.accentGreenDark : const Color(0xFF334155),
-                        backgroundColor: saved ? AppConfig.accentGreen.withValues(alpha: 0.08) : Colors.white,
-                        side: BorderSide(color: saved ? AppConfig.accentGreen : const BorderSide().color),
+                        foregroundColor: saved ? ColorTheme.primary400 : ColorTheme.neutral600,
+                        backgroundColor: saved ? ColorTheme.neutral100 : Colors.white,
+                        side: BorderSide(color: saved ? ColorTheme.primary400 : ColorTheme.neutral300),
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       ),
                       onPressed: _isSaving ? null : _handleSaveToFile,
                       icon: _isSaving
-                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppConfig.accentGreen))
+                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: ColorTheme.buttonPrimary))
                           : Icon(saved ? Icons.folder_open : Icons.save_alt, size: 16),
                       label: Text(
                         _isSaving ? 'Saving...' : saved ? 'Receipt File Saved (.md) ✓' : 'Save Receipt (.md file)',

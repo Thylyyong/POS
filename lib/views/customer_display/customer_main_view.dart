@@ -87,7 +87,7 @@ class _CustomerMainViewState extends State<CustomerMainView> {
               ),
               child: Row(
                 children: [
-                  // Dashboard Navigation Button (Replaces back arrow)
+                  // Dashboard Navigation Button
                   IconButton(
                     icon: const Icon(Icons.dashboard_outlined, color: Color(0xFF0F172A), size: 22),
                     tooltip: 'Go to Dashboard',
@@ -139,14 +139,14 @@ class _CustomerMainViewState extends State<CustomerMainView> {
               ),
             ),
 
-            // ── Main Dual-Column Content: 30% Order / 70% Store Logo Showcase ──
+            // ── Main Dual-Column Content ────────────────────────────────────
             Expanded(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // ── Left Column (30% Width): Order Items Table & Totals ────
+                  // ── Left Column (32% Width): Order Items Table (Item Name first, xQTY, Price) ────
                   Expanded(
-                    flex: 30,
+                    flex: 32,
                     child: Container(
                       margin: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
@@ -164,9 +164,9 @@ class _CustomerMainViewState extends State<CustomerMainView> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // Table Header (QTY, ITEM, PRICE)
+                          // Table Header (ITEM & PRICE)
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             decoration: const BoxDecoration(
                               color: Color(0xFFF8FAFC),
                               borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
@@ -174,28 +174,31 @@ class _CustomerMainViewState extends State<CustomerMainView> {
                             ),
                             child: const Row(
                               children: [
-                                SizedBox(
-                                  width: 36,
-                                  child: Text(
-                                    'QTY',
-                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B), letterSpacing: 0.5),
-                                  ),
-                                ),
                                 Expanded(
                                   child: Text(
                                     'ITEM',
-                                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B), letterSpacing: 0.5),
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF64748B),
+                                      letterSpacing: 0.5,
+                                    ),
                                   ),
                                 ),
                                 Text(
                                   'PRICE',
-                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: Color(0xFF64748B), letterSpacing: 0.5),
+                                  style: TextStyle(
+                                    fontSize: 11.5,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF64748B),
+                                    letterSpacing: 0.5,
+                                  ),
                                 ),
                               ],
                             ),
                           ),
 
-                          // Items List
+                          // Items List (Product Name first, then 'xAmount', Price on right)
                           Expanded(
                             child: _payload.items.isEmpty
                                 ? Center(
@@ -214,7 +217,7 @@ class _CustomerMainViewState extends State<CustomerMainView> {
                                 : ListView.separated(
                                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                                     itemCount: _payload.items.length,
-                                    separatorBuilder: (_, __) => const Divider(height: 12, color: Color(0xFFF1F5F9)),
+                                    separatorBuilder: (context, index) => const Divider(height: 12, color: Color(0xFFF1F5F9)),
                                     itemBuilder: (context, index) {
                                       final item = _payload.items[index];
                                       final qty = item['quantity'] ?? 1;
@@ -222,33 +225,38 @@ class _CustomerMainViewState extends State<CustomerMainView> {
                                       final price = (item['totalPrice'] as num?)?.toDouble() ?? 0.0;
 
                                       return Row(
-                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        crossAxisAlignment: CrossAxisAlignment.center,
                                         children: [
-                                          SizedBox(
-                                            width: 36,
-                                            child: Text(
-                                              '$qty',
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                                fontWeight: FontWeight.bold,
-                                                color: Color(0xFF0F172A),
-                                              ),
-                                            ),
-                                          ),
                                           Expanded(
-                                            child: Text(
-                                              name,
-                                              style: const TextStyle(
-                                                fontSize: 13.5,
-                                                fontWeight: FontWeight.w600,
-                                                color: Color(0xFF0F172A),
-                                              ),
+                                            child: Row(
+                                              children: [
+                                                Flexible(
+                                                  child: Text(
+                                                    name,
+                                                    style: const TextStyle(
+                                                      fontSize: 14,
+                                                      fontWeight: FontWeight.w600,
+                                                      color: Color(0xFF0F172A),
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 8),
+                                                Text(
+                                                  'x$qty',
+                                                  style: const TextStyle(
+                                                    fontSize: 13.5,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Color(0xFF64748B),
+                                                  ),
+                                                ),
+                                              ],
                                             ),
                                           ),
+                                          const SizedBox(width: 8),
                                           Text(
                                             '${_payload.currencySymbol}${price.toStringAsFixed(2)}',
                                             style: const TextStyle(
-                                              fontSize: 13.5,
+                                              fontSize: 14,
                                               fontWeight: FontWeight.bold,
                                               color: Color(0xFF0F172A),
                                             ),
@@ -330,12 +338,12 @@ class _CustomerMainViewState extends State<CustomerMainView> {
                     ),
                   ),
 
-                  // ── Right Column (70% Width): Prominent Store Logo & Branding Showcase ──
+                  // ── Right Column (68% Width): Prominent Store Logo & Branding Showcase (80% scale focus) ──
                   Expanded(
-                    flex: 70,
+                    flex: 68,
                     child: Container(
                       margin: const EdgeInsets.fromLTRB(0, 14, 14, 14),
-                      padding: const EdgeInsets.all(32),
+                      padding: const EdgeInsets.all(28),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
@@ -348,124 +356,106 @@ class _CustomerMainViewState extends State<CustomerMainView> {
                           ),
                         ],
                       ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // Status Badge
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: const BoxDecoration(
-                                    color: Color(0xFF059669),
-                                    shape: BoxShape.circle,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'Live Customer Display',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: Color(0xFF0F172A),
-                                    letterSpacing: 0.3,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 24),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          // Scale the logo dynamically to be prominent and fill the view
+                          final logoSize = (constraints.maxHeight * 0.85).clamp(480.0, 580.0);
 
-                          // Large Store Logo (Showcased prominently)
-                          AppLogoWidget(
-                            logoPath: _settings.logoPath,
-                            size: 130,
-                            borderRadius: 28,
-                            fallbackIcon: Icons.restaurant,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.08),
-                                blurRadius: 20,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-
-                          // Store Title
-                          Text(
-                            storeName,
-                            style: const TextStyle(
-                              fontSize: 28,
-                              fontWeight: FontWeight.w900,
-                              color: Color(0xFF0F172A),
-                              letterSpacing: -0.5,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 8),
-
-                          // Store Address / Tagline
-                          Text(
-                            _settings.storeAddress.isNotEmpty
-                                ? _settings.storeAddress
-                                : 'Welcome! Enjoy your dining experience with us.',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              color: Color(0xFF64748B),
-                              fontWeight: FontWeight.w500,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-
-                          if (_payload.state == CfdScreenState.paymentQr ||
-                              (_payload.qrData != null && _payload.qrData!.isNotEmpty)) ...[
-                            const SizedBox(height: 24),
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF8FAFC),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: const Color(0xFFE2E8F0)),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
+                          return Center(
+                            child: SingleChildScrollView(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  QrImageView(
-                                    data: _payload.qrData!,
-                                    version: QrVersions.auto,
-                                    size: 90,
-                                    backgroundColor: Colors.transparent,
-                                  ),
-                                  const SizedBox(width: 14),
-                                  const Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'SCAN TO PAY',
-                                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                                      ),
-                                      SizedBox(height: 2),
-                                      Text(
-                                        'Scan with your camera or banking app',
-                                        style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                  // Large Store Logo (Showcased prominently)
+                                  AppLogoWidget(
+                                    logoPath: _settings.logoPath,
+                                    size: logoSize,
+                                    borderRadius: logoSize * 0.22,
+                                    fallbackIcon: Icons.restaurant,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.10),
+                                        blurRadius: 28,
+                                        offset: const Offset(0, 10),
                                       ),
                                     ],
                                   ),
+                                  const SizedBox(height: 24),
+
+                                  // Store Title (Prominent and bold)
+                                  Text(
+                                    storeName,
+                                    style: const TextStyle(
+                                      fontSize: 34,
+                                      fontWeight: FontWeight.w900,
+                                      color: Color(0xFF0F172A),
+                                      letterSpacing: -0.8,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                  const SizedBox(height: 10),
+
+                                  // Store Address / Tagline
+                                  Text(
+                                    _settings.storeAddress.isNotEmpty
+                                        ? _settings.storeAddress
+                                        : 'Welcome! Enjoy your dining experience with us.',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      color: Color(0xFF64748B),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+
+                                  // QR Code payment box if active
+                                  if (_payload.state == CfdScreenState.paymentQr ||
+                                      (_payload.qrData != null && _payload.qrData!.isNotEmpty)) ...[
+                                    const SizedBox(height: 26),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF8FAFC),
+                                        borderRadius: BorderRadius.circular(14),
+                                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                                      ),
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          QrImageView(
+                                            data: _payload.qrData!,
+                                            version: QrVersions.auto,
+                                            size: 100,
+                                            backgroundColor: Colors.transparent,
+                                          ),
+                                          const SizedBox(width: 16),
+                                          const Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                'SCAN TO PAY',
+                                                style: TextStyle(
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Color(0xFF0F172A),
+                                                ),
+                                              ),
+                                              SizedBox(height: 4),
+                                              Text(
+                                                'Scan with your camera or banking app',
+                                                style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
                                 ],
                               ),
                             ),
-                          ],
-                        ],
+                          );
+                        },
                       ),
                     ),
                   ),

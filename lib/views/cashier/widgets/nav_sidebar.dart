@@ -33,10 +33,10 @@ class NavSidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 68,
+      width: 78,
       decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(right: BorderSide(color: Color(0xFFE2E8F0), width: 1)),
+        color: ColorTheme.cardBg,
+        border: Border(right: BorderSide(color: ColorTheme.neutral300, width: 1)),
       ),
       child: Column(
         children: [
@@ -45,7 +45,7 @@ class NavSidebar extends StatelessWidget {
           const Text(
             'POS',
             style: TextStyle(
-              color: Color(0xFF0F172A),
+              color: ColorTheme.primary400,
               fontSize: 14,
               fontWeight: FontWeight.w900,
               letterSpacing: 0.5,
@@ -54,7 +54,7 @@ class NavSidebar extends StatelessWidget {
           const Text(
             'V1.0',
             style: TextStyle(
-              color: Color(0xFF94A3B8),
+              color: ColorTheme.neutral500,
               fontSize: 10,
               fontWeight: FontWeight.w500,
             ),

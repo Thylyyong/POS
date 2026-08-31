@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../app_config.dart';
 import '../../../controllers/pos_controller.dart';
@@ -44,9 +44,6 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
     );
     final is80mm = context.select<SettingsController, bool>(
       (c) => c.settings.isPaperSize80mm,
-    );
-    final scanNotice = context.select<PosController, String?>(
-      (c) => c.scannedBarcodeNotice,
     );
 
     return Container(

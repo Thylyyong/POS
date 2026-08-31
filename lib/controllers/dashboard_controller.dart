@@ -170,18 +170,32 @@ class DashboardController extends ChangeNotifier {
 
     try {
       final (start, end) = _calculateDateRange();
-      final allOrders =
+      var allOrders =
           await _orderDao.getOrders(startDate: start, endDate: end, limit: 500);
+      var exportMetrics = _metrics;
+      var exportTopItems = _topItems;
+      DateTime? exportStart = start;
+      DateTime? exportEnd = end;
+
+      // If the selected date filter has 0 orders, also fetch all orders so the report contains the complete sales & profit register
+      if (allOrders.isEmpty) {
+        allOrders = await _orderDao.getOrders(limit: 500);
+        exportMetrics = await _orderDao.getSalesMetrics();
+        exportTopItems = await _orderDao.getTopSellingItems(limit: 50);
+        exportStart = null;
+        exportEnd = null;
+      }
+
       final logs = await _orderDao.getReceiptLogs(limit: 500);
 
       final path = await _excelExportService.exportSalesReport(
-        metrics: _metrics,
+        metrics: exportMetrics,
         orders: allOrders,
-        topItems: _topItems,
+        topItems: exportTopItems,
         logs: logs,
         settings: settings,
-        startDate: start,
-        endDate: end,
+        startDate: exportStart,
+        endDate: exportEnd,
       );
 
       _lastExportedPath = path;

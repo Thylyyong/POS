@@ -46,6 +46,8 @@ dependencies:
   google_fonts: ^6.2.1
   file_picker: any
   permission_handler: ^11.4.0
+  sqflite_common_ffi: ^2.4.2+1
+  sqlite3_flutter_libs: ^0.6.0+eol
 
 dev_dependencies:
   flutter_test:
@@ -56,7 +58,8 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: false
-  image_path: "assets/images/ca.io"
+
+  image_path: "assets/images/ca.ico"
 
 dependency_overrides:
   path_provider_android: 2.2.15

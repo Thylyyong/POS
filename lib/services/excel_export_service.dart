@@ -14,23 +14,18 @@ class ExcelExportService {
   factory ExcelExportService() => _instance;
   ExcelExportService._internal();
 
-  /// Request storage permission on Android (handles Android 11 Scoped Storage / MANAGE_EXTERNAL_STORAGE)
+  /// Request storage permission on Android
   Future<bool> requestStoragePermission() async {
     if (!Platform.isAndroid) return true;
 
     try {
-      // Check if MANAGE_EXTERNAL_STORAGE is already granted
       if (await Permission.manageExternalStorage.isGranted) {
         return true;
       }
-
-      // Request MANAGE_EXTERNAL_STORAGE for Android 11 (API 30+)
       final requestedManage = await Permission.manageExternalStorage.request();
       if (requestedManage.isGranted) {
         return true;
       }
-
-      // Fallback for standard storage permissions
       final storageStatus = await Permission.storage.request();
       return storageStatus.isGranted;
     } catch (_) {
@@ -38,7 +33,7 @@ class ExcelExportService {
     }
   }
 
-  /// Export Sales Report to .xlsx File in Device Documents/Downloads directory
+  /// Export Sales & Profit Report to .xlsx file
   Future<String> exportSalesReport({
     required SalesMetrics metrics,
     required List<OrderModel> orders,
@@ -49,63 +44,155 @@ class ExcelExportService {
     DateTime? endDate,
   }) async {
     final excel = Excel.createExcel();
-    final defaultSheet = excel.getDefaultSheet();
-    if (defaultSheet != null) {
-      excel.delete(defaultSheet);
-    }
+
+    // Rename default sheet to ensure clean Excel compatibility
+    final defaultSheetName = excel.getDefaultSheet() ?? 'Sheet1';
+    excel.rename(defaultSheetName, 'Sales & Profit Summary');
+    excel.setDefaultSheet('Sales & Profit Summary');
 
     final dateRangeStr = (startDate != null && endDate != null)
         ? '${DateFormat('yyyy-MM-dd').format(startDate)} to ${DateFormat('yyyy-MM-dd').format(endDate)}'
-        : 'All Time';
+        : 'All Time / Complete History';
     final generatedAt = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+    final currency = settings.currencySymbol;
+
+    // Calculate total discount and tax from actual orders if available
+    double totalDiscount = 0.0;
+    double totalTax = 0.0;
+    double totalGrossSales = 0.0;
+    for (var o in orders) {
+      totalDiscount += o.discountAmount;
+      totalTax += o.taxAmount;
+      totalGrossSales += o.subtotal;
+    }
+
+    final double profitMargin = metrics.totalRevenue > 0
+        ? (metrics.grossProfit / metrics.totalRevenue) * 100
+        : 0.0;
 
     // -------------------------------------------------------------
-    // SHEET 1: Sales Summary
+    // SHEET 1: Sales & Profit Summary
     // -------------------------------------------------------------
-    final summarySheet = excel['Sales Summary'];
-    summarySheet.appendRow([TextCellValue('OMNIPOS SALES & ANALYTICS REPORT')]);
-    summarySheet.appendRow([TextCellValue('Store Name:'), TextCellValue(settings.storeName)]);
+    final summarySheet = excel['Sales & Profit Summary'];
+    summarySheet.appendRow([TextCellValue('OMNIPOS EXECUTIVE SALES & PROFIT REPORT')]);
+    summarySheet.appendRow([TextCellValue('Store Name:'), TextCellValue(settings.storeName.isNotEmpty ? settings.storeName : 'OmniPOS')]);
     summarySheet.appendRow([TextCellValue('Reporting Period:'), TextCellValue(dateRangeStr)]);
-    summarySheet.appendRow([TextCellValue('Exported At:'), TextCellValue(generatedAt)]);
+    summarySheet.appendRow([TextCellValue('Generated At:'), TextCellValue(generatedAt)]);
+    summarySheet.appendRow([TextCellValue('Currency:'), TextCellValue(currency)]);
     summarySheet.appendRow([TextCellValue('')]);
 
-    summarySheet.appendRow([TextCellValue('KEY METRIC'), TextCellValue('VALUE')]);
-    summarySheet.appendRow([TextCellValue('Total Revenue'), TextCellValue('${settings.currencySymbol}${metrics.totalRevenue.toStringAsFixed(2)}')]);
-    summarySheet.appendRow([TextCellValue('Estimated Cost'), TextCellValue('${settings.currencySymbol}${metrics.totalCost.toStringAsFixed(2)}')]);
-    summarySheet.appendRow([TextCellValue('Gross Profit'), TextCellValue('${settings.currencySymbol}${metrics.grossProfit.toStringAsFixed(2)}')]);
-    summarySheet.appendRow([TextCellValue('Completed Orders'), IntCellValue(metrics.totalOrders)]);
-    summarySheet.appendRow([TextCellValue('Total Items Sold'), IntCellValue(metrics.totalItemsSold)]);
-    summarySheet.appendRow([TextCellValue('Average Order Value (AOV)'), TextCellValue('${settings.currencySymbol}${metrics.averageOrderValue.toStringAsFixed(2)}')]);
+    // Financial Metrics Header
+    summarySheet.appendRow([TextCellValue('FINANCIAL METRIC'), TextCellValue('AMOUNT / VALUE'), TextCellValue('NOTES')]);
+    summarySheet.appendRow([
+      TextCellValue('Total Revenue (Net Sales)'),
+      TextCellValue('$currency${metrics.totalRevenue.toStringAsFixed(2)}'),
+      TextCellValue('Total revenue collected from completed orders'),
+    ]);
+    summarySheet.appendRow([
+      TextCellValue('Gross Sales (Before Discounts)'),
+      TextCellValue('$currency${(totalGrossSales > 0 ? totalGrossSales : metrics.totalRevenue).toStringAsFixed(2)}'),
+      TextCellValue('Subtotal of all items before discounts and tax'),
+    ]);
+    summarySheet.appendRow([
+      TextCellValue('Estimated Cost of Goods (COGS)'),
+      TextCellValue('$currency${metrics.totalCost.toStringAsFixed(2)}'),
+      TextCellValue('Total product purchase / production cost'),
+    ]);
+    summarySheet.appendRow([
+      TextCellValue('Net Gross Profit'),
+      TextCellValue('$currency${metrics.grossProfit.toStringAsFixed(2)}'),
+      TextCellValue('Revenue minus Cost of Goods'),
+    ]);
+    summarySheet.appendRow([
+      TextCellValue('Gross Profit Margin'),
+      TextCellValue('${profitMargin.toStringAsFixed(1)}%'),
+      TextCellValue('Profit as percentage of total revenue'),
+    ]);
+    summarySheet.appendRow([
+      TextCellValue('Total Discounts Given'),
+      TextCellValue('$currency${totalDiscount.toStringAsFixed(2)}'),
+      TextCellValue('Total discounts applied across all orders'),
+    ]);
+    summarySheet.appendRow([
+      TextCellValue('Total Tax Collected'),
+      TextCellValue('$currency${totalTax.toStringAsFixed(2)}'),
+      TextCellValue('Sales tax / VAT collected'),
+    ]);
+    summarySheet.appendRow([
+      TextCellValue('Completed Orders Count'),
+      IntCellValue(metrics.totalOrders > 0 ? metrics.totalOrders : orders.length),
+      TextCellValue('Total completed transactions'),
+    ]);
+    summarySheet.appendRow([
+      TextCellValue('Total Items Sold'),
+      IntCellValue(metrics.totalItemsSold),
+      TextCellValue('Total menu item quantity sold'),
+    ]);
+    summarySheet.appendRow([
+      TextCellValue('Average Order Value (AOV)'),
+      TextCellValue('$currency${metrics.averageOrderValue.toStringAsFixed(2)}'),
+      TextCellValue('Average spending per order'),
+    ]);
     summarySheet.appendRow([TextCellValue('')]);
 
-    summarySheet.appendRow([TextCellValue('PAYMENT BREAKDOWN'), TextCellValue('REVENUE'), TextCellValue('ORDERS')]);
+    // Payment Methods Breakdown
+    summarySheet.appendRow([TextCellValue('PAYMENT METHOD'), TextCellValue('REVENUE ($currency)'), TextCellValue('TRANSACTIONS'), TextCellValue('SHARE %')]);
+    final double cashShare = metrics.totalRevenue > 0 ? (metrics.cashRevenue / metrics.totalRevenue) * 100 : 0.0;
+    final double qrShare = metrics.totalRevenue > 0 ? (metrics.qrRevenue / metrics.totalRevenue) * 100 : 0.0;
+
     summarySheet.appendRow([
       TextCellValue('Cash Payment'),
-      TextCellValue('${settings.currencySymbol}${metrics.cashRevenue.toStringAsFixed(2)}'),
+      DoubleCellValue(metrics.cashRevenue),
       IntCellValue(metrics.cashOrderCount),
+      TextCellValue('${cashShare.toStringAsFixed(1)}%'),
     ]);
     summarySheet.appendRow([
-      TextCellValue('QR Code Payment'),
-      TextCellValue('${settings.currencySymbol}${metrics.qrRevenue.toStringAsFixed(2)}'),
+      TextCellValue('QR Code / Digital Payment'),
+      DoubleCellValue(metrics.qrRevenue),
       IntCellValue(metrics.qrOrderCount),
+      TextCellValue('${qrShare.toStringAsFixed(1)}%'),
     ]);
 
     // -------------------------------------------------------------
-    // SHEET 2: Orders Register
+    // SHEET 2: Product Profitability
+    // -------------------------------------------------------------
+    final topSheet = excel['Product Profitability'];
+    topSheet.appendRow([
+      TextCellValue('Rank'),
+      TextCellValue('Product Name'),
+      TextCellValue('Quantity Sold'),
+      TextCellValue('Total Revenue ($currency)'),
+      TextCellValue('Est. Profit Share'),
+    ]);
+
+    for (var i = 0; i < topItems.length; i++) {
+      final t = topItems[i];
+      final double share = metrics.totalRevenue > 0 ? (t.totalRevenue / metrics.totalRevenue) * 100 : 0.0;
+      topSheet.appendRow([
+        IntCellValue(i + 1),
+        TextCellValue(t.productName),
+        IntCellValue(t.totalQuantity),
+        DoubleCellValue(t.totalRevenue),
+        TextCellValue('${share.toStringAsFixed(1)}%'),
+      ]);
+    }
+
+    // -------------------------------------------------------------
+    // SHEET 3: Orders Register
     // -------------------------------------------------------------
     final ordersSheet = excel['Orders Register'];
     ordersSheet.appendRow([
       TextCellValue('Receipt No'),
       TextCellValue('Daily Order #'),
-      TextCellValue('Date/Time'),
+      TextCellValue('Date / Time'),
       TextCellValue('Order Type'),
       TextCellValue('Table / Spot'),
       TextCellValue('Customer Name'),
-      TextCellValue('Items Count'),
-      TextCellValue('Subtotal'),
-      TextCellValue('Discount'),
-      TextCellValue('Tax'),
-      TextCellValue('Total Amount'),
+      TextCellValue('Item Count'),
+      TextCellValue('Subtotal ($currency)'),
+      TextCellValue('Discount ($currency)'),
+      TextCellValue('Tax ($currency)'),
+      TextCellValue('Total Amount ($currency)'),
       TextCellValue('Payment Method'),
       TextCellValue('Status'),
     ]);
@@ -129,17 +216,17 @@ class ExcelExportService {
     }
 
     // -------------------------------------------------------------
-    // SHEET 3: Itemized Line Items
+    // SHEET 4: Itemized Sales Details
     // -------------------------------------------------------------
-    final itemsSheet = excel['Itemized Sales'];
+    final itemsSheet = excel['Itemized Sales Details'];
     itemsSheet.appendRow([
       TextCellValue('Receipt No'),
       TextCellValue('Date'),
       TextCellValue('Product Name'),
       TextCellValue('Quantity'),
-      TextCellValue('Unit Price'),
-      TextCellValue('Total Price'),
-      TextCellValue('Notes'),
+      TextCellValue('Unit Price ($currency)'),
+      TextCellValue('Total Revenue ($currency)'),
+      TextCellValue('Special Notes'),
     ]);
 
     for (var o in orders) {
@@ -157,38 +244,17 @@ class ExcelExportService {
     }
 
     // -------------------------------------------------------------
-    // SHEET 4: Top Selling Items
+    // SHEET 5: Audit & Receipt Logs
     // -------------------------------------------------------------
-    final topSheet = excel['Top Selling Items'];
-    topSheet.appendRow([
-      TextCellValue('Rank'),
-      TextCellValue('Product Name'),
-      TextCellValue('Total Quantity Sold'),
-      TextCellValue('Total Revenue'),
-    ]);
-
-    for (var i = 0; i < topItems.length; i++) {
-      final t = topItems[i];
-      topSheet.appendRow([
-        IntCellValue(i + 1),
-        TextCellValue(t.productName),
-        IntCellValue(t.totalQuantity),
-        DoubleCellValue(t.totalRevenue),
-      ]);
-    }
-
-    // -------------------------------------------------------------
-    // SHEET 5: Receipt Logs
-    // -------------------------------------------------------------
-    final logsSheet = excel['Receipt Logs'];
+    final logsSheet = excel['Audit & Receipt Logs'];
     logsSheet.appendRow([
       TextCellValue('Log ID'),
       TextCellValue('Receipt No'),
       TextCellValue('Order ID'),
       TextCellValue('Action'),
       TextCellValue('Timestamp'),
-      TextCellValue('Success'),
-      TextCellValue('File Path'),
+      TextCellValue('Status'),
+      TextCellValue('File Reference'),
     ]);
 
     for (var l in logs) {
@@ -198,7 +264,7 @@ class ExcelExportService {
         TextCellValue(l.orderId),
         TextCellValue(l.action),
         TextCellValue(DateFormat('yyyy-MM-dd HH:mm:ss').format(l.timestamp)),
-        TextCellValue(l.isSuccess ? 'YES' : 'NO'),
+        TextCellValue(l.isSuccess ? 'SUCCESS' : 'FAILED'),
         TextCellValue(l.receiptFilePath ?? ''),
       ]);
     }
@@ -210,9 +276,9 @@ class ExcelExportService {
     }
 
     final timestampStr = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
-    final fileName = 'OmniPOS_Report_$timestampStr.xlsx';
+    final fileName = 'OmniPOS_Sales_Profit_Report_$timestampStr.xlsx';
 
-    // 1. Request Android 11 Storage Permission & write to public Downloads folder
+    // 1. Request Android Storage Permission & write to public Downloads folder
     String? finalPath;
     try {
       await requestStoragePermission();
@@ -246,12 +312,12 @@ class ExcelExportService {
     return await OpenFilex.open(filePath);
   }
 
-  /// Share Excel file via Android system share sheet
+  /// Share Excel file via system share sheet
   Future<ShareResult> shareExcelFile(String filePath) async {
     return await SharePlus.instance.share(
       ShareParams(
         files: [XFile(filePath)],
-        subject: 'OmniPOS Sales & Analytics Report',
+        subject: 'OmniPOS Sales & Profit Report',
       ),
     );
   }

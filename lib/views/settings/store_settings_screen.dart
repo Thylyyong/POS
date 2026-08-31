@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../app_config.dart';
 import '../../controllers/settings_controller.dart';
-import '../../models/store_settings_model.dart';
 import '../../widgets/app_logo_widget.dart';
 import '../../widgets/image_picker_dialog.dart';
 

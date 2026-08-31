@@ -174,7 +174,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     : ListView.separated(
                         padding: const EdgeInsets.all(20),
                         itemCount: filteredCategories.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        separatorBuilder: (context, index) => const SizedBox(height: 12),
                         itemBuilder: (context, index) {
                           final category = filteredCategories[index];
                           final subs = _subcategories

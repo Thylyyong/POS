@@ -175,10 +175,10 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
+          color: isSelected ? ColorTheme.cardBg : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? const Color(0xFFE2E8F0) : Colors.transparent,
+            color: isSelected ? ColorTheme.neutral300 : Colors.transparent,
           ),
           boxShadow: isSelected
               ? [BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 4, offset: const Offset(0, 1))]
@@ -187,12 +187,12 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: isSelected ? const Color(0xFF0F172A) : const Color(0xFF64748B)),
+            Icon(icon, size: 16, color: isSelected ? ColorTheme.primary400 : ColorTheme.neutral600),
             const SizedBox(width: 8),
             Text(
               title,
               style: TextStyle(
-                color: isSelected ? AppConfig.accentGreenDark : const Color(0xFF475569),
+                color: isSelected ? ColorTheme.primary400 : ColorTheme.neutral600,
                 fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
                 fontSize: 13,
               ),
@@ -262,19 +262,20 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: AppConfig.accentGreen.withValues(alpha: 0.12),
+                              color: ColorTheme.neutral100,
                               borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: ColorTheme.neutral300),
                             ),
                             child: Text(
                               '#${order.orderNumber}',
-                              style: const TextStyle(color: AppConfig.accentGreenDark, fontSize: 10.5, fontWeight: FontWeight.bold),
+                              style: const TextStyle(color: ColorTheme.primary400, fontSize: 10.5, fontWeight: FontWeight.bold),
                             ),
                           ),
                         ],
                       ],
                     ),
                     const SizedBox(height: 2),
-                    Text(dateStr, style: const TextStyle(color: Color(0xFF64748B), fontSize: 11.5)),
+                    Text(dateStr, style: const TextStyle(color: ColorTheme.neutral600, fontSize: 11.5)),
                   ],
                 ),
               ),
@@ -287,12 +288,12 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                   children: [
                     Text(
                       order.tableNumber ?? (order.orderType == 'TAKEAWAY' ? 'Takeaway' : 'Table T01'),
-                      style: const TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.w600, fontSize: 13),
+                      style: const TextStyle(color: ColorTheme.neutral800, fontWeight: FontWeight.w600, fontSize: 13),
                     ),
                     if (order.customerName != null && order.customerName!.isNotEmpty)
                       Text(
                         'Guest: ${order.customerName}',
-                        style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                        style: const TextStyle(color: ColorTheme.neutral600, fontSize: 12),
                       ),
                   ],
                 ),
@@ -307,20 +308,27 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
                       color: isPending
-                          ? AppConfig.accentAmber.withValues(alpha: 0.12)
+                          ? ColorTheme.statusOrangeBg
                           : isCash
-                              ? AppConfig.accentGreen.withValues(alpha: 0.12)
-                              : AppConfig.accentCyan.withValues(alpha: 0.12),
+                              ? ColorTheme.neutral100
+                              : ColorTheme.primary50.withValues(alpha: 0.2),
                       borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: isPending
+                            ? ColorTheme.statusOrange
+                            : isCash
+                                ? ColorTheme.neutral300
+                                : ColorTheme.primary500,
+                      ),
                     ),
                     child: Text(
                       isPending ? 'PENDING' : order.paymentMethod.displayName,
                       style: TextStyle(
                         color: isPending
-                            ? AppConfig.accentAmber
+                            ? ColorTheme.statusOrange
                             : isCash
-                                ? AppConfig.accentGreenDark
-                                : AppConfig.accentCyan,
+                                ? ColorTheme.primary400
+                                : ColorTheme.primary500,
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
                       ),
@@ -335,7 +343,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                 child: Text(
                   '$currency${order.totalAmount.toStringAsFixed(2)}',
                   style: const TextStyle(
-                    color: Color(0xFF0F172A),
+                    color: ColorTheme.primary400,
                     fontSize: 17,
                     fontWeight: FontWeight.bold,
                   ),
@@ -347,24 +355,24 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                 children: [
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFF1F5F9),
-                      foregroundColor: const Color(0xFF0F172A),
+                      backgroundColor: ColorTheme.neutral100,
+                      foregroundColor: ColorTheme.primary400,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
                     onPressed: () => _openReceiptPreview(context, order, settings, posCtrl),
-                    icon: const Icon(Icons.visibility_outlined, size: 16, color: Color(0xFF475569)),
+                    icon: const Icon(Icons.visibility_outlined, size: 16, color: ColorTheme.primary400),
                     label: const Text('View Receipt'),
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(Icons.picture_as_pdf, color: AppConfig.accentRose, size: 20),
+                    icon: const Icon(Icons.picture_as_pdf, color: ColorTheme.semanticRed, size: 20),
                     tooltip: 'Print / Open PDF Receipt',
                     onPressed: () => _pdfService.printReceiptPdf(order: order, settings: settings),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.print_outlined, color: AppConfig.accentGreen, size: 20),
+                    icon: const Icon(Icons.print_outlined, color: ColorTheme.primary400, size: 20),
                     tooltip: 'Reprint Thermal Receipt',
                     onPressed: () async {
                       final success = await posCtrl.reprintReceipt(order: order, settings: settings);
@@ -372,7 +380,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(success ? 'Receipt ${order.receiptNo} sent to printer!' : 'Reprint command queued.'),
-                            backgroundColor: AppConfig.accentGreen,
+                            backgroundColor: ColorTheme.buttonPrimary,
                             duration: const Duration(seconds: 2),
                           ),
                         );
@@ -481,7 +489,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                 children: [
                   ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppConfig.accentGreen,
+                      backgroundColor: ColorTheme.buttonPrimary,
                       foregroundColor: Colors.white,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),

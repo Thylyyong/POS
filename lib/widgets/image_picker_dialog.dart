@@ -138,13 +138,13 @@ class _ImagePickerDialogState extends State<ImagePickerDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: Colors.white,
+      backgroundColor: ColorTheme.cardBg,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 680, maxHeight: 600),
+        constraints: const BoxConstraints(maxWidth: 680, maxHeight: 580),
         child: Padding(
-          padding: const EdgeInsets.all(24),
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -154,25 +154,25 @@ class _ImagePickerDialogState extends State<ImagePickerDialog> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.folder_special, color: AppConfig.accentGreen, size: 28),
+                      const Icon(Icons.folder_special, color: ColorTheme.buttonPrimary, size: 26),
                       const SizedBox(width: 10),
                       Text(
                         widget.title,
                         style: const TextStyle(
-                          fontSize: 20,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF0F172A),
+                          color: ColorTheme.primary400,
                         ),
                       ),
                     ],
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Color(0xFF64748B)),
+                    icon: const Icon(Icons.close, color: ColorTheme.neutral600),
                     onPressed: () => Navigator.of(context).pop(null),
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
 
               // Action Options Row (Real Folder vs Gallery vs Camera)
               Row(
@@ -181,93 +181,102 @@ class _ImagePickerDialogState extends State<ImagePickerDialog> {
                   Expanded(
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppConfig.accentGreen,
+                        backgroundColor: ColorTheme.buttonPrimary,
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                         elevation: 0,
                       ),
                       onPressed: _pickFromFileManager,
-                      icon: const Icon(Icons.drive_folder_upload, size: 20),
-                      label: const Text('Browse Real Folders / Storage', style: TextStyle(fontWeight: FontWeight.bold)),
+                      icon: const Icon(Icons.drive_folder_upload, size: 18),
+                      label: const Text('Browse Real Folders / Storage', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
 
                   // 2. Photo Gallery
                   Expanded(
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        side: const BorderSide(color: Color(0xFFCBD5E1)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        side: const BorderSide(color: ColorTheme.neutral300),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        foregroundColor: ColorTheme.primary400,
                       ),
                       onPressed: () => _pickFromImagePicker(ImageSource.gallery),
-                      icon: const Icon(Icons.photo_library_outlined, size: 20, color: Color(0xFF334155)),
-                      label: const Text('Photo Gallery', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF334155))),
+                      icon: const Icon(Icons.photo_library_outlined, size: 18, color: ColorTheme.primary400),
+                      label: const Text('Photo Gallery', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: ColorTheme.primary400)),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
 
-              // Discovered Images in Real Machine Folders
+              // Discovered Images Header
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text(
                     'PHOTOS FOUND IN DEVICE FOLDERS',
                     style: TextStyle(
-                      fontSize: 12,
+                      fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF64748B),
-                      letterSpacing: 1.0,
+                      color: ColorTheme.neutral600,
+                      letterSpacing: 0.8,
                     ),
                   ),
                   TextButton.icon(
                     onPressed: _scanCommonDeviceFolders,
-                    icon: const Icon(Icons.refresh, size: 16, color: AppConfig.accentGreenDark),
-                    label: const Text('Rescan', style: TextStyle(fontSize: 12, color: AppConfig.accentGreenDark)),
+                    icon: const Icon(Icons.refresh, size: 15, color: ColorTheme.primary400),
+                    label: const Text('Rescan', style: TextStyle(fontSize: 12, color: ColorTheme.primary400, fontWeight: FontWeight.w600)),
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 8),
 
               // Image Grid from Device Storage
               Expanded(
                 child: _isScanningFolders
-                    ? const Center(child: CircularProgressIndicator(color: AppConfig.accentGreen))
+                    ? const Center(child: CircularProgressIndicator(color: ColorTheme.buttonPrimary))
                     : _foundImages.isEmpty
                         ? Container(
-                            padding: const EdgeInsets.all(24),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              color: ColorTheme.neutral100,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(color: ColorTheme.neutral300),
                             ),
-                            child: Center(
+                            child: SingleChildScrollView(
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  const Icon(Icons.folder_open, size: 54, color: Color(0xFF94A3B8)),
-                                  const SizedBox(height: 12),
+                                  const SizedBox(height: 8),
+                                  const Icon(Icons.folder_open, size: 44, color: ColorTheme.neutral400),
+                                  const SizedBox(height: 8),
                                   const Text(
                                     'No photos found in default folders',
-                                    style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF334155), fontSize: 14),
+                                    style: TextStyle(fontWeight: FontWeight.bold, color: ColorTheme.primary400, fontSize: 13.5),
                                   ),
                                   const SizedBox(height: 4),
                                   const Text(
-                                    'Tap "Browse Real Folders / Storage" above to open your device file manager and pick any image file from Downloads, USB, SD Card, etc.',
+                                    'Tap "Browse Real Folders / Storage" above to open your device file manager and pick any image from Downloads, USB, SD Card, etc.',
                                     textAlign: TextAlign.center,
-                                    style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                                    style: TextStyle(color: ColorTheme.neutral600, fontSize: 11.5),
                                   ),
-                                  const SizedBox(height: 16),
+                                  const SizedBox(height: 12),
                                   ElevatedButton.icon(
-                                    style: ElevatedButton.styleFrom(backgroundColor: AppConfig.accentCyan, foregroundColor: Colors.white),
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: ColorTheme.buttonPrimary,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                    ),
                                     onPressed: _pickFromFileManager,
-                                    icon: const Icon(Icons.drive_folder_upload, size: 18),
-                                    label: const Text('Open Device File Manager'),
+                                    icon: const Icon(Icons.drive_folder_upload, size: 16),
+                                    label: const Text('Open Device File Manager', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
                                   ),
+                                  const SizedBox(height: 8),
                                 ],
                               ),
                             ),
@@ -275,8 +284,8 @@ class _ImagePickerDialogState extends State<ImagePickerDialog> {
                         : GridView.builder(
                             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 4,
-                              crossAxisSpacing: 12,
-                              mainAxisSpacing: 12,
+                              crossAxisSpacing: 10,
+                              mainAxisSpacing: 10,
                               childAspectRatio: 1.0,
                             ),
                             itemCount: _foundImages.length,
@@ -293,7 +302,7 @@ class _ImagePickerDialogState extends State<ImagePickerDialog> {
                                 child: Container(
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(12),
-                                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                                    border: Border.all(color: ColorTheme.neutral300),
                                     image: DecorationImage(
                                       image: FileImage(file),
                                       fit: BoxFit.cover,
