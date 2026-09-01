@@ -20,6 +20,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   List<Product> _allProducts = [];
   List<Category> _categories = [];
+  List<Subcategory> _subcategories = [];
   String _filterCategoryId = 'ALL';
   String _searchQuery = '';
   bool _isLoading = true;
@@ -33,6 +34,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
     _categories = await _productDao.getAllCategories();
+    _subcategories = await _productDao.getAllSubcategories();
     _allProducts = await _productDao.getAllProducts();
     setState(() => _isLoading = false);
   }
@@ -110,10 +112,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
                 const SizedBox(width: 10),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F172A),
+                    backgroundColor: const Color(0xFF0D9488),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    elevation: 0,
                   ),
                   onPressed: () => _showAddEditProductDialog(context, null),
                   icon: const Icon(Icons.add, size: 16),
@@ -225,9 +228,16 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                           overflow: TextOverflow.ellipsis,
                                         ),
                                       ],
-                                      const SizedBox(height: 2),
                                       Text(
-                                        'SKU: ${product.barcode ?? "N/A"} • ${category.name}',
+                                        () {
+                                          final subcat = product.subcategoryId != null
+                                              ? _subcategories.where((s) => s.id == product.subcategoryId).firstOrNull
+                                              : null;
+                                          final catText = subcat != null
+                                              ? '${category.name} › ${subcat.name}'
+                                              : category.name;
+                                          return 'SKU: ${product.barcode ?? "N/A"} • $catText';
+                                        }(),
                                         style: const TextStyle(color: ColorTheme.neutral500, fontSize: 11),
                                       ),
                                     ],
@@ -334,6 +344,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
     final costCtrl = TextEditingController(text: existing != null ? existing.cost.toString() : '0.0');
     final barcodeCtrl = TextEditingController(text: existing?.barcode ?? '');
     String selectedCatId = existing?.categoryId ?? (_categories.isNotEmpty ? _categories.first.id : '');
+    String? selectedSubcatId = existing?.subcategoryId;
     bool inStock = existing?.inStock ?? true;
     String? localImagePath = existing?.imagePath;
 
@@ -500,9 +511,51 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         return DropdownMenuItem(value: c.id, child: Text(c.name));
                       }).toList(),
                       onChanged: (val) {
-                        if (val != null) setDialogState(() => selectedCatId = val);
+                        if (val != null) {
+                          setDialogState(() {
+                            selectedCatId = val;
+                            // Clear subcategory if it does not belong to the newly selected category
+                            if (selectedSubcatId != null &&
+                                !_subcategories.any((s) => s.id == selectedSubcatId && s.categoryId == val)) {
+                              selectedSubcatId = null;
+                            }
+                          });
+                        }
                       },
                     ),
+                    () {
+                      final catSubs = _subcategories.where((s) => s.categoryId == selectedCatId).toList();
+                      if (catSubs.isEmpty) return const SizedBox.shrink();
+
+                      return Padding(
+                        padding: const EdgeInsets.only(top: 12),
+                        child: DropdownButtonFormField<String?>(
+                          initialValue: (selectedSubcatId != null && catSubs.any((s) => s.id == selectedSubcatId))
+                              ? selectedSubcatId
+                              : null,
+                          decoration: const InputDecoration(
+                            labelText: 'Subcategory (Optional)',
+                            border: OutlineInputBorder(),
+                            helperText: 'Select a subcategory group within this category',
+                          ),
+                          items: [
+                            const DropdownMenuItem<String?>(
+                              value: null,
+                              child: Text('None (General Category)', style: TextStyle(color: Color(0xFF64748B))),
+                            ),
+                            ...catSubs.map((s) {
+                              return DropdownMenuItem<String?>(
+                                value: s.id,
+                                child: Text(s.name),
+                              );
+                            }),
+                          ],
+                          onChanged: (val) {
+                            setDialogState(() => selectedSubcatId = val);
+                          },
+                        ),
+                      );
+                    }(),
                     const SizedBox(height: 12),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -536,6 +589,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                               final product = Product(
                                 id: existing?.id ?? 'prod_${DateTime.now().millisecondsSinceEpoch}',
                                 categoryId: selectedCatId,
+                                subcategoryId: selectedSubcatId,
                                 name: nameCtrl.text.trim(),
                                 description: descCtrl.text.trim().isEmpty ? null : descCtrl.text.trim(),
                                 price: price,

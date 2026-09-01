@@ -8,6 +8,7 @@ import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'app_config.dart';
 import 'controllers/controllers.dart';
 import 'database/database.dart';
+import 'models/store_settings_model.dart';
 import 'views/views.dart';
 
 // Custom POS Scroll Behavior: Removes the "gummy/stretchy" overscroll distortion
@@ -42,13 +43,26 @@ class PosCustomScrollBehavior extends MaterialScrollBehavior {
 // ============================================================================
 // 1. PRIMARY CASHIER DISPLAY ENTRY POINT
 // ============================================================================
-void main() async {
+void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Initialize SQLite FFI for Windows & Linux desktop support
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
+  }
+
+  // Check if launched as Secondary Customer-Facing Display (CFD) Window
+  if (args.contains('--cfd') || args.contains('--customer-display') || args.contains('--secondary')) {
+    runApp(
+      const MaterialApp(
+        title: 'POS Customer Display (CFD)',
+        debugShowCheckedModeBanner: false,
+        scrollBehavior: PosCustomScrollBehavior(),
+        home: CustomerPresentationView(),
+      ),
+    );
+    return;
   }
 
   // Enforce Landscape Orientation on Commercial Android POS Terminals
@@ -65,6 +79,7 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => AuthController()),
         ChangeNotifierProvider(create: (_) => SettingsController()),
         ChangeNotifierProvider(create: (_) => CartController()),
         ChangeNotifierProvider(create: (_) => PosController()),
@@ -76,6 +91,41 @@ void main() async {
   );
 }
 
+class CartSettingsSync extends StatelessWidget {
+  final Widget child;
+
+  const CartSettingsSync({super.key, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    final settings = context.select<SettingsController, StoreSettingsModel>(
+      (c) => c.settings,
+    );
+    final cart = context.read<CartController>();
+
+    final hasTaxMismatch = (cart.taxRate - settings.defaultTaxRate).abs() > 0.0001;
+    final hasCurrencyMismatch = cart.currencySymbol != settings.currencySymbol;
+
+    if (hasTaxMismatch || hasCurrencyMismatch) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        final currentSettings = context.read<SettingsController>().settings;
+        final currentCart = context.read<CartController>();
+        final taxMismatch = (currentCart.taxRate - currentSettings.defaultTaxRate).abs() > 0.0001;
+        final currencyMismatch = currentCart.currencySymbol != currentSettings.currencySymbol;
+
+        if (taxMismatch || currencyMismatch) {
+          currentCart.updateConfig(
+            taxRate: currentSettings.defaultTaxRate,
+            currencySymbol: currentSettings.currencySymbol,
+          );
+        }
+      });
+    }
+
+    return child;
+  }
+}
+
 class CashierApp extends StatelessWidget {
   const CashierApp({super.key});
 
@@ -85,20 +135,22 @@ class CashierApp extends StatelessWidget {
       (c) => c.settings.fontSizeScale,
     );
 
-    return MaterialApp(
-      title: AppConfig.appName,
-      debugShowCheckedModeBanner: false,
-      theme: AppConfig.lightTheme,
-      scrollBehavior: const PosCustomScrollBehavior(),
-      builder: (context, child) {
-        return MediaQuery(
-          data: MediaQuery.of(context).copyWith(
-            textScaler: TextScaler.linear(fontScale),
-          ),
-          child: child ?? const SizedBox.shrink(),
-        );
-      },
-      home: const SplashScreen(),
+    return CartSettingsSync(
+      child: MaterialApp(
+        title: AppConfig.appName,
+        debugShowCheckedModeBanner: false,
+        theme: AppConfig.lightTheme,
+        scrollBehavior: const PosCustomScrollBehavior(),
+        builder: (context, child) {
+          return MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: TextScaler.linear(fontScale),
+            ),
+            child: child ?? const SizedBox.shrink(),
+          );
+        },
+        home: const SplashScreen(),
+      ),
     );
   }
 }

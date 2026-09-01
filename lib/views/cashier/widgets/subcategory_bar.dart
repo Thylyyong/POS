@@ -29,11 +29,7 @@ class SubcategoryBar extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
         children: [
-          SubcategoryPill(
-            label: 'All',
-            isSelected: selectedId == null,
-            onTap: () => onSelect(null),
-          ),
+         
           ...subcategories.map(
             (s) => SubcategoryPill(
               label: s.name,

@@ -54,7 +54,6 @@ class ProductCard extends StatelessWidget {
               children: [
                 // ── Framed Image / Placeholder (with neutral200 frame) ───
                 Expanded(
-                  flex: 74,
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(7, 7, 7, 0),
                     child: Container(
@@ -125,82 +124,79 @@ class ProductCard extends StatelessWidget {
                 ),
 
                 // ── Content Footer (Title, Price, Big '+' Button) ────────
-                Expanded(
-                  flex: 26,
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(9, 6, 8, 7),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Product name
-                        Text(
-                          product.name,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: ColorTheme.neutral800,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            height: 1.15,
-                          ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 6, 8, 7),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Product name
+                      Text(
+                        product.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: ColorTheme.neutral800,
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
                         ),
+                      ),
+                      const SizedBox(height: 3),
 
-                        // Price & Big Add Button
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            // Price text
-                            Expanded(
-                              child: Text(
-                                '$currency${product.price.toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  color: ColorTheme.primary400,
-                                  fontSize: 16.5,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: -0.3,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                      // Price & Add Button
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          // Price text
+                          Expanded(
+                            child: Text(
+                              '$currency${product.price.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                color: ColorTheme.primary400,
+                                fontSize: 15,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.3,
                               ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
+                          ),
 
-                            // '+' Button (32x32)
-                            if (!isOutOfStock)
-                              Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  onTap: onTap,
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Container(
-                                    width: 32,
-                                    height: 32,
-                                    decoration: BoxDecoration(
-                                      color: ColorTheme.buttonPrimary,
-                                      borderRadius: BorderRadius.circular(8),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: ColorTheme.buttonPrimary.withValues(alpha: 0.25),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 1.5),
-                                        ),
-                                      ],
-                                    ),
-                                    child: const Center(
-                                      child: Icon(
-                                        Icons.add,
-                                        size: 19,
-                                        color: Colors.white,
+                          // '+' Button (28x28)
+                          if (!isOutOfStock)
+                            Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: onTap,
+                                borderRadius: BorderRadius.circular(7),
+                                child: Container(
+                                  width: 28,
+                                  height: 28,
+                                  decoration: BoxDecoration(
+                                    color: ColorTheme.buttonPrimary,
+                                    borderRadius: BorderRadius.circular(7),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: ColorTheme.buttonPrimary.withValues(alpha: 0.25),
+                                        blurRadius: 4,
+                                        offset: const Offset(0, 1.5),
                                       ),
+                                    ],
+                                  ),
+                                  child: const Center(
+                                    child: Icon(
+                                      Icons.add,
+                                      size: 17,
+                                      color: Colors.white,
                                     ),
                                   ),
                                 ),
                               ),
-                          ],
-                        ),
-                      ],
-                    ),
+                            ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ],

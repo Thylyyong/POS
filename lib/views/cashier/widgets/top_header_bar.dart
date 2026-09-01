@@ -6,7 +6,6 @@ import '../../../controllers/settings_controller.dart';
 import '../../../core/debouncer.dart';
 import '../../../services/presentation_service.dart';
 import '../../../widgets/app_logo_widget.dart';
-import '../../customer_display/customer_main_view.dart';
 import 'nav_sidebar.dart';
 
 /// POS-only top header bar.
@@ -42,8 +41,8 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
     final cfdEnabled = context.select<SettingsController, bool>(
       (c) => c.settings.cfdEnabled,
     );
-    final is80mm = context.select<SettingsController, bool>(
-      (c) => c.settings.isPaperSize80mm,
+    final autoPrint = context.select<SettingsController, bool>(
+      (c) => c.settings.autoPrintOnPayment,
     );
 
     return Container(
@@ -130,30 +129,72 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
           const SizedBox(width: 10),
 
           // ── Right: status icons ───────────────────────────────────────
-         
           _HeaderIcon(
-            icon: Icons.print_outlined,
-            tooltip: is80mm ? '80mm Thermal' : '58mm Thermal',
-            active: false,
+            icon: autoPrint ? Icons.print : Icons.print_disabled_outlined,
+            tooltip: autoPrint
+                ? 'Receipt Auto-Print: ON (Tap to Disable)'
+                : 'Receipt Auto-Print: OFF (Tap to Enable)',
+            active: autoPrint,
+            activeColor: const Color(0xFF10B981), // Emerald Green
+            onTap: () {
+              final newAutoPrint = !autoPrint;
+              context.read<SettingsController>().toggleAutoPrint(newAutoPrint);
+              ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Row(
+                    children: [
+                      Icon(
+                        newAutoPrint ? Icons.print : Icons.print_disabled,
+                        color: Colors.white,
+                        size: 18,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        newAutoPrint
+                            ? 'Receipt Auto-Print: ENABLED'
+                            : 'Receipt Auto-Print: DISABLED (Skip customer receipt)',
+                        style: const TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                  backgroundColor: newAutoPrint ? const Color(0xFF047857) : const Color(0xFF475569),
+                  duration: const Duration(seconds: 2),
+                  behavior: SnackBarBehavior.floating,
+                ),
+              );
+            },
           ),
+          const SizedBox(width: 6),
+          // ── CFD Status Icon ────────────────────────────────────────────
           _HeaderIcon(
             icon: Icons.tv_outlined,
-            tooltip: cfdEnabled ? 'CFD Active' : 'CFD Off',
+            tooltip: cfdEnabled ? 'CFD Active' : 'Launch Customer Screen',
             active: cfdEnabled,
-            activeColor: const Color(0xFF2563EB),
+            activeColor: const Color(0xFF0D9488),
             onTap: () async {
-              await PresentationService().showCustomerDisplay();
+              await PresentationService().launchSecondaryWindow();
               if (context.mounted) {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                      builder: (_) => const CustomerMainView()),
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Row(
+                      children: [
+                        Icon(Icons.tv, color: Colors.white, size: 18),
+                        SizedBox(width: 8),
+                        Text('Customer Display window launched for 2nd monitor.'),
+                      ],
+                    ),
+                    backgroundColor: Color(0xFF0F172A),
+                    duration: Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                  ),
                 );
               }
             },
           ),
           const SizedBox(width: 8),
 
-          // ── Duplicate Screen button ────────────────────────────────────
+          // ── Duplicate / Dual-Screen button ─────────────────────────────
           OutlinedButton.icon(
             style: OutlinedButton.styleFrom(
               backgroundColor: const Color(0xFFF8FAFC),
@@ -167,17 +208,31 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
               tapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
             onPressed: () async {
-              await PresentationService().showCustomerDisplay();
+              await PresentationService().launchSecondaryWindow();
               if (context.mounted) {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                      builder: (_) => const CustomerMainView()),
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Row(
+                      children: [
+                        Icon(Icons.screen_share, color: Colors.white, size: 18),
+                        SizedBox(width: 8),
+                        Text('Customer Display window launched for 2nd monitor.'),
+                      ],
+                    ),
+                    backgroundColor: Color(0xFF0F172A),
+                    duration: Duration(seconds: 2),
+                    behavior: SnackBarBehavior.floating,
+                  ),
                 );
               }
             },
-            icon: const Icon(Icons.screen_share_outlined, size: 15, color: Color(0xFF0F172A)),
+            icon: const Icon(
+              Icons.screen_share_outlined,
+              size: 15,
+              color: Color(0xFF0F172A),
+            ),
             label: const Text(
-              'Duplicate',
+              'Dual Screen',
               style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
             ),
           ),

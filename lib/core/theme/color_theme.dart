@@ -1,59 +1,68 @@
 import 'dart:ui';
 
 class ColorTheme {
-  // Neutral
-  static const neutral50 = Color(0xFFFDFFFC);
-  static const neutral100 = Color(0xFFF2F2F2);
-  static const neutral200 = Color(0xFFCACACA);
-  static const neutral300 = Color(0xFFE0E0E0);
-  static const neutral400 = Color(0xFFA1A1A1);
-  static const neutral500 = Color(0xFF9E9E9E);
-  static const neutral600 = Color(0xFF575757);
-  static const neutral800 = Color(0xFF00030E);
+  // Text Colors
+  static const textPrimary = Color(0xFF0F172A);
+  static const textSecondary = Color(0xFF475569);
+  static const textMuted = Color(0xFF94A3B8);
 
-  // Primary
-  static const primary50 = Color(0xFF879BE0);
-  static const primary200 = Color(0xFF5567A7);
-  static const primary400 = Color(0xFF2B3042);
-  static const primary500 = Color(0xFF3D5AF1);
-  static const primary600 = Color(0xFF111935);
-  static const primary800 = Color(0xFF02071A);
+  // Neutral (Clean light theme)
+  static const neutral50 = Color(0xFFFFFFFF);
+  static const neutral100 = Color(0xFFF8FAFC);
+  static const neutral200 = Color(0xFFE2E8F0);
+  static const neutral300 = Color(0xFFCBD5E1);
+  static const neutral400 = Color(0xFF94A3B8);
+  static const neutral500 = Color(0xFF64748B);
+  static const neutral600 = Color(0xFF475569);
+  static const neutral800 = Color(0xFF0F172A);
+
+  // Primary (Clean Green + Blue / Teal & Slate)
+  static const primary50 = Color(0xFFF0FDFA);   // Clean light teal tint
+  static const primary100 = Color(0xFFCCFBF1);  // Very soft teal border
+  static const primary200 = Color(0xFF99F6E4);  // Soft teal border
+  static const primary300 = Color(0xFF5EEAD4);  // Medium teal accent
+  static const primary400 = Color(0xFF0D9488);  // Vibrant clean Teal (Green+Blue)
+  static const primary500 = Color(0xFF0D9488);  // Main brand Teal
+  static const primary600 = Color(0xFF0F766E);  // Deep rich Teal
+  static const primary700 = Color(0xFF115E59);  // Dark Teal
+  static const primary800 = Color(0xFF134E4A);  // Deepest Teal
 
   // Secondary
-  static const secondary50 = Color(0xFFE5B8FF);
-  static const secondary200 = Color(0xFFBE4FFF);
-  static const secondary400 = Color(0xFF9811E7);
-  static const secondary600 = Color(0xFF6A159C);
-  static const secondary800 = Color(0xFF29043F);
+  static const secondary50 = Color(0xFFF0FDFA);
+  static const secondary200 = Color(0xFF99F6E4);
+  static const secondary400 = Color(0xFF0D9488);
+  static const secondary600 = Color(0xFF0F766E);
+  static const secondary800 = Color(0xFF115E59);
 
   static const cardBg = Color(0xFFFFFFFF);
-  static const screenBg = Color(0xFFF5F5F5);
-  static const semanticRed = Color(0xFFD6212F);
-  static const semanticYellow = Color(0xFFF4BD00);
-  static const semanticGreen = Color(0xFF12974F);
-  static const semanticOrange = Color(0xFFFF9800);
-  static const semanticBlue = Color(0xFF2196F3);
+  static const screenBg = Color(0xFFF8FAFC);
+  static const semanticRed = Color(0xFFEF4444);
+  static const semanticYellow = Color(0xFFF59E0B);
+  static const semanticGreen = Color(0xFF10B981);
+  static const semanticOrange = Color(0xFFF97316);
+  static const semanticBlue = Color(0xFF0D9488); // Teal (Green + Blue)
 
   // Button
-  static const buttonDisable = Color(0xFFB4B5C2);
-  static const buttonPrimary = Color(0xFF2B3042);
-  static const buttonLinkText = Color(0xFF9811E7);
+  static const buttonDisable = Color(0xFFCBD5E1);
+  static const buttonPrimary = Color(0xFF0D9488);
+  static const buttonLinkText = Color(0xFF0D9488);
 
-  static const blue = Color(0xFF0866FF);
-  static const grey = Color(0xFF2E2E38);
+  static const blue = Color(0xFF0D9488); // Clean Teal (Green + Blue)
+  static const teal = Color(0xFF0D9488);
+  static const grey = Color(0xFF64748B);
 
   // Status Colors
-  static const statusRed = Color(0xFFF5222D);
-  static const statusRedBg = Color(0xFFFFE7E6);
-  static const statusOrange = Color(0xFFFA8C16);
-  static const statusOrangeBg = Color(0xFFFFF7E6);
-  static const statusGreen = Color(0xFF52C41A);
-  static const statusGreenBg = Color(0xFFE6FFFB);
-  static const statusGrey = Color(0xFF8C8C8C);
-  static const statusGreyBg = Color(0xFFF2F2F2);
+  static const statusRed = Color(0xFFEF4444);
+  static const statusRedBg = Color(0xFFFEF2F2);
+  static const statusOrange = Color(0xFFF97316);
+  static const statusOrangeBg = Color(0xFFFFF7ED);
+  static const statusGreen = Color(0xFF10B981);
+  static const statusGreenBg = Color(0xFFECFDF5);
+  static const statusGrey = Color(0xFF64748B);
+  static const statusGreyBg = Color(0xFFF1F5F9);
 
   static const labelFieldGradient = [
-    Color(0xFFF5F5F5),
-    Color(0xFFFDFFFC),
+    Color(0xFFF8FAFC),
+    Color(0xFFFFFFFF),
   ];
 }

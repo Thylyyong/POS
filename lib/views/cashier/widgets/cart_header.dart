@@ -27,10 +27,9 @@ class CartHeader extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        color: const Color(0xFF0F172A), // Slate-900 for distinct contrast
-        border: const Border(bottom: BorderSide(color: Color.fromRGBO(234, 236, 239, 1))),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1.5)),
       ),
       child: Column(
         children: [
@@ -38,46 +37,57 @@ class CartHeader extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.shopping_cart, color: Color.fromARGB(255, 209, 223, 218), size: 20),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Current Order',
-                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text(
-                      '$itemCount items',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 11,
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(Icons.shopping_cart, color: ColorTheme.primary400, size: 20),
+                    const SizedBox(width: 8),
+                    const Flexible(
+                      child: Text(
+                        'Current Order',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w900,
+                          color: ColorTheme.textPrimary,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDFA),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF99F6E4)),
+                      ),
+                      child: Text(
+                        '$itemCount items',
+                        style: const TextStyle(
+                          color: ColorTheme.primary400,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
 
               Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   if (heldCount > 0)
                     IconButton(
                       icon: Badge(
                         label: Text('$heldCount'),
-                        child: const Icon(Icons.pause_circle_outline, color: AppConfig.accentAmber, size: 20),
+                        child: const Icon(Icons.pause_circle_outline, color: AppConfig.accentAmber, size: 21),
                       ),
                       tooltip: 'Held Orders ($heldCount)',
                       onPressed: () => showHeldOrdersModal(context, cart),
                     ),
                   IconButton(
-                    icon: const Icon(Icons.delete_sweep_outlined, color: AppConfig.accentRose, size: 20),
+                    icon: const Icon(Icons.delete_sweep_outlined, color: AppConfig.accentRose, size: 21),
                     tooltip: 'Clear Cart',
                     onPressed: isEmpty ? null : () => _confirmClearCart(context, cart),
                   ),
@@ -87,7 +97,7 @@ class CartHeader extends StatelessWidget {
           ),
           const SizedBox(height: 8),
 
-          // Row 2: Table & Customer selector badge
+          // Row 2: Table & Customer selector badge (Light Theme)
           InkWell(
             onTap: () {
               showDialog(
@@ -97,36 +107,40 @@ class CartHeader extends StatelessWidget {
             },
             borderRadius: BorderRadius.circular(8),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
               decoration: BoxDecoration(
-                color: const Color(0xFF1E293B),
+                color: const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFF334155)),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
               child: Row(
                 children: [
                   Icon(
                     cart.orderType == 'TAKEAWAY' ? Icons.takeout_dining : Icons.table_restaurant,
                     size: 16,
-                    color: AppConfig.accentCyan,
+                    color: ColorTheme.primary400,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
                       customer != null ? '$tableName • $customer' : tableName,
                       style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        color: ColorTheme.textPrimary,
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w700,
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   const Text(
                     'Change Table',
-                    style: TextStyle(color: AppConfig.accentCyan, fontSize: 11, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      color: ColorTheme.primary400,
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
-                  const Icon(Icons.chevron_right, size: 16, color: AppConfig.accentCyan),
+                  const Icon(Icons.chevron_right, size: 16, color: ColorTheme.primary400),
                 ],
               ),
             ),
@@ -141,24 +155,34 @@ class CartHeader extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
-        title: const Text('Clear Cart?', style: TextStyle(color: Color(0xFF0F172A), fontWeight: FontWeight.bold)),
-        content: const Text('This will remove all items from the current cart.'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        title: const Text(
+          'Clear Cart?',
+          style: TextStyle(fontWeight: FontWeight.bold, color: ColorTheme.textPrimary),
+        ),
+        content: const Text(
+          'All items in the current order will be removed.',
+          style: TextStyle(color: ColorTheme.textSecondary),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel'),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: AppConfig.accentRose, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppConfig.accentRose,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
             onPressed: () {
               cart.clearCart();
               Navigator.of(ctx).pop();
             },
-            child: const Text('Clear All'),
+            child: const Text('Clear', style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
     );
   }
 }
-

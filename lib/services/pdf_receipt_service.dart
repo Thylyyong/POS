@@ -267,25 +267,41 @@ class PdfReceiptService {
     // 1. App Documents Directory
     try {
       final appDir = await getApplicationDocumentsDirectory();
-      final targetDir = Directory('${appDir.path}/POS_Receipts/$dateFolder');
+      final sep = Platform.isWindows ? '\\' : '/';
+      final targetDir = Directory('${appDir.path}${sep}POS_Receipts$sep$dateFolder');
       if (!await targetDir.exists()) {
         await targetDir.create(recursive: true);
       }
-      final file = File('${targetDir.path}/$fileName');
+      final file = File('${targetDir.path}$sep$fileName');
       await file.writeAsBytes(pdfBytes, flush: true);
       appDocPath = file.path;
     } catch (_) {}
 
-    // 2. Android Public Downloads Directory (/storage/emulated/0/Download/POS_Receipts)
-    try {
-      final downloadDir = Directory('/storage/emulated/0/Download/POS_Receipts/$dateFolder');
-      if (!await downloadDir.exists()) {
-        await downloadDir.create(recursive: true);
-      }
-      final file = File('${downloadDir.path}/$fileName');
-      await file.writeAsBytes(pdfBytes, flush: true);
-      downloadsPath = file.path;
-    } catch (_) {}
+    // 2. Windows Downloads Directory or Android Public Downloads Directory
+    if (Platform.isWindows) {
+      try {
+        final downloadsDir = await getDownloadsDirectory();
+        if (downloadsDir != null) {
+          final targetDir = Directory('${downloadsDir.path}\\POS_Receipts\\$dateFolder');
+          if (!await targetDir.exists()) {
+            await targetDir.create(recursive: true);
+          }
+          final file = File('${targetDir.path}\\$fileName');
+          await file.writeAsBytes(pdfBytes, flush: true);
+          downloadsPath = file.path;
+        }
+      } catch (_) {}
+    } else if (Platform.isAndroid) {
+      try {
+        final downloadDir = Directory('/storage/emulated/0/Download/POS_Receipts/$dateFolder');
+        if (!await downloadDir.exists()) {
+          await downloadDir.create(recursive: true);
+        }
+        final file = File('${downloadDir.path}/$fileName');
+        await file.writeAsBytes(pdfBytes, flush: true);
+        downloadsPath = file.path;
+      } catch (_) {}
+    }
 
     return PdfReceiptSaveResult(
       appDocPath: appDocPath,
@@ -316,12 +332,39 @@ class PdfReceiptService {
     }
   }
 
-  /// Open PDF directly in Android viewer app
+  /// Open PDF directly in Windows default PDF viewer or Android viewer app
   Future<OpenResult> openPdf(String filePath) async {
-    return await OpenFilex.open(filePath);
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) {
+        return OpenResult(type: ResultType.fileNotFound, message: 'PDF file not found at: $filePath');
+      }
+      final absolutePath = file.absolute.path;
+      if (Platform.isWindows) {
+        final result = await Process.run('cmd', ['/c', 'start', '', absolutePath], runInShell: true);
+        if (result.exitCode == 0) {
+          return OpenResult(type: ResultType.done, message: 'Opened');
+        }
+      }
+      return await OpenFilex.open(absolutePath);
+    } catch (e) {
+      return await OpenFilex.open(filePath);
+    }
   }
 
-  /// Share PDF file via Android share sheet
+  /// Highlight and reveal file in Windows File Explorer
+  Future<void> showInExplorer(String filePath) async {
+    if (Platform.isWindows) {
+      try {
+        final file = File(filePath);
+        if (await file.exists()) {
+          await Process.run('explorer.exe', ['/select,', file.absolute.path], runInShell: true);
+        }
+      } catch (_) {}
+    }
+  }
+
+  /// Share PDF file via Android/Windows share sheet
   Future<ShareResult> sharePdf(String filePath, {String? subject}) async {
     return await SharePlus.instance.share(
       ShareParams(
@@ -340,14 +383,15 @@ class PdfReceiptService {
       if (!dir.existsSync()) return;
       for (var entity in dir.listSync(recursive: true)) {
         if (entity is File && entity.path.toLowerCase().endsWith('.pdf')) {
-          if (!seenPaths.contains(entity.path)) {
-            seenPaths.add(entity.path);
+          final normalized = entity.absolute.path;
+          if (!seenPaths.contains(normalized)) {
+            seenPaths.add(normalized);
             final stat = entity.statSync();
             final name = entity.path.split(Platform.isWindows ? '\\' : '/').last;
             final receiptNo = name.replaceAll('Receipt_', '').replaceAll('.pdf', '');
             results.add(PdfReceiptFileInfo(
               fileName: name,
-              filePath: entity.path,
+              filePath: normalized,
               fileSizeBytes: stat.size,
               modifiedAt: stat.modified,
               receiptNo: receiptNo,
@@ -359,12 +403,22 @@ class PdfReceiptService {
 
     try {
       final appDir = await getApplicationDocumentsDirectory();
-      scanDir(Directory('${appDir.path}/POS_Receipts'));
+      final sep = Platform.isWindows ? '\\' : '/';
+      scanDir(Directory('${appDir.path}${sep}POS_Receipts'));
     } catch (_) {}
 
-    try {
-      scanDir(Directory('/storage/emulated/0/Download/POS_Receipts'));
-    } catch (_) {}
+    if (Platform.isWindows) {
+      try {
+        final downloadsDir = await getDownloadsDirectory();
+        if (downloadsDir != null) {
+          scanDir(Directory('${downloadsDir.path}\\POS_Receipts'));
+        }
+      } catch (_) {}
+    } else if (Platform.isAndroid) {
+      try {
+        scanDir(Directory('/storage/emulated/0/Download/POS_Receipts'));
+      } catch (_) {}
+    }
 
     results.sort((a, b) => b.modifiedAt.compareTo(a.modifiedAt));
     return results;

@@ -349,6 +349,7 @@ class CartController extends ChangeNotifier {
     if (syncCfd) {
       _syncWithCustomerDisplay();
     }
+    notifyListeners();
   }
 
   // ── Private helpers ───────────────────────────────────────────────────────

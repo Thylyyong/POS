@@ -24,24 +24,24 @@ class AppConfig {
   static const Color sidebarBorder = ColorTheme.neutral300; // Color(0xFFE0E0E0)
 
   // Brand / Accents
-  static const Color accentPrimary    = ColorTheme.buttonPrimary; // Color(0xFF2B3042)
-  static const Color accentBlue       = ColorTheme.primary500;    // Color(0xFF3D5AF1)
+  static const Color accentPrimary    = ColorTheme.buttonPrimary; // Color(0xFF0D9488)
+  static const Color accentBlue       = ColorTheme.primary500;    // Color(0xFF0D9488) - Clean Teal
   static const Color accentTeal       = Color(0xFF0D9488);
-  static const Color accentCyan       = ColorTheme.semanticBlue;   // Color(0xFF2196F3)
-  static const Color accentAmber      = ColorTheme.semanticOrange; // Color(0xFFFF9800)
-  static const Color accentRose       = ColorTheme.semanticRed;    // Color(0xFFD6212F)
-  static const Color accentPurple     = ColorTheme.secondary400;   // Color(0xFF9811E7)
-  static const Color accentOrange     = ColorTheme.semanticOrange; // Color(0xFFFF9800)
+  static const Color accentCyan       = Color(0xFF0891B2);
+  static const Color accentAmber      = ColorTheme.semanticOrange; // Color(0xFFF97316)
+  static const Color accentRose       = ColorTheme.semanticRed;    // Color(0xFFEF4444)
+  static const Color accentPurple     = Color(0xFF8B5CF6);
+  static const Color accentOrange     = ColorTheme.semanticOrange; // Color(0xFFF97316)
 
   // Emerald/Green
   static const Color accentGreen      = ColorTheme.semanticGreen;  // Color(0xFF12974F)
   static const Color accentGreenDark  = Color(0xFF0F7D41);
 
   // Text
-  static const Color textPrimary   = ColorTheme.primary400;    // Color(0xFF2B3042)
-  static const Color textSecondary = ColorTheme.neutral600;    // Color(0xFF575757)
-  static const Color textMuted     = ColorTheme.neutral500;    // Color(0xFF9E9E9E)
-  static const Color textOnDark    = ColorTheme.neutral50;     // Color(0xFFFDFFFC)
+  static const Color textPrimary   = ColorTheme.textPrimary;    // Color(0xFF0F172A)
+  static const Color textSecondary = ColorTheme.textSecondary;  // Color(0xFF475569)
+  static const Color textMuted     = ColorTheme.textMuted;      // Color(0xFF94A3B8)
+  static const Color textOnDark    = Color(0xFFFFFFFF);
 
   // Legacy aliases
   static const Color primaryDark    = ColorTheme.primary600;

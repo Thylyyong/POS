@@ -1,5 +1,6 @@
-﻿export 'cashier/cashier_main_layout.dart';
+export 'cashier/cashier_main_layout.dart';
 export 'customer_display/customer_main_view.dart';
+export 'customer_display/customer_presentation_view.dart';
 export 'dashboard/dashboard_screen.dart';
 export 'history/receipt_history_screen.dart';
 export 'products/category_screen.dart';

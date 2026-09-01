@@ -67,6 +67,9 @@ class SettingsController extends ChangeNotifier {
   Future<void> togglePaperSize(bool is80mm) =>
       _save(_settings.copyWith(isPaperSize80mm: is80mm));
 
+  Future<void> updateAdminPin(String pin) =>
+      _save(_settings.copyWith(adminPin: pin));
+
   Future<void> toggleCfd(bool enabled) async {
     await _save(_settings.copyWith(cfdEnabled: enabled));
     try {

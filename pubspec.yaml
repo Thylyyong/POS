@@ -58,8 +58,9 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: false
-
-  image_path: "assets/images/ca.ico"
+  windows:
+    generate: true
+    image_path: "assets/images/ca.ico"
 
 dependency_overrides:
   path_provider_android: 2.2.15

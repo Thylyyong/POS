@@ -19,6 +19,7 @@ class StoreSettingsModel {
   final bool isPaperSize80mm; // true for 80mm, false for 58mm
   final String printerIpOrAddress;
   final String qrPayloadTemplate;
+  final String adminPin;
 
   const StoreSettingsModel({
     this.storeName = 'Gourmet Bistro POS',
@@ -37,6 +38,7 @@ class StoreSettingsModel {
     this.isPaperSize80mm = true,
     this.printerIpOrAddress = '192.168.1.100',
     this.qrPayloadTemplate = 'https://pay.restaurant.com/pos?order=',
+    this.adminPin = '1234',
   });
 
   Map<String, String> toMap() {
@@ -57,6 +59,7 @@ class StoreSettingsModel {
       'is_paper_size_80mm': isPaperSize80mm ? '1' : '0',
       'printer_ip_or_address': printerIpOrAddress,
       'qr_payload_template': qrPayloadTemplate,
+      'admin_pin': adminPin,
     };
   }
 
@@ -78,6 +81,7 @@ class StoreSettingsModel {
       isPaperSize80mm: (map['is_paper_size_80mm'] ?? '1') == '1',
       printerIpOrAddress: map['printer_ip_or_address'] ?? '192.168.1.100',
       qrPayloadTemplate: map['qr_payload_template'] ?? 'https://pay.restaurant.com/pos?order=',
+      adminPin: (map['admin_pin'] != null && map['admin_pin']!.isNotEmpty) ? map['admin_pin']! : '1234',
     );
   }
 
@@ -98,6 +102,7 @@ class StoreSettingsModel {
     bool? isPaperSize80mm,
     String? printerIpOrAddress,
     String? qrPayloadTemplate,
+    String? adminPin,
   }) {
     return StoreSettingsModel(
       storeName: storeName ?? this.storeName,
@@ -116,6 +121,7 @@ class StoreSettingsModel {
       isPaperSize80mm: isPaperSize80mm ?? this.isPaperSize80mm,
       printerIpOrAddress: printerIpOrAddress ?? this.printerIpOrAddress,
       qrPayloadTemplate: qrPayloadTemplate ?? this.qrPayloadTemplate,
+      adminPin: adminPin ?? this.adminPin,
     );
   }
 }

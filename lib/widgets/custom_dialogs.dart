@@ -260,7 +260,7 @@ class _CashPaymentDialogState extends State<CashPaymentDialog> {
                   _buildNumKey('00'),
                   _buildNumKey('0'),
                   _buildNumKey('.'),
-                  _buildActionKey('+10', () => _addIncrement(10), color: const Color(0xFF2563EB)),
+                  _buildActionKey('+10', () => _addIncrement(10), color: const Color(0xFF0D9488)),
                 ],
               ),
               const SizedBox(height: 12),
@@ -495,7 +495,7 @@ class _QrPaymentDialogState extends State<QrPaymentDialog> {
                 height: 44,
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2563EB),
+                    backgroundColor: const Color(0xFF0D9488),
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     elevation: 0,

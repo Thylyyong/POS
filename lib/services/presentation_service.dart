@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_presentation_display/display.dart';
 import 'package:flutter_presentation_display/flutter_presentation_display.dart';
@@ -120,61 +121,90 @@ class PresentationService {
 
   /// Check available hardware presentation screens with safe timeout
   Future<List<Display>> refreshDisplays() async {
-    try {
-      final list = await _displayManager
-          .getDisplays()
-          .timeout(const Duration(milliseconds: 1500), onTimeout: () => []);
-      _connectedDisplays = list ?? [];
-      return _connectedDisplays;
-    } catch (e) {
-      debugPrint('Error getting presentation displays: $e');
-      _connectedDisplays = [];
-      return [];
+    if (!kIsWeb && Platform.isAndroid) {
+      try {
+        final list = await _displayManager
+            .getDisplays()
+            .timeout(const Duration(milliseconds: 1500), onTimeout: () => []);
+        _connectedDisplays = list ?? [];
+        return _connectedDisplays;
+      } catch (e) {
+        debugPrint('Error getting presentation displays: $e');
+        _connectedDisplays = [];
+        return [];
+      }
     }
+    _connectedDisplays = [];
+    return [];
   }
 
-  /// Launch Secondary Customer-Facing Display
-  Future<bool> showCustomerDisplay({int? displayId}) async {
-    try {
-      final list = await refreshDisplays();
-      if (list.isEmpty) {
-        debugPrint('No physical secondary display detected.');
-        _isSecondaryDisplayShowing = false;
+  /// Launch Secondary Customer Window on Windows or Android Dual-Screen POS
+  Future<bool> launchSecondaryWindow() async {
+    if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+      try {
+        final exe = Platform.resolvedExecutable;
+        await Process.start(exe, ['--cfd'], mode: ProcessStartMode.detached);
+        _isSecondaryDisplayShowing = true;
+        return true;
+      } catch (e) {
+        debugPrint('Failed to launch desktop secondary window: $e');
         return false;
       }
-
-      final targetId = displayId ?? list.first.displayId;
-      if (targetId == null) return false;
-
-      final success = await _displayManager
-          .showSecondaryDisplay(
-            displayId: targetId,
-            routerName: 'secondaryDisplayMain',
-          )
-          .timeout(const Duration(seconds: 2), onTimeout: () => false);
-      _isSecondaryDisplayShowing = success ?? true;
-      return _isSecondaryDisplayShowing;
-    } catch (e) {
-      debugPrint('Error showing secondary display: $e');
-      return false;
+    } else if (!kIsWeb && Platform.isAndroid) {
+      return await showCustomerDisplay();
     }
+    return false;
+  }
+
+  /// Launch Secondary Customer-Facing Display (Android hardware presentation)
+  Future<bool> showCustomerDisplay({int? displayId}) async {
+    if (!kIsWeb && Platform.isAndroid) {
+      try {
+        final list = await refreshDisplays();
+        if (list.isEmpty) {
+          debugPrint('No physical secondary display detected.');
+          _isSecondaryDisplayShowing = false;
+          return false;
+        }
+
+        final targetId = displayId ?? list.first.displayId;
+        if (targetId == null) return false;
+
+        final success = await _displayManager
+            .showSecondaryDisplay(
+              displayId: targetId,
+              routerName: 'secondaryDisplayMain',
+            )
+            .timeout(const Duration(seconds: 2), onTimeout: () => false);
+        _isSecondaryDisplayShowing = success ?? true;
+        return _isSecondaryDisplayShowing;
+      } catch (e) {
+        debugPrint('Error showing secondary display: $e');
+        return false;
+      }
+    }
+    return false;
   }
 
   /// Hide Secondary Display
   Future<bool> hideCustomerDisplay({int? displayId}) async {
-    try {
-      final targetId = displayId ?? _connectedDisplays.firstOrNull?.displayId;
-      if (targetId != null) {
-        await _displayManager
-            .hideSecondaryDisplay(displayId: targetId)
-            .timeout(const Duration(seconds: 2), onTimeout: () => false);
+    if (!kIsWeb && Platform.isAndroid) {
+      try {
+        final targetId = displayId ?? _connectedDisplays.firstOrNull?.displayId;
+        if (targetId != null) {
+          await _displayManager
+              .hideSecondaryDisplay(displayId: targetId)
+              .timeout(const Duration(seconds: 2), onTimeout: () => false);
+        }
+        _isSecondaryDisplayShowing = false;
+        return true;
+      } catch (e) {
+        debugPrint('Error hiding secondary display: $e');
+        return false;
       }
-      _isSecondaryDisplayShowing = false;
-      return true;
-    } catch (e) {
-      debugPrint('Error hiding secondary display: $e');
-      return false;
     }
+    _isSecondaryDisplayShowing = false;
+    return true;
   }
 
   /// Send Payload to Customer Display (Called from Cashier App)
@@ -184,14 +214,25 @@ class PresentationService {
     // 1. Emit to in-process stream
     _payloadStreamController.add(payload);
 
-    // 2. Transfer via hardware presentation display bridge safely
-    try {
-      final jsonString = payload.toJson();
-      await _displayManager
-          .transferDataToPresentation(jsonString)
-          .timeout(const Duration(milliseconds: 800), onTimeout: () => false);
-    } catch (e) {
-      debugPrint('Hardware presentation data transfer notice: $e');
+    // 2. Persist to IPC file for desktop multi-window synchronization
+    if (!kIsWeb) {
+      try {
+        final tempDir = Directory.systemTemp;
+        final file = File('${tempDir.path}/omni_pos_cfd_state.json');
+        await file.writeAsString(payload.toJson(), flush: true);
+      } catch (_) {}
+    }
+
+    // 3. Transfer via Android hardware presentation display bridge
+    if (!kIsWeb && Platform.isAndroid) {
+      try {
+        final jsonString = payload.toJson();
+        await _displayManager
+            .transferDataToPresentation(jsonString)
+            .timeout(const Duration(milliseconds: 800), onTimeout: () => false);
+      } catch (e) {
+        debugPrint('Hardware presentation data transfer notice: $e');
+      }
     }
   }
 
@@ -202,34 +243,63 @@ class PresentationService {
     // Deliver latest known payload immediately
     onData(_latestPayload);
 
-    // 1. Listen to in-process broadcast
-    final subscription = _payloadStreamController.stream.listen((payload) {
-      onData(payload);
+    Timer? ipcTimer;
+    final controller = StreamController<PresentationPayload>();
+
+    final sub = _payloadStreamController.stream.listen((payload) {
+      if (!controller.isClosed) controller.add(payload);
     });
 
-    // 2. Listen to hardware presentation plugin channel
-    try {
-      _displayManager.listenDataFromMainDisplay((data) {
-        if (data != null) {
-          try {
-            if (data is String) {
-              final payload = PresentationPayload.fromJson(data);
+    // 2. Fast Poll IPC file on Desktop to receive live state from primary process (100ms)
+    if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+      String lastReadJson = '';
+      ipcTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) async {
+        try {
+          final tempDir = Directory.systemTemp;
+          final file = File('${tempDir.path}/omni_pos_cfd_state.json');
+          if (await file.exists()) {
+            final content = await file.readAsString();
+            if (content.isNotEmpty && content != lastReadJson) {
+              lastReadJson = content;
+              final payload = PresentationPayload.fromJson(content);
               _latestPayload = payload;
-              onData(payload);
-            } else if (data is Map) {
-              final payload = PresentationPayload.fromMap(Map<String, dynamic>.from(data));
-              _latestPayload = payload;
-              onData(payload);
+              if (!controller.isClosed) controller.add(payload);
             }
-          } catch (e) {
-            debugPrint('Error parsing customer display payload: $e');
           }
-        }
+        } catch (_) {}
       });
-    } catch (e) {
-      debugPrint('Presentation display hardware channel listener notice: $e');
     }
 
-    return subscription;
+    // 3. Listen to hardware presentation plugin channel on Android
+    if (!kIsWeb && Platform.isAndroid) {
+      try {
+        _displayManager.listenDataFromMainDisplay((data) {
+          if (data != null) {
+            try {
+              if (data is String) {
+                final payload = PresentationPayload.fromJson(data);
+                _latestPayload = payload;
+                if (!controller.isClosed) controller.add(payload);
+              } else if (data is Map) {
+                final payload = PresentationPayload.fromMap(Map<String, dynamic>.from(data));
+                _latestPayload = payload;
+                if (!controller.isClosed) controller.add(payload);
+              }
+            } catch (e) {
+              debugPrint('Error parsing customer display payload: $e');
+            }
+          }
+        });
+      } catch (e) {
+        debugPrint('Presentation display hardware channel listener notice: $e');
+      }
+    }
+
+    controller.onCancel = () {
+      ipcTimer?.cancel();
+      sub.cancel();
+    };
+
+    return controller.stream.listen(onData);
   }
 }

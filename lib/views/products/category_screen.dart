@@ -129,7 +129,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                 // Add Category Button
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F172A),
+                    backgroundColor: const Color(0xFF0D9488),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
@@ -237,7 +237,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFF0F172A), width: 1.5),
+                borderSide: const BorderSide(color: Color(0xFF0D9488), width: 1.5),
               ),
             ),
           ),
@@ -249,7 +249,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0F172A),
+              backgroundColor: const Color(0xFF0D9488),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
@@ -338,7 +338,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
               focusedBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: Color(0xFF0F172A), width: 1.5),
+                borderSide: const BorderSide(color: Color(0xFF0D9488), width: 1.5),
               ),
             ),
           ),
@@ -350,7 +350,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0F172A),
+              backgroundColor: const Color(0xFF0D9488),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
@@ -373,6 +373,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
               }
 
               await _loadData();
+              if (context.mounted) {
+                context.read<PosController>().loadCategories();
+              }
               if (ctx.mounted) Navigator.of(ctx).pop();
             },
             child: Text(existing == null ? 'Create' : 'Save'),
@@ -407,6 +410,9 @@ class _CategoryScreenState extends State<CategoryScreen> {
             onPressed: () async {
               await _productDao.deleteSubcategory(sub.id);
               await _loadData();
+              if (context.mounted) {
+                context.read<PosController>().loadCategories();
+              }
               if (ctx.mounted) Navigator.of(ctx).pop();
             },
             child: const Text('Delete'),
@@ -584,7 +590,7 @@ class _ModernCategoryCard extends StatelessWidget {
                           onTap: onAddSubcategory,
                           child: const Text(
                             '+ Add now',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF2563EB)),
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0D9488)),
                           ),
                         ),
                       ],

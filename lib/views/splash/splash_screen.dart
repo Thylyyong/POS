@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../app_config.dart';
+import '../../controllers/auth_controller.dart';
 import '../../controllers/settings_controller.dart';
+import '../../widgets/admin_pin_dialog.dart';
 import '../../widgets/app_logo_widget.dart';
 import '../cashier/cashier_main_layout.dart';
 import '../cashier/widgets/nav_sidebar.dart';
@@ -41,7 +43,26 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     super.dispose();
   }
 
-  void _launchMode(BuildContext context, CashierNavTab tab) {
+  void _launchPosMode(BuildContext context) {
+    // POS mode launches immediately with NO PIN code required
+    context.read<AuthController>().loginAsCashier();
+    _navigateToLayout(context, CashierNavTab.pos);
+  }
+
+  Future<void> _launchDashboardMode(BuildContext context) async {
+    // Dashboard mode requires master Admin PIN code
+    final verified = await AdminPinDialog.show(
+      context,
+      title: 'Admin Verification',
+      subtitle: 'Enter master PIN code to unlock Analytics Dashboard and Admin controls',
+    );
+
+    if (verified && context.mounted) {
+      _navigateToLayout(context, CashierNavTab.dashboard);
+    }
+  }
+
+  void _navigateToLayout(BuildContext context, CashierNavTab tab) {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
         transitionDuration: const Duration(milliseconds: 500),
@@ -152,11 +173,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                             child: _buildModeCard(
                               context: context,
                               title: 'Point of Sale (POS)',
-                              subtitle: 'Cashier terminal, menu catalog, table assignments, and checkout',
+                              subtitle: 'Cashier terminal, menu catalog, table assignments, and checkout (No PIN required)',
                               icon: Icons.storefront,
                               accentColor: ColorTheme.buttonPrimary,
                               buttonLabel: 'Launch POS Mode',
-                              onTap: () => _launchMode(context, CashierNavTab.pos),
+                              onTap: () => _launchPosMode(context),
                             ),
                           ),
                           const SizedBox(width: 20),
@@ -166,11 +187,11 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                             child: _buildModeCard(
                               context: context,
                               title: 'Analytics Dashboard',
-                              subtitle: 'Gross revenue, live sales spreadsheet, KPI charts, and Excel reports',
+                              subtitle: 'Gross revenue, live sales spreadsheet, KPI charts, and Excel reports (Admin PIN protected)',
                               icon: Icons.insights,
                               accentColor: AppConfig.accentCyan,
                               buttonLabel: 'Launch Dashboard',
-                              onTap: () => _launchMode(context, CashierNavTab.dashboard),
+                              onTap: () => _launchDashboardMode(context),
                             ),
                           ),
                         ],

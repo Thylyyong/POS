@@ -253,7 +253,7 @@ class DbHelper {
   Future<void> _seedInitialData(Database db) async {
     // 1. Categories
     final categories = [
-      {'id': 'cat_coffee', 'name': 'Coffee & Tea', 'icon': 'local_cafe', 'color_hex': '0xFF3B82F6', 'created_at': DateTime.now().toIso8601String()},
+      {'id': 'cat_coffee', 'name': 'Coffee & Tea', 'icon': 'local_cafe', 'color_hex': '0xFF0D9488', 'created_at': DateTime.now().toIso8601String()},
       {'id': 'cat_burgers', 'name': 'Burgers & Sandwiches', 'icon': 'lunch_dining', 'color_hex': '0xFF10B981', 'created_at': DateTime.now().toIso8601String()},
       {'id': 'cat_mains', 'name': 'Asian & Western Mains', 'icon': 'restaurant', 'color_hex': '0xFFF59E0B', 'created_at': DateTime.now().toIso8601String()},
       {'id': 'cat_desserts', 'name': 'Pastries & Desserts', 'icon': 'cake', 'color_hex': '0xFF8B5CF6', 'created_at': DateTime.now().toIso8601String()},
@@ -282,12 +282,12 @@ class DbHelper {
 
     // 3. Products
     final products = [
-      {'id': 'prod_espresso', 'category_id': 'cat_coffee', 'subcategory_id': 'sub_hot_coffee', 'name': 'Double Espresso', 'price': 2.75, 'cost': 0.80, 'barcode': '100001', 'color_hex': '0xFF3B82F6', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'prod_americano', 'category_id': 'cat_coffee', 'subcategory_id': 'sub_hot_coffee', 'name': 'Caffe Americano', 'price': 3.25, 'cost': 0.90, 'barcode': '100002', 'color_hex': '0xFF3B82F6', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'prod_latte', 'category_id': 'cat_coffee', 'subcategory_id': 'sub_hot_coffee', 'name': 'Vanilla Caffe Latte', 'price': 4.50, 'cost': 1.20, 'barcode': '100003', 'color_hex': '0xFF3B82F6', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'prod_cappuccino', 'category_id': 'cat_coffee', 'subcategory_id': 'sub_hot_coffee', 'name': 'Caramel Cappuccino', 'price': 4.75, 'cost': 1.30, 'barcode': '100004', 'color_hex': '0xFF3B82F6', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'prod_iced_latte', 'category_id': 'cat_coffee', 'subcategory_id': 'sub_iced_coffee', 'name': 'Iced Spanish Latte', 'price': 5.00, 'cost': 1.50, 'barcode': '100005', 'color_hex': '0xFF3B82F6', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'prod_matcha', 'category_id': 'cat_coffee', 'subcategory_id': 'sub_iced_coffee', 'name': 'Iced Uji Matcha Latte', 'price': 5.50, 'cost': 1.80, 'barcode': '100006', 'color_hex': '0xFF3B82F6', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
+      {'id': 'prod_espresso', 'category_id': 'cat_coffee', 'subcategory_id': 'sub_hot_coffee', 'name': 'Double Espresso', 'price': 2.75, 'cost': 0.80, 'barcode': '100001', 'color_hex': '0xFF0D9488', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
+      {'id': 'prod_americano', 'category_id': 'cat_coffee', 'subcategory_id': 'sub_hot_coffee', 'name': 'Caffe Americano', 'price': 3.25, 'cost': 0.90, 'barcode': '100002', 'color_hex': '0xFF0D9488', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
+      {'id': 'prod_latte', 'category_id': 'cat_coffee', 'subcategory_id': 'sub_hot_coffee', 'name': 'Vanilla Caffe Latte', 'price': 4.50, 'cost': 1.20, 'barcode': '100003', 'color_hex': '0xFF0D9488', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
+      {'id': 'prod_cappuccino', 'category_id': 'cat_coffee', 'subcategory_id': 'sub_hot_coffee', 'name': 'Caramel Cappuccino', 'price': 4.75, 'cost': 1.30, 'barcode': '100004', 'color_hex': '0xFF0D9488', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
+      {'id': 'prod_iced_latte', 'category_id': 'cat_coffee', 'subcategory_id': 'sub_iced_coffee', 'name': 'Iced Spanish Latte', 'price': 5.00, 'cost': 1.50, 'barcode': '100005', 'color_hex': '0xFF0D9488', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
+      {'id': 'prod_matcha', 'category_id': 'cat_coffee', 'subcategory_id': 'sub_iced_coffee', 'name': 'Iced Uji Matcha Latte', 'price': 5.50, 'cost': 1.80, 'barcode': '100006', 'color_hex': '0xFF0D9488', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
 
       {'id': 'prod_wagyu_burger', 'category_id': 'cat_burgers', 'subcategory_id': 'sub_burgers', 'name': 'Truffle Wagyu Burger', 'price': 12.50, 'cost': 4.80, 'barcode': '200001', 'color_hex': '0xFF10B981', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
       {'id': 'prod_crispy_chicken', 'category_id': 'cat_burgers', 'subcategory_id': 'sub_burgers', 'name': 'Spicy Crispy Chicken Burger', 'price': 9.75, 'cost': 3.20, 'barcode': '200002', 'color_hex': '0xFF10B981', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},

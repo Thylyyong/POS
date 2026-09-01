@@ -453,8 +453,8 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: isSelectedOccupied
-                            ? (cartCtrl.isEmpty ? AppConfig.accentAmber : const Color(0xFF0F172A))
-                            : const Color(0xFF0F172A),
+                            ? (cartCtrl.isEmpty ? AppConfig.accentAmber : const Color(0xFF0D9488))
+                            : const Color(0xFF0D9488),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
@@ -502,9 +502,9 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+          color: isSelected ? const Color(0xFF0D9488) : const Color(0xFFF1F5F9),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFCBD5E1)),
+          border: Border.all(color: isSelected ? const Color(0xFF0D9488) : const Color(0xFFCBD5E1)),
         ),
         child: Text(
           label,

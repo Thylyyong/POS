@@ -11,6 +11,43 @@ class ProductGrid extends StatelessWidget {
 
   const ProductGrid({super.key, required this.posCtrl});
 
+  static ({int crossAxisCount, double childAspectRatio}) resolveGridLayout({
+    required double maxWidth,
+    required String gridTemplate,
+  }) {
+    if (gridTemplate == '3x6') {
+      final crossAxisCount = maxWidth < 700
+          ? 2
+          : maxWidth < 1150
+              ? 3
+              : 4;
+      final childAspectRatio = maxWidth < 700 ? 0.74 : 0.82;
+      return (crossAxisCount: crossAxisCount, childAspectRatio: childAspectRatio);
+    }
+
+    if (gridTemplate == '5x5') {
+      final crossAxisCount = maxWidth < 640
+          ? 2
+          : maxWidth < 980
+              ? 3
+              : maxWidth < 1400
+                  ? 4
+                  : 5;
+      final childAspectRatio = maxWidth < 700 ? 0.72 : 0.75;
+      return (crossAxisCount: crossAxisCount, childAspectRatio: childAspectRatio);
+    }
+
+    final crossAxisCount = maxWidth < 600
+        ? 2
+        : maxWidth < 980
+            ? 3
+            : maxWidth < 1400
+                ? 4
+                : 5;
+    final childAspectRatio = maxWidth < 720 ? 0.74 : 0.78;
+    return (crossAxisCount: crossAxisCount, childAspectRatio: childAspectRatio);
+  }
+
   @override
   Widget build(BuildContext context) {
     final currency = context.select<SettingsController, String>(
@@ -51,25 +88,16 @@ class ProductGrid extends StatelessWidget {
                 : LayoutBuilder(
                     key: const ValueKey('grid'),
                     builder: (context, constraints) {
-                      int crossAxisCount = 4;
-                      double childAspectRatio = 0.78;
-
-                      if (gridTemplate == '3x6') {
-                        crossAxisCount = 3;
-                        childAspectRatio = 0.82;
-                      } else if (gridTemplate == '5x5') {
-                        crossAxisCount = 5;
-                        childAspectRatio = 0.75;
-                      } else {
-                        crossAxisCount = 4;
-                        childAspectRatio = 0.78;
-                      }
+                      final layout = resolveGridLayout(
+                        maxWidth: constraints.maxWidth,
+                        gridTemplate: gridTemplate,
+                      );
 
                       return GridView.builder(
                         padding: const EdgeInsets.all(12),
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: crossAxisCount,
-                          childAspectRatio: childAspectRatio,
+                          crossAxisCount: layout.crossAxisCount,
+                          childAspectRatio: layout.childAspectRatio,
                           crossAxisSpacing: 10,
                           mainAxisSpacing: 10,
                         ),

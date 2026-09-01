@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../app_config.dart';
+import '../../controllers/cart_controller.dart';
 import '../../controllers/settings_controller.dart';
 import '../../widgets/app_logo_widget.dart';
 import '../../widgets/image_picker_dialog.dart';
@@ -22,11 +23,13 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
   late TextEditingController _currencyCtrl;
   late TextEditingController _taxCtrl;
   late TextEditingController _footerCtrl;
+  late TextEditingController _adminPinCtrl;
 
   late double _fontSizeScale;
   late String _gridTemplate;
   late bool _cfdEnabled;
   String? _logoPath;
+  bool _obscureAdminPin = true;
   bool _isSaving = false;
 
   @override
@@ -40,6 +43,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
     _currencyCtrl = TextEditingController(text: s.currencySymbol);
     _taxCtrl = TextEditingController(text: s.defaultTaxRate.toString());
     _footerCtrl = TextEditingController(text: s.footerNote);
+    _adminPinCtrl = TextEditingController(text: s.adminPin);
 
     _fontSizeScale = s.fontSizeScale;
     _gridTemplate = s.gridTemplate;
@@ -56,6 +60,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
     _currencyCtrl.dispose();
     _taxCtrl.dispose();
     _footerCtrl.dispose();
+    _adminPinCtrl.dispose();
     super.dispose();
   }
 
@@ -114,10 +119,11 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                 ),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F172A),
+                    backgroundColor: const Color(0xFF0D9488),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    elevation: 0,
                   ),
                   onPressed: _isSaving ? null : () => _saveSettings(context),
                   icon: const Icon(Icons.save_outlined, size: 18),
@@ -445,8 +451,76 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                               subtitle: const Text('Enable dual-screen live order and QR mirroring',
                                   style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B))),
                               value: _cfdEnabled,
-                              activeThumbColor: const Color(0xFF0F172A),
+                              activeThumbColor: const Color(0xFF0D9488),
+                              activeTrackColor: const Color(0xFF99F6E4),
                               onChanged: (v) => setState(() => _cfdEnabled = v),
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Admin Security & PIN Code Card
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.02),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Row(
+                                  children: [
+                                    Icon(Icons.shield_outlined, color: Color(0xFF0F172A), size: 20),
+                                    SizedBox(width: 8),
+                                    Text(
+                                      'Admin Security & PIN Code',
+                                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Set the 4-digit master PIN required to access Dashboard, Analytics, and Admin controls',
+                                  style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                                ),
+                                const SizedBox(height: 14),
+                                TextFormField(
+                                  controller: _adminPinCtrl,
+                                  obscureText: _obscureAdminPin,
+                                  keyboardType: TextInputType.number,
+                                  maxLength: 4,
+                                  decoration: InputDecoration(
+                                    labelText: 'Master Admin PIN (4 Digits)',
+                                    hintText: 'Enter 4-digit PIN (e.g. 1234)',
+                                    counterText: '',
+                                    prefixIcon: const Icon(Icons.pin_outlined, size: 18, color: Color(0xFF64748B)),
+                                    suffixIcon: IconButton(
+                                      icon: Icon(
+                                        _obscureAdminPin ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                                        size: 18,
+                                        color: const Color(0xFF64748B),
+                                      ),
+                                      onPressed: () => setState(() => _obscureAdminPin = !_obscureAdminPin),
+                                    ),
+                                    border: const OutlineInputBorder(),
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                  ),
+                                  validator: (v) {
+                                    if (v == null || v.trim().isEmpty) return 'PIN is required';
+                                    if (v.trim().length != 4) return 'PIN must be exactly 4 digits';
+                                    if (!RegExp(r'^\d{4}$').hasMatch(v.trim())) return 'PIN must contain 4 numbers only';
+                                    return null;
+                                  },
+                                ),
+                              ],
                             ),
                           ),
                         ],
@@ -472,10 +546,10 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
+            color: isSelected ? const Color(0xFF0D9488) : const Color(0xFFF1F5F9),
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
-              color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
+              color: isSelected ? const Color(0xFF0D9488) : const Color(0xFFE2E8F0),
               width: 1.5,
             ),
           ),
@@ -495,7 +569,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                 style: TextStyle(
                   fontSize: 10.5,
                   fontWeight: FontWeight.w600,
-                  color: isSelected ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  color: isSelected ? Colors.white.withValues(alpha: 0.9) : const Color(0xFF64748B),
                 ),
               ),
             ],
@@ -520,10 +594,10 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
         child: Container(
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC),
+            color: isSelected ? const Color(0xFF0D9488) : const Color(0xFFF8FAFC),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFE2E8F0),
+              color: isSelected ? const Color(0xFF0D9488) : const Color(0xFFE2E8F0),
               width: 1.5,
             ),
           ),
@@ -533,7 +607,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
               Icon(
                 icon,
                 size: 24,
-                color: isSelected ? Colors.white : const Color(0xFF0F172A),
+                color: isSelected ? Colors.white : const Color(0xFF0D9488),
               ),
               const SizedBox(height: 8),
               Text(
@@ -549,7 +623,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                 subtitle,
                 style: TextStyle(
                   fontSize: 10.5,
-                  color: isSelected ? const Color(0xFF94A3B8) : const Color(0xFF64748B),
+                  color: isSelected ? Colors.white.withValues(alpha: 0.9) : const Color(0xFF64748B),
                 ),
               ),
             ],
@@ -564,6 +638,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
       setState(() => _isSaving = true);
       try {
         final current = context.read<SettingsController>().settings;
+        final cart = context.read<CartController>();
         final updated = current.copyWith(
           storeName: _nameCtrl.text.trim(),
           storeAddress: _addressCtrl.text.trim(),
@@ -576,9 +651,16 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
           fontSizeScale: _fontSizeScale,
           gridTemplate: _gridTemplate,
           cfdEnabled: _cfdEnabled,
+          adminPin: _adminPinCtrl.text.trim(),
         );
 
         await context.read<SettingsController>().updateSettings(updated);
+        if (!mounted) return;
+
+        cart.updateConfig(
+          taxRate: updated.defaultTaxRate,
+          currencySymbol: updated.currencySymbol,
+        );
 
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -590,7 +672,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                   Text('Settings saved successfully!'),
                 ],
               ),
-              backgroundColor: Color(0xFF0F172A),
+              backgroundColor: Color(0xFF0D9488),
               behavior: SnackBarBehavior.floating,
             ),
           );

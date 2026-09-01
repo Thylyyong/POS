@@ -1,11 +1,11 @@
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:open_filex/open_filex.dart';
 import 'package:provider/provider.dart';
 import '../../app_config.dart';
 import '../../controllers/dashboard_controller.dart';
 import '../../controllers/settings_controller.dart';
+import '../../services/excel_export_service.dart';
 import 'widgets/metrics_card.dart';
 
 enum DashboardTab { charts, spreadsheet }
@@ -418,7 +418,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                           radius: 22,
                                         ),
                                         PieChartSectionData(
-                                          color: const Color(0xFF2563EB), // Blue
+                                          color: const Color(0xFF0891B2), // Ocean Cyan
                                           value: 25.0,
                                           title: '',
                                           radius: 22,
@@ -453,7 +453,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         children: [
                           _buildLegendRow('QR Code', '65%', const Color(0xFF0D9488)),
                           const SizedBox(height: 8),
-                          _buildLegendRow('Credit Card', '25%', const Color(0xFF2563EB)),
+                          _buildLegendRow('Credit Card', '25%', const Color(0xFF0891B2)),
                           const SizedBox(height: 8),
                           _buildLegendRow('Cash', '10%', const Color(0xFFD97706)),
                         ],
@@ -595,30 +595,60 @@ class _DashboardScreenState extends State<DashboardScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: ColorTheme.cardBg,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
+        title: const Row(
           children: [
-            const Icon(Icons.check_circle_outline, color: ColorTheme.buttonPrimary, size: 22),
-            const SizedBox(width: 8),
-            const Text('Excel Report Exported', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ColorTheme.neutral800)),
+            Icon(Icons.check_circle_outline, color: ColorTheme.buttonPrimary, size: 22),
+            SizedBox(width: 8),
+            Text('Excel Report Exported', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ColorTheme.neutral800)),
           ],
         ),
-        content: Text(
-          'Saved successfully to:\n$filePath',
-          style: const TextStyle(fontSize: 12, color: ColorTheme.neutral600),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Your sales & profit report spreadsheet has been generated successfully:',
+              style: TextStyle(fontSize: 13, color: ColorTheme.neutral600),
+            ),
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: SelectableText(
+                filePath,
+                style: const TextStyle(fontSize: 11, fontFamily: 'monospace', color: Color(0xFF0F172A)),
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('Close', style: TextStyle(color: ColorTheme.neutral600)),
           ),
+          OutlinedButton.icon(
+            style: OutlinedButton.styleFrom(
+              side: const BorderSide(color: Color(0xFFCBD5E1)),
+              foregroundColor: const Color(0xFF0F172A),
+            ),
+            onPressed: () {
+              ExcelExportService().showInExplorer(filePath);
+            },
+            icon: const Icon(Icons.folder_open_outlined, size: 16),
+            label: const Text('Show in Folder'),
+          ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(backgroundColor: ColorTheme.buttonPrimary, foregroundColor: Colors.white),
-            onPressed: () {
-              OpenFilex.open(filePath);
-              Navigator.of(ctx).pop();
+            onPressed: () async {
+              await ExcelExportService().openExcelFile(filePath);
+              if (ctx.mounted) Navigator.of(ctx).pop();
             },
             icon: const Icon(Icons.open_in_new, size: 16),
-            label: const Text('Open Excel File'),
+            label: const Text('Open in Excel'),
           ),
         ],
       ),

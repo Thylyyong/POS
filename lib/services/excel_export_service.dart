@@ -278,38 +278,85 @@ class ExcelExportService {
     final timestampStr = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
     final fileName = 'OmniPOS_Sales_Profit_Report_$timestampStr.xlsx';
 
-    // 1. Request Android Storage Permission & write to public Downloads folder
     String? finalPath;
-    try {
-      await requestStoragePermission();
-      const publicDownloadDir = '/storage/emulated/0/Download/POS_Reports';
-      final dir = Directory(publicDownloadDir);
-      if (!await dir.exists()) {
-        await dir.create(recursive: true);
-      }
-      final file = File('$publicDownloadDir/$fileName');
-      await file.writeAsBytes(fileBytes, flush: true);
-      finalPath = file.path;
-    } catch (_) {}
 
-    // 2. Also save to App Documents
-    try {
-      final docsDir = await getApplicationDocumentsDirectory();
-      final reportsDir = Directory('${docsDir.path}/reports');
-      if (!await reportsDir.exists()) {
-        await reportsDir.create(recursive: true);
-      }
-      final docFile = File('${reportsDir.path}/$fileName');
-      await docFile.writeAsBytes(fileBytes, flush: true);
-      finalPath ??= docFile.path;
-    } catch (_) {}
+    // 1. Windows Downloads folder
+    if (Platform.isWindows) {
+      try {
+        final downloadsDir = await getDownloadsDirectory();
+        if (downloadsDir != null) {
+          final reportsDir = Directory('${downloadsDir.path}\\POS_Reports');
+          if (!await reportsDir.exists()) {
+            await reportsDir.create(recursive: true);
+          }
+          final file = File('${reportsDir.path}\\$fileName');
+          await file.writeAsBytes(fileBytes, flush: true);
+          finalPath = file.path;
+        }
+      } catch (_) {}
+    } else if (Platform.isAndroid) {
+      // 2. Android Public Downloads folder
+      try {
+        await requestStoragePermission();
+        const publicDownloadDir = '/storage/emulated/0/Download/POS_Reports';
+        final dir = Directory(publicDownloadDir);
+        if (!await dir.exists()) {
+          await dir.create(recursive: true);
+        }
+        final file = File('$publicDownloadDir/$fileName');
+        await file.writeAsBytes(fileBytes, flush: true);
+        finalPath = file.path;
+      } catch (_) {}
+    }
+
+    // 3. Fallback: Save to App Documents
+    if (finalPath == null) {
+      try {
+        final docsDir = await getApplicationDocumentsDirectory();
+        final sep = Platform.isWindows ? '\\' : '/';
+        final reportsDir = Directory('${docsDir.path}${sep}reports');
+        if (!await reportsDir.exists()) {
+          await reportsDir.create(recursive: true);
+        }
+        final docFile = File('${reportsDir.path}$sep$fileName');
+        await docFile.writeAsBytes(fileBytes, flush: true);
+        finalPath = docFile.path;
+      } catch (_) {}
+    }
 
     return finalPath ?? fileName;
   }
 
   /// Open Excel file directly in Microsoft Excel / Google Sheets
   Future<OpenResult> openExcelFile(String filePath) async {
-    return await OpenFilex.open(filePath);
+    try {
+      final file = File(filePath);
+      if (!await file.exists()) {
+        return OpenResult(type: ResultType.fileNotFound, message: 'Excel file not found at: $filePath');
+      }
+      final absolutePath = file.absolute.path;
+      if (Platform.isWindows) {
+        final result = await Process.run('cmd', ['/c', 'start', '', absolutePath], runInShell: true);
+        if (result.exitCode == 0) {
+          return OpenResult(type: ResultType.done, message: 'Opened');
+        }
+      }
+      return await OpenFilex.open(absolutePath);
+    } catch (e) {
+      return await OpenFilex.open(filePath);
+    }
+  }
+
+  /// Highlight and reveal Excel file in Windows File Explorer
+  Future<void> showInExplorer(String filePath) async {
+    if (Platform.isWindows) {
+      try {
+        final file = File(filePath);
+        if (await file.exists()) {
+          await Process.run('explorer.exe', ['/select,', file.absolute.path], runInShell: true);
+        }
+      } catch (_) {}
+    }
   }
 
   /// Share Excel file via system share sheet

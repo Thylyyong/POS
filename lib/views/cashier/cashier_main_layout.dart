@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../controllers/auth_controller.dart';
 import '../../controllers/settings_controller.dart';
 import '../../controllers/pos_controller.dart';
+import '../../widgets/admin_pin_dialog.dart';
 import '../../widgets/error_banner.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../history/receipt_history_screen.dart';
@@ -31,8 +33,27 @@ class _CashierMainLayoutState extends State<CashierMainLayout> {
     _currentTab = widget.initialTab;
   }
 
-  void _navigateToTab(CashierNavTab tab) {
-    setState(() => _currentTab = tab);
+  Future<void> _navigateToTab(CashierNavTab tab) async {
+    final isAdminTab = tab == CashierNavTab.dashboard ||
+        tab == CashierNavTab.settings ||
+        tab == CashierNavTab.products ||
+        tab == CashierNavTab.categories;
+
+    if (isAdminTab) {
+      final authCtrl = context.read<AuthController>();
+      if (!authCtrl.isAdminAuthenticated) {
+        final verified = await AdminPinDialog.show(
+          context,
+          title: 'Admin Verification',
+          subtitle: 'Enter master PIN code to unlock Admin section',
+        );
+        if (!verified || !mounted) return;
+      }
+    }
+
+    if (mounted) {
+      setState(() => _currentTab = tab);
+    }
   }
 
   @override
@@ -76,8 +97,7 @@ class _CashierMainLayoutState extends State<CashierMainLayout> {
                       children: [
                         NavSidebar(
                           currentTab: _currentTab,
-                          onTabChanged: (tab) =>
-                              setState(() => _currentTab = tab),
+                          onTabChanged: _navigateToTab,
                         ),
                         Expanded(
                           child: AnimatedSwitcher(
@@ -115,7 +135,9 @@ class _CashierMainLayoutState extends State<CashierMainLayout> {
       case CashierNavTab.categories:
         return const CategoryScreen();
       case CashierNavTab.history:
-        return const ReceiptHistoryScreen();
+        return ReceiptHistoryScreen(
+          onSwitchToPos: () => _navigateToTab(CashierNavTab.pos),
+        );
       case CashierNavTab.dashboard:
         return const DashboardScreen();
       case CashierNavTab.settings:

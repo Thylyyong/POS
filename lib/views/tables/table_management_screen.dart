@@ -84,10 +84,11 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                 // "+ Add Table / VIP Room" Button
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F172A),
+                    backgroundColor: const Color(0xFF0D9488),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    elevation: 0,
                   ),
                   onPressed: () => _showAddTableDialog(context),
                   icon: const Icon(Icons.add, size: 18),
@@ -204,14 +205,14 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
       label: Text(label),
       selected: isSelected,
       onSelected: (_) => ctrl.setFilterStatus(status),
-      selectedColor: const Color(0xFF0F172A),
+      selectedColor: const Color(0xFF0D9488),
       backgroundColor: Colors.white,
       labelStyle: TextStyle(
         fontSize: 12,
         fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
         color: isSelected ? Colors.white : const Color(0xFF475569),
       ),
-      side: BorderSide(color: isSelected ? const Color(0xFF0F172A) : const Color(0xFFCBD5E1)),
+      side: BorderSide(color: isSelected ? const Color(0xFF0D9488) : const Color(0xFFCBD5E1)),
     );
   }
 
@@ -439,10 +440,11 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                     )
                   : ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F172A),
+                        backgroundColor: const Color(0xFF0D9488),
                         foregroundColor: Colors.white,
                         padding: EdgeInsets.zero,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        elevation: 0,
                       ),
                       onPressed: () {
                         cartCtrl.setTableInfo(
