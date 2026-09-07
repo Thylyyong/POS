@@ -9,6 +9,7 @@ import '../../models/user_model.dart';
 import '../../widgets/app_logo_widget.dart';
 import '../../core/theme/asset_theme.dart';
 import '../../widgets/app_svg_icon.dart';
+import '../auth/pin_login_screen.dart';
 import '../cashier/cashier_main_layout.dart';
 import '../cashier/widgets/nav_sidebar.dart';
 
@@ -29,7 +30,7 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-    _selectedUser = AuthController.defaultUsers.last;
+    _selectedUser = AuthController.screenUsers.last;
     _animCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -86,7 +87,6 @@ class _SplashScreenState extends State<SplashScreen>
     final settingsCtrl = context.watch<SettingsController>();
     final storeName = settingsCtrl.settings.storeName;
     final logoPath = settingsCtrl.settings.logoPath;
-    final users = AuthController.defaultUsers;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF1F5F9),
@@ -233,11 +233,11 @@ class _SplashScreenState extends State<SplashScreen>
                                   vertical: 12,
                                 ),
                               ),
-                              items: users.map((user) {
+                              items: AuthController.screenUsers.map((user) {
                                 return DropdownMenuItem<UserModel>(
                                   value: user,
                                   child: Text(
-                                    user.displayName,
+                                    user.isOwner ? 'Boss (Owner)' : 'Staff Cashier',
                                     overflow: TextOverflow.ellipsis,
                                   ),
                                 );
@@ -278,6 +278,30 @@ class _SplashScreenState extends State<SplashScreen>
                                   borderRadius: BorderRadius.circular(10),
                                 ),
                                 elevation: 0,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            OutlinedButton.icon(
+                              onPressed: () {
+                                Navigator.of(context).pushReplacement(
+                                  MaterialPageRoute(
+                                    builder: (_) => const PinLoginScreen(),
+                                  ),
+                                );
+                              },
+                              icon: const Icon(
+                                Icons.dialpad,
+                                size: 18,
+                                color: Color(0xFF0D9488),
+                              ),
+                              label: const Text('Open On-Screen PIN Pad'),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF0D9488),
+                                padding: const EdgeInsets.symmetric(vertical: 13),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                side: const BorderSide(color: Color(0xFF0D9488)),
                               ),
                             ),
                           ],

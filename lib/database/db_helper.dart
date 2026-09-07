@@ -4,7 +4,7 @@ import 'package:sqflite/sqflite.dart';
 
 class DbHelper {
   static const String _dbName = 'omni_pos.db';
-  static const int _dbVersion = 5;
+  static const int _dbVersion = 6;
 
   static DbHelper? _instance;
   static Database? _database;
@@ -35,6 +35,16 @@ class DbHelper {
   }
 
   FutureOr<void> _onCreate(Database db, int version) async {
+    // Users Table (v6)
+    await db.execute('''
+      CREATE TABLE users (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        pin_code TEXT NOT NULL,
+        role TEXT NOT NULL
+      )
+    ''');
+
     // Categories Table
     await db.execute('''
       CREATE TABLE categories (
@@ -114,6 +124,7 @@ class DbHelper {
         cash_tendered REAL DEFAULT 0.0,
         change_amount REAL DEFAULT 0.0,
         status TEXT NOT NULL DEFAULT 'COMPLETED',
+        kitchen_status TEXT NOT NULL DEFAULT 'PENDING',
         created_at TEXT NOT NULL
       )
     ''');
@@ -245,6 +256,7 @@ class DbHelper {
     await db.execute('CREATE INDEX idx_products_barcode ON products (barcode)');
     await db.execute('CREATE INDEX idx_orders_created ON orders (created_at)');
     await db.execute('CREATE INDEX idx_orders_status ON orders (status)');
+    await db.execute('CREATE INDEX idx_orders_kitchen_status ON orders (kitchen_status)');
     await db.execute('CREATE INDEX idx_order_items_order ON order_items (order_id)');
     await db.execute('CREATE INDEX idx_receipt_logs_order ON receipt_logs (order_id)');
     await db.execute('CREATE INDEX idx_tables_status ON dining_tables (status)');
@@ -392,9 +404,46 @@ class DbHelper {
 
       await _seedV5Data(db);
     }
+    if (oldVersion < 6) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          pin_code TEXT NOT NULL,
+          role TEXT NOT NULL
+        )
+      ''');
+
+      try {
+        await db.execute("ALTER TABLE orders ADD COLUMN kitchen_status TEXT NOT NULL DEFAULT 'PENDING'");
+      } catch (_) {}
+
+      try {
+        await db.execute('CREATE INDEX IF NOT EXISTS idx_orders_kitchen_status ON orders (kitchen_status)');
+      } catch (_) {}
+
+      final defaultUsers = [
+        {'id': 'usr_owner', 'name': 'Owner (Boss)', 'pin_code': '9999', 'role': 'OWNER'},
+        {'id': 'usr_cashier', 'name': 'Staff Cashier', 'pin_code': '1234', 'role': 'CASHIER'},
+        {'id': 'usr_chef', 'name': 'Kitchen Chef', 'pin_code': '5555', 'role': 'CHEF'},
+      ];
+      for (var u in defaultUsers) {
+        await db.insert('users', u, conflictAlgorithm: ConflictAlgorithm.ignore);
+      }
+    }
   }
 
   Future<void> _seedInitialData(Database db) async {
+    // 0. Seed Users (v6)
+    final defaultUsers = [
+      {'id': 'usr_owner', 'name': 'Owner (Boss)', 'pin_code': '9999', 'role': 'OWNER'},
+      {'id': 'usr_cashier', 'name': 'Staff Cashier', 'pin_code': '1234', 'role': 'CASHIER'},
+      {'id': 'usr_chef', 'name': 'Kitchen Chef', 'pin_code': '5555', 'role': 'CHEF'},
+    ];
+    for (var u in defaultUsers) {
+      await db.insert('users', u, conflictAlgorithm: ConflictAlgorithm.ignore);
+    }
+
     // 1. Categories
     final categories = [
       {'id': 'cat_coffee', 'name': 'Coffee & Tea', 'icon': 'local_cafe', 'color_hex': '0xFF0D9488', 'created_at': DateTime.now().toIso8601String()},

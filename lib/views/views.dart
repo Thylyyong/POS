@@ -9,6 +9,7 @@ export 'products/product_list_screen.dart';
 export 'register/cash_in_out_dialog.dart';
 export 'register/close_register_dialog.dart';
 export 'register/open_register_dialog.dart';
+export 'auth/pin_login_screen.dart';
 export 'settings/store_settings_screen.dart';
 export 'splash/splash_screen.dart';
 export 'tables/table_management_screen.dart';

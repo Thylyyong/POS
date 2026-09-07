@@ -12,6 +12,7 @@ class StoreSettingsModel {
   final double defaultTaxRate;
   final String footerNote;
   final String? logoPath;
+  final String? qrImagePath;
 
   // Display & Template Layout Customizations
   final double
@@ -42,6 +43,7 @@ class StoreSettingsModel {
     this.defaultTaxRate = 10.0,
     this.footerNote = '***THANK YOU FOR YOUR VISIT***\n***Please Come Again***',
     this.logoPath,
+    this.qrImagePath,
     this.fontSizeScale = 1.0,
     this.gridTemplate = '4x6',
     this.autoPrintOnPayment = true,
@@ -88,6 +90,7 @@ class StoreSettingsModel {
       'default_tax_rate': defaultTaxRate.toString(),
       'footer_note': footerNote,
       'logo_path': logoPath ?? '',
+      'qr_image_path': qrImagePath ?? '',
       'font_size_scale': fontSizeScale.toString(),
       'grid_template': gridTemplate,
       'auto_print_on_payment': autoPrintOnPayment ? '1' : '0',
@@ -120,6 +123,9 @@ class StoreSettingsModel {
       logoPath: (map['logo_path']?.isNotEmpty ?? false)
           ? map['logo_path']
           : null,
+      qrImagePath: (map['qr_image_path']?.isNotEmpty ?? false)
+          ? map['qr_image_path']
+          : null,
       fontSizeScale: double.tryParse(map['font_size_scale'] ?? '1.0') ?? 1.0,
       gridTemplate: map['grid_template'] ?? '4x6',
       autoPrintOnPayment: (map['auto_print_on_payment'] ?? '1') == '1',
@@ -150,6 +156,9 @@ class StoreSettingsModel {
     double? defaultTaxRate,
     String? footerNote,
     String? logoPath,
+    String? qrImagePath,
+    bool clearLogoPath = false,
+    bool clearQrImagePath = false,
     double? fontSizeScale,
     String? gridTemplate,
     bool? autoPrintOnPayment,
@@ -173,7 +182,8 @@ class StoreSettingsModel {
       currencySymbol: currencySymbol ?? this.currencySymbol,
       defaultTaxRate: defaultTaxRate ?? this.defaultTaxRate,
       footerNote: footerNote ?? this.footerNote,
-      logoPath: logoPath ?? this.logoPath,
+      logoPath: clearLogoPath ? null : (logoPath ?? this.logoPath),
+      qrImagePath: clearQrImagePath ? null : (qrImagePath ?? this.qrImagePath),
       fontSizeScale: fontSizeScale ?? this.fontSizeScale,
       gridTemplate: gridTemplate ?? this.gridTemplate,
       autoPrintOnPayment: autoPrintOnPayment ?? this.autoPrintOnPayment,

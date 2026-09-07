@@ -88,6 +88,40 @@ class CartHeader extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (cart.isConfirmedPending) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 2.5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF3C7),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFFCD34D)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.soup_kitchen_rounded,
+                              size: 13,
+                              color: Color(0xFF92400E),
+                            ),
+                            SizedBox(width: 3),
+                            Text(
+                              'SENT TO CHEF',
+                              style: TextStyle(
+                                color: Color(0xFF92400E),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 10,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -196,21 +230,24 @@ class CartHeader extends StatelessWidget {
   }
 
   void _confirmClearCart(BuildContext context, CartController cart) {
+    final isConfirmed = cart.isConfirmedPending;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        title: const Text(
-          'Clear Cart?',
-          style: TextStyle(
+        title: Text(
+          isConfirmed ? 'Start New Order?' : 'Clear Cart?',
+          style: const TextStyle(
             fontWeight: FontWeight.bold,
             color: ColorTheme.textPrimary,
           ),
         ),
-        content: const Text(
-          'All items in the current order will be removed.',
-          style: TextStyle(color: ColorTheme.textSecondary),
+        content: Text(
+          isConfirmed
+              ? 'This order is confirmed and sent to the Chef. Starting a new order will keep this order saved on its table/history for payment later.'
+              : 'All items in the current order will be removed.',
+          style: const TextStyle(color: ColorTheme.textSecondary),
         ),
         actions: [
           TextButton(
@@ -222,7 +259,7 @@ class CartHeader extends StatelessWidget {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppConfig.accentRose,
+              backgroundColor: isConfirmed ? const Color(0xFF0F766E) : AppConfig.accentRose,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -232,9 +269,9 @@ class CartHeader extends StatelessWidget {
               cart.clearCart();
               Navigator.of(ctx).pop();
             },
-            child: const Text(
-              'Clear',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            child: Text(
+              isConfirmed ? 'Start New Order' : 'Clear',
+              style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
         ],

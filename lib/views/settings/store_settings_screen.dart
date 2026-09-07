@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -39,6 +40,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
   late bool _autoPrintOnPayment;
   late bool _autoKickCashDrawer;
   String? _logoPath;
+  String? _qrImagePath;
   bool _isSaving = false;
 
   @override
@@ -66,6 +68,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
     _autoPrintOnPayment = s.autoPrintOnPayment;
     _autoKickCashDrawer = s.autoKickCashDrawer;
     _logoPath = s.logoPath;
+    _qrImagePath = s.qrImagePath;
   }
 
   @override
@@ -83,6 +86,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
   }
 
   bool get _hasLogo => _logoPath != null && _logoPath!.trim().isNotEmpty;
+  bool get _hasQrImage => _qrImagePath != null && _qrImagePath!.trim().isNotEmpty;
 
   Future<void> _pickStoreLogo() async {
     final pickedPath = await ImagePickerDialog.pickImage(
@@ -92,6 +96,18 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
     if (pickedPath != null) {
       setState(() {
         _logoPath = pickedPath;
+      });
+    }
+  }
+
+  Future<void> _pickQrCodeImage() async {
+    final pickedPath = await ImagePickerDialog.pickImage(
+      context,
+      title: 'Select Payment QR Code Image (ABA / PromptPay)',
+    );
+    if (pickedPath != null) {
+      setState(() {
+        _qrImagePath = pickedPath;
       });
     }
   }
@@ -873,7 +889,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                                     ),
                                     SizedBox(width: 8),
                                     Text(
-                                      'QR Payment Account',
+                                      'Static Payment QR Code (KHQR / PromptPay)',
                                       style: TextStyle(
                                         fontSize: 15,
                                         fontWeight: FontWeight.bold,
@@ -884,20 +900,142 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                                 ),
                                 const SizedBox(height: 6),
                                 const Text(
-                                  'Set the payment account or URL used for customer QR payments',
+                                  'Upload your static merchant QR code (ABA KHQR, PromptPay, Wing) for customer checkout scans',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Color(0xFF64748B),
                                   ),
                                 ),
+                                const SizedBox(height: 16),
+
+                                // QR Code Image Preview Box & Controls
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  children: [
+                                    Container(
+                                      width: 90,
+                                      height: 90,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFFF8FAFC),
+                                        borderRadius: BorderRadius.circular(12),
+                                        border: Border.all(
+                                          color: _hasQrImage
+                                              ? const Color(0xFF0D9488)
+                                              : const Color(0xFFCBD5E1),
+                                          width: 1.5,
+                                        ),
+                                        boxShadow: [
+                                          if (_hasQrImage)
+                                            BoxShadow(
+                                              color: const Color(0xFF0D9488).withValues(alpha: 0.12),
+                                              blurRadius: 8,
+                                              offset: const Offset(0, 2),
+                                            ),
+                                        ],
+                                      ),
+                                      clipBehavior: Clip.antiAlias,
+                                      child: _hasQrImage && File(_qrImagePath!).existsSync()
+                                          ? Image.file(
+                                              File(_qrImagePath!),
+                                              fit: BoxFit.contain,
+                                            )
+                                          : const Center(
+                                              child: Column(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  AppSvgIcon(
+                                                    AssetTheme.searchQR,
+                                                    size: 30,
+                                                    color: Color(0xFF94A3B8),
+                                                  ),
+                                                  SizedBox(height: 4),
+                                                  Text(
+                                                    'No QR',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      color: Color(0xFF94A3B8),
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                    ),
+                                    const SizedBox(width: 16),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          OutlinedButton.icon(
+                                            onPressed: _pickQrCodeImage,
+                                            style: OutlinedButton.styleFrom(
+                                              side: const BorderSide(
+                                                color: Color(0xFFCBD5E1),
+                                              ),
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              padding: const EdgeInsets.symmetric(
+                                                horizontal: 14,
+                                                vertical: 8,
+                                              ),
+                                            ),
+                                            icon: const AppSvgIcon(
+                                              AssetTheme.gallery,
+                                              size: 16,
+                                              color: Color(0xFF0F172A),
+                                            ),
+                                            label: Text(
+                                              _hasQrImage
+                                                  ? 'Change QR Code Image'
+                                                  : 'Upload QR Code Image',
+                                              style: const TextStyle(
+                                                fontSize: 12.5,
+                                                color: Color(0xFF0F172A),
+                                                fontWeight: FontWeight.w600,
+                                              ),
+                                            ),
+                                          ),
+                                          if (_hasQrImage) ...[
+                                            const SizedBox(height: 4),
+                                            TextButton(
+                                              onPressed: () => setState(
+                                                () => _qrImagePath = null,
+                                              ),
+                                              style: TextButton.styleFrom(
+                                                foregroundColor: AppConfig.accentRose,
+                                                padding: EdgeInsets.zero,
+                                                minimumSize: Size.zero,
+                                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                              ),
+                                              child: const Text(
+                                                'Remove QR Image',
+                                                style: TextStyle(
+                                                  fontSize: 11.5,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                          const SizedBox(height: 6),
+                                          const Text(
+                                            'Used for KHQR & PromptPay scanning at checkout & CFD screen',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Color(0xFF64748B),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ],
+                                ),
                                 const SizedBox(height: 14),
                                 TextFormField(
                                   controller: _qrPaymentCtrl,
                                   decoration: const InputDecoration(
-                                    labelText:
-                                        'Payment account or QR URL prefix',
-                                    hintText:
-                                        'https://pay.example.com/pos?order=',
+                                    labelText: 'Fallback URL or Account ID (Optional)',
+                                    hintText: 'https://pay.restaurant.com/pos?order=',
                                     prefixIcon: Padding(
                                       padding: EdgeInsets.all(12),
                                       child: AppSvgIcon(
@@ -912,10 +1050,6 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                                       vertical: 12,
                                     ),
                                   ),
-                                  validator: (v) =>
-                                      (v == null || v.trim().isEmpty)
-                                      ? 'QR payment account is required'
-                                      : null,
                                 ),
                               ],
                             ),
@@ -967,7 +1101,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                           ),
                           const SizedBox(height: 16),
 
-                          // Admin Security & PIN Code Card
+                          // Employee Security & PIN Code Card (SQLite DB)
                           Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
@@ -996,7 +1130,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                                     ),
                                     SizedBox(width: 8),
                                     Text(
-                                      'Admin Security & PIN Code',
+                                      'Employee Security & Change PIN (SQLite)',
                                       style: TextStyle(
                                         fontSize: 15,
                                         fontWeight: FontWeight.bold,
@@ -1007,24 +1141,42 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                                 ),
                                 const SizedBox(height: 6),
                                 const Text(
-                                  'Change the master PIN required to access Dashboard, Analytics, and Admin controls',
+                                  'Change passwords (PINs) for Owner (Boss) and Staff Cashier. Changes are persisted directly to the SQLite database.',
                                   style: TextStyle(
                                     fontSize: 12,
                                     color: Color(0xFF64748B),
                                   ),
                                 ),
                                 const SizedBox(height: 14),
-                                OutlinedButton.icon(
-                                  onPressed: () =>
-                                      _showPinChangeDialog(context),
-                                  icon: const AppSvgIcon(
-                                    AssetTheme.verify,
-                                    size: 18,
-                                    color: Color(0xFF0D9488),
-                                  ),
-                                  label: const Text(
-                                    'Change or reset master PIN',
-                                  ),
+                                Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  children: [
+                                    OutlinedButton.icon(
+                                      onPressed: () =>
+                                          _showPinChangeDialog(context, initialUserId: 'usr_owner'),
+                                      icon: const AppSvgIcon(
+                                        AssetTheme.verify,
+                                        size: 18,
+                                        color: Color(0xFF0D9488),
+                                      ),
+                                      label: const Text(
+                                        'Change Boss PIN',
+                                      ),
+                                    ),
+                                    OutlinedButton.icon(
+                                      onPressed: () =>
+                                          _showPinChangeDialog(context, initialUserId: 'usr_cashier'),
+                                      icon: const Icon(
+                                        Icons.badge_outlined,
+                                        size: 18,
+                                        color: Color(0xFF0D9488),
+                                      ),
+                                      label: const Text(
+                                        'Change Cashier PIN',
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
@@ -1155,11 +1307,15 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
     );
   }
 
-  Future<void> _showPinChangeDialog(BuildContext context) async {
+  Future<void> _showPinChangeDialog(
+    BuildContext context, {
+    String initialUserId = 'usr_owner',
+  }) async {
     final currentPinCtrl = TextEditingController();
     final recoveryPinCtrl = TextEditingController();
     final newPinCtrl = TextEditingController();
     final confirmPinCtrl = TextEditingController();
+    var selectedUserId = initialUserId;
     var useRecovery = false;
     var obscure = true;
     String? error;
@@ -1174,7 +1330,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                 : currentPinCtrl;
             final credentialLabel = useRecovery
                 ? 'Main Boss recovery PIN'
-                : 'Current master PIN';
+                : 'Current PIN';
 
             Future<void> submit() async {
               final newPin = newPinCtrl.text.trim();
@@ -1191,25 +1347,42 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                 );
                 return;
               }
-              final settings = context.read<SettingsController>().settings;
-              final validCredential = useRecovery
-                  ? credential == AuthController.defaultUsers.first.pinCode
-                  : settings.verifyAdminPin(credential);
-              if (!validCredential) {
+
+              final authCtrl = context.read<AuthController>();
+              final settingsCtrl = context.read<SettingsController>();
+              final success = await authCtrl.changeUserPin(
+                userId: selectedUserId,
+                currentPin: credential,
+                newPin: newPin,
+                isAdminOverride: useRecovery,
+              );
+
+              if (!success) {
                 setDialogState(
                   () => error = useRecovery
-                      ? 'Invalid Main Boss recovery PIN'
+                      ? 'Invalid recovery PIN'
                       : 'Current PIN is incorrect',
                 );
                 return;
               }
-              await context.read<SettingsController>().updateAdminPin(newPin);
+
+              // Also sync admin pin if changing owner
+              if (selectedUserId == 'usr_owner') {
+                await settingsCtrl.updateAdminPin(newPin);
+              }
+
+              final roleName = selectedUserId == 'usr_owner'
+                  ? 'Owner (Boss)'
+                  : 'Staff Cashier';
+
               if (dialogContext.mounted) Navigator.of(dialogContext).pop();
               if (mounted) {
                 ScaffoldMessenger.of(this.context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Master PIN changed securely'),
-                    backgroundColor: Color(0xFF0D9488),
+                  SnackBar(
+                    content: Text(
+                      'PIN updated and saved to SQLite database for $roleName',
+                    ),
+                    backgroundColor: const Color(0xFF0D9488),
                   ),
                 );
               }
@@ -1247,18 +1420,57 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
             }
 
             return AlertDialog(
-              title: const Text('Secure master PIN'),
+              title: const Text('Change Password / PIN (SQLite DB)'),
               content: SizedBox(
                 width: 380,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // User Account Selector (Boss or Staff Cashier)
+                    const Text(
+                      'Select Employee Role:',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(
+                          value: 'usr_owner',
+                          label: Text('Owner (Boss)'),
+                          icon: AppSvgIcon(
+                            AssetTheme.verify,
+                            size: 16,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                        ButtonSegment(
+                          value: 'usr_cashier',
+                          label: Text('Staff Cashier'),
+                          icon: Icon(
+                            Icons.badge_outlined,
+                            size: 16,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                      ],
+                      selected: {selectedUserId},
+                      onSelectionChanged: (selected) => setDialogState(() {
+                        selectedUserId = selected.first;
+                        error = null;
+                      }),
+                    ),
+                    const SizedBox(height: 16),
+
                     SegmentedButton<bool>(
                       segments: const [
                         ButtonSegment(
                           value: false,
-                          label: Text('Change PIN'),
+                          label: Text('Enter Current PIN'),
                           icon: AppSvgIcon(
                             AssetTheme.verify,
                             size: 16,
@@ -1267,7 +1479,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                         ),
                         ButtonSegment(
                           value: true,
-                          label: Text('Forgot PIN'),
+                          label: Text('Boss Recovery'),
                           icon: AppSvgIcon(
                             AssetTheme.info,
                             size: 16,
@@ -1284,9 +1496,9 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                     const SizedBox(height: 16),
                     pinField(credentialLabel, credentialCtrl),
                     const SizedBox(height: 10),
-                    pinField('New PIN', newPinCtrl),
+                    pinField('New 4-Digit PIN', newPinCtrl),
                     const SizedBox(height: 10),
-                    pinField('Confirm new PIN', confirmPinCtrl),
+                    pinField('Confirm New PIN', confirmPinCtrl),
                     if (error != null) ...[
                       const SizedBox(height: 10),
                       Text(
@@ -1300,7 +1512,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                     if (useRecovery) ...[
                       const SizedBox(height: 8),
                       const Text(
-                        'Recovery requires the Main Boss PIN and does not reveal the old PIN.',
+                        'Recovery requires Main Boss authorization.',
                         style: TextStyle(
                           color: Color(0xFF64748B),
                           fontSize: 11,
@@ -1317,7 +1529,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                 ),
                 FilledButton(
                   onPressed: submit,
-                  child: const Text('Save new PIN'),
+                  child: const Text('Save to SQLite DB'),
                 ),
               ],
             );
@@ -1413,6 +1625,9 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
           defaultTaxRate: double.tryParse(_taxCtrl.text) ?? 10.0,
           footerNote: _footerCtrl.text.trim(),
           logoPath: _logoPath,
+          qrImagePath: _qrImagePath,
+          clearLogoPath: _logoPath == null,
+          clearQrImagePath: _qrImagePath == null,
           fontSizeScale: _fontSizeScale,
           gridTemplate: _gridTemplate,
           cfdEnabled: _cfdEnabled,

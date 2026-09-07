@@ -9,8 +9,8 @@ class RegisterDao {
   /// Get the active open session for a specific branch (or any if null)
   Future<RegisterSessionModel?> getActiveSession({String? branchId}) async {
     final db = await _dbHelper.database;
-    String whereClause = 'status = "OPEN"';
-    List<dynamic> whereArgs = [];
+    String whereClause = 'status = ?';
+    List<dynamic> whereArgs = ['OPEN'];
 
     if (branchId != null && branchId.isNotEmpty) {
       whereClause += ' AND branch_id = ?';
@@ -20,7 +20,7 @@ class RegisterDao {
     final maps = await db.query(
       'register_sessions',
       where: whereClause,
-      whereArgs: whereArgs.isNotEmpty ? whereArgs : null,
+      whereArgs: whereArgs,
       orderBy: 'opened_at DESC',
       limit: 1,
     );
@@ -182,8 +182,8 @@ class RegisterDao {
     final startStr = openedAt.toIso8601String();
     final endStr = (closedAt ?? DateTime.now()).toIso8601String();
 
-    String where = 'created_at >= ? AND created_at <= ? AND status = "COMPLETED"';
-    List<dynamic> args = [startStr, endStr];
+    String where = 'created_at >= ? AND created_at <= ? AND status = ?';
+    List<dynamic> args = [startStr, endStr, 'COMPLETED'];
 
     if (branchId != null && branchId.isNotEmpty) {
       where += ' AND branch_id = ?';

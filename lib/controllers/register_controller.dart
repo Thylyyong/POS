@@ -25,15 +25,21 @@ class RegisterController extends ChangeNotifier {
     _isLoading = true;
     notifyListeners();
 
-    _activeSession = await _dao.getActiveSession(branchId: branchId);
-    if (_activeSession != null) {
-      _activeMovements = await _dao.getSessionMovements(_activeSession!.id);
-    } else {
+    try {
+      _activeSession = await _dao.getActiveSession(branchId: branchId);
+      if (_activeSession != null) {
+        _activeMovements = await _dao.getSessionMovements(_activeSession!.id);
+      } else {
+        _activeMovements = [];
+      }
+    } catch (e) {
+      debugPrint('Error loading active session: $e');
+      _activeSession = null;
       _activeMovements = [];
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
-
-    _isLoading = false;
-    notifyListeners();
   }
 
   /// Open Register (Opening Control)

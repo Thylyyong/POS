@@ -1,4 +1,4 @@
-﻿enum PaymentMethod {
+enum PaymentMethod {
   cash,
   qr,
   card;
@@ -61,6 +61,38 @@ enum OrderStatus {
         return OrderStatus.cancelled;
       default:
         return OrderStatus.completed;
+    }
+  }
+}
+
+enum KitchenStatus {
+  pending,
+  preparing,
+  completed;
+
+  String get displayName {
+    switch (this) {
+      case KitchenStatus.pending:
+        return 'PENDING';
+      case KitchenStatus.preparing:
+        return 'PREPARING';
+      case KitchenStatus.completed:
+        return 'COMPLETED';
+    }
+  }
+
+  static KitchenStatus fromString(String value) {
+    switch (value.toUpperCase()) {
+      case 'PENDING':
+        return KitchenStatus.pending;
+      case 'PREPARING':
+      case 'COOKING':
+        return KitchenStatus.preparing;
+      case 'COMPLETED':
+      case 'READY':
+        return KitchenStatus.completed;
+      default:
+        return KitchenStatus.pending;
     }
   }
 }
@@ -154,6 +186,7 @@ class OrderModel {
   final double cashTendered;
   final double changeAmount;
   final OrderStatus status;
+  final KitchenStatus kitchenStatus;
   final DateTime createdAt;
   final List<OrderItemModel> items;
 
@@ -176,12 +209,16 @@ class OrderModel {
     this.cashTendered = 0.0,
     this.changeAmount = 0.0,
     this.status = OrderStatus.completed,
+    this.kitchenStatus = KitchenStatus.pending,
     DateTime? createdAt,
     this.items = const [],
   }) : createdAt = createdAt ?? DateTime.now();
 
   bool get isPending => status == OrderStatus.pending;
   bool get isDineIn => orderType == 'DINE_IN';
+  bool get isKitchenPending => kitchenStatus == KitchenStatus.pending;
+  bool get isKitchenPreparing => kitchenStatus == KitchenStatus.preparing;
+  bool get isKitchenCompleted => kitchenStatus == KitchenStatus.completed;
 
   Map<String, dynamic> toMap() {
     return {
@@ -203,6 +240,7 @@ class OrderModel {
       'cash_tendered': cashTendered,
       'change_amount': changeAmount,
       'status': status.displayName,
+      'kitchen_status': kitchenStatus.displayName,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -232,6 +270,9 @@ class OrderModel {
       cashTendered: (map['cash_tendered'] as num?)?.toDouble() ?? 0.0,
       changeAmount: (map['change_amount'] as num?)?.toDouble() ?? 0.0,
       status: OrderStatus.fromString(map['status'] as String? ?? 'COMPLETED'),
+      kitchenStatus: KitchenStatus.fromString(
+        map['kitchen_status'] as String? ?? 'PENDING',
+      ),
       createdAt: map['created_at'] != null
           ? DateTime.tryParse(map['created_at'] as String) ?? DateTime.now()
           : DateTime.now(),
@@ -258,6 +299,7 @@ class OrderModel {
     double? cashTendered,
     double? changeAmount,
     OrderStatus? status,
+    KitchenStatus? kitchenStatus,
     DateTime? createdAt,
     List<OrderItemModel>? items,
   }) {
@@ -280,6 +322,7 @@ class OrderModel {
       cashTendered: cashTendered ?? this.cashTendered,
       changeAmount: changeAmount ?? this.changeAmount,
       status: status ?? this.status,
+      kitchenStatus: kitchenStatus ?? this.kitchenStatus,
       createdAt: createdAt ?? this.createdAt,
       items: items ?? this.items,
     );

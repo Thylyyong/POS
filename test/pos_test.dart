@@ -1,7 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:pos_flutter/controllers/auth_controller.dart';
 import 'package:pos_flutter/controllers/cart_controller.dart';
 import 'package:pos_flutter/database/order_dao.dart';
+import 'package:pos_flutter/database/register_dao.dart';
 import 'package:pos_flutter/models/accounting_model.dart';
 import 'package:pos_flutter/models/order_model.dart';
 import 'package:pos_flutter/models/product_model.dart';
@@ -12,9 +14,11 @@ import 'package:pos_flutter/services/excel_export_service.dart';
 import 'package:pos_flutter/services/pdf_receipt_service.dart';
 import 'package:pos_flutter/services/presentation_service.dart';
 import 'package:pos_flutter/services/printer_service.dart';
-
+  
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+  sqfliteFfiInit();
+  databaseFactory = databaseFactoryFfi;
 
   group('AuthController RBAC & PIN Tests', () {
     late AuthController auth;
@@ -35,8 +39,9 @@ void main() {
       final success = auth.loginWithUserAndPin(mainBoss, '9999');
 
       expect(success, true);
-      expect(auth.currentUser.role, UserRole.mainBoss);
+      expect(auth.currentUser.isOwner, true);
       expect(auth.isMainBoss, true);
+      expect(auth.isOwner, true);
       expect(auth.canAccessAccounting, true);
       expect(auth.canSwitchBranch, true);
     });
@@ -62,12 +67,77 @@ void main() {
       expect(auth.currentBranchId, 'store_b');
     });
 
+    test('Kitchen Chef login with PIN (5555) succeeds', () {
+      final chef = AuthController.defaultUsers.last;
+      final success = auth.loginWithUserAndPin(chef, '5555');
+
+      expect(success, true);
+      expect(auth.currentUser.role, UserRole.chef);
+      expect(auth.isChef, true);
+      expect(auth.canAccessKitchen, true);
+      expect(auth.canAccessSettings, false);
+      expect(auth.canAccessAccounting, false);
+    });
+
+    test('loginWithPin authenticates Owner (9999), Cashier (1234), Chef (5555)', () async {
+      final ownerUser = await auth.loginWithPin('9999');
+      expect(ownerUser, isNotNull);
+      expect(ownerUser!.isOwner, true);
+
+      final cashierUser = await auth.loginWithPin('1234');
+      expect(cashierUser, isNotNull);
+      expect(cashierUser!.isCashier, true);
+
+      final chefUser = await auth.loginWithPin('5555');
+      expect(chefUser, isNotNull);
+      expect(chefUser!.isChef, true);
+
+      final invalidUser = await auth.loginWithPin('0000');
+      expect(invalidUser, isNull);
+    });
+
     test('Incorrect PIN fails authentication', () {
       final mainBoss = AuthController.defaultUsers.first;
       final success = auth.loginWithUserAndPin(mainBoss, '0000');
 
       expect(success, false);
       expect(auth.currentUser.role, UserRole.cashier); // Still previous user
+    });
+
+    test('screenUsers contains strictly Owner (Boss) and Staff Cashier', () {
+      final screenUsers = AuthController.screenUsers;
+      expect(screenUsers.length, 2);
+      expect(screenUsers[0].isOwner, true);
+      expect(screenUsers[1].isCashier, true);
+    });
+
+    test('changeUserPin updates user PIN and rejects incorrect current PIN', () async {
+      final cashier = AuthController.defaultUsers[3];
+      // Attempt with wrong current PIN
+      final fail = await auth.changeUserPin(
+        userId: cashier.id,
+        currentPin: '0000',
+        newPin: '4321',
+      );
+      expect(fail, false);
+
+      // Attempt with correct current PIN (using admin override for unit tests where db is uninitialized)
+      final success = await auth.changeUserPin(
+        userId: cashier.id,
+        currentPin: cashier.pinCode,
+        newPin: '4321',
+        isAdminOverride: true,
+      );
+      expect(success, true);
+      expect(AuthController.defaultUsers[3].pinCode, '4321');
+
+      // Revert back for other tests
+      await auth.changeUserPin(
+        userId: cashier.id,
+        currentPin: '4321',
+        newPin: '1234',
+        isAdminOverride: true,
+      );
     });
   });
 
@@ -125,6 +195,12 @@ void main() {
       expect(session.calculatedExpectedCash, 450.00);
       // Difference = 420 - 450 = -30.00
       expect(session.calculatedCashDifference, -30.00);
+    });
+
+    test('RegisterDao getActiveSession queries cleanly without SQLite syntax error', () async {
+      final dao = RegisterDao();
+      final session = await dao.getActiveSession(branchId: 'store_a');
+      expect(session, anyOf(isNull, isA<RegisterSessionModel>()));
     });
   });
 
@@ -501,6 +577,120 @@ void main() {
 
       expect(filePath.isNotEmpty, true);
       expect(filePath.endsWith('.xlsx'), true);
+    });
+  });
+
+  group('Kitchen Ticket Printing & QR Settings Tests', () {
+    test('StoreSettingsModel serializes and deserializes qrImagePath', () {
+      const settings = StoreSettingsModel(
+        storeName: 'Test Burger House',
+        qrImagePath: 'C:/assets/aba_khqr.png',
+      );
+
+      final map = settings.toMap();
+      expect(map['qr_image_path'], 'C:/assets/aba_khqr.png');
+
+      final deserialized = StoreSettingsModel.fromMap(map);
+      expect(deserialized.qrImagePath, 'C:/assets/aba_khqr.png');
+
+      final cleared = deserialized.copyWith(clearQrImagePath: true);
+      expect(cleared.qrImagePath, isNull);
+    });
+
+    test('PrinterService generates kitchen ticket bytes without prices or totals', () async {
+      final printerService = PrinterService();
+      const settings = StoreSettingsModel(
+        storeName: 'Test Kitchen',
+        currencySymbol: '\$',
+        isPaperSize80mm: true,
+      );
+
+      final order = OrderModel(
+        id: 'ord_kitchen_01',
+        receiptNo: 'REC-20260907-0042',
+        orderNumber: '042',
+        tableNumber: 'T05',
+        orderType: 'DINE_IN',
+        subtotal: 35.00,
+        totalAmount: 35.00,
+        paymentMethod: PaymentMethod.cash,
+        kitchenStatus: KitchenStatus.pending,
+        items: [
+          OrderItemModel(
+            id: 'item_k1',
+            orderId: 'ord_kitchen_01',
+            productId: 'prod_burger',
+            productName: 'Truffle Wagyu Burger',
+            quantity: 2,
+            unitPrice: 12.50,
+            totalPrice: 25.00,
+            notes: 'Medium Rare, No Onions',
+          ),
+          OrderItemModel(
+            id: 'item_k2',
+            orderId: 'ord_kitchen_01',
+            productId: 'prod_fries',
+            productName: 'Parmesan Truffle Fries',
+            quantity: 1,
+            unitPrice: 10.00,
+            totalPrice: 10.00,
+          ),
+        ],
+      );
+
+      final bytes = await printerService.generateKitchenTicketBytes(
+        order: order,
+        settings: settings,
+      );
+
+      expect(bytes.isNotEmpty, true);
+
+      // Convert ESC/POS bytes to ASCII string to verify strictly no prices/totals
+      final text = String.fromCharCodes(bytes.where((b) => b >= 32 && b <= 126));
+      expect(text.contains('KITCHEN ORDER'), true);
+      expect(text.contains('T05'), true);
+      expect(text.contains('042'), true);
+      expect(text.contains('TRUFFLE WAGYU BURGER'), true);
+      expect(text.contains('Medium Rare, No Onions'), true);
+
+      // Strictly NO prices or totals in kitchen ticket text
+      expect(text.contains('35.00'), false);
+      expect(text.contains('12.50'), false);
+      expect(text.contains('25.00'), false);
+      expect(text.contains('10.00'), false);
+      expect(text.contains('SUBTOTAL'), false);
+      expect(text.contains('TOTAL'), false);
+    });
+
+    test('CartController marks order confirmed to chef and retains pending payment state', () {
+      final cart = CartController();
+      final p1 = Product(id: 'prod_1', categoryId: 'cat_1', name: 'Cheeseburger', price: 10.0);
+      cart.addProduct(p1);
+
+      expect(cart.isConfirmedPending, false);
+      expect(cart.currentPendingOrderId, null);
+
+      // Cashier clicks "Confirm Order (Print for Chef)"
+      cart.markOrderConfirmed(
+        orderId: 'ord_chef_99',
+        orderNumber: '0042',
+        receiptNo: 'REC-2026-0042',
+      );
+
+      // Order is confirmed for chef, but payment is NOT yet completed
+      expect(cart.isConfirmedPending, true);
+      expect(cart.currentPendingOrderId, 'ord_chef_99');
+      expect(cart.orderNumber, '0042');
+      expect(cart.currentReceiptNo, 'REC-2026-0042');
+      expect(cart.items.length, 1);
+      expect(cart.subtotal, 10.0);
+      expect(cart.totalAmount, 11.0); // includes 10% tax
+
+      // After payment or new order, clearing cart resets pending state
+      cart.clearCart(syncCfd: false);
+      expect(cart.isConfirmedPending, false);
+      expect(cart.currentPendingOrderId, null);
+      expect(cart.currentReceiptNo, null);
     });
   });
 }

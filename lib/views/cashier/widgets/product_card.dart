@@ -1,5 +1,7 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
+
 import '../../../app_config.dart';
 import '../../../models/product_model.dart';
 import '../../../core/theme/asset_theme.dart';
@@ -42,7 +44,7 @@ class ProductCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: ColorTheme.cardBg,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: ColorTheme.neutral300, width: 1),
+              border: Border.all(color: ColorTheme.neutral200, width: 1),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.04),
@@ -57,12 +59,15 @@ class ProductCard extends StatelessWidget {
                 // ── Framed Image / Placeholder (with neutral200 frame) ───
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(7, 7, 7, 0),
+                    padding: const EdgeInsets.fromLTRB(4,4 , 4, 0),
                     child: Container(
                       decoration: BoxDecoration(
-                        color: ColorTheme.neutral100,
+                        color: ColorTheme.neutral50,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: ColorTheme.neutral200, width: 1),
+                        border: Border.all(
+                          color: ColorTheme.neutral50,
+                          width: 1,
+                        ),
                       ),
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(9),
@@ -74,16 +79,18 @@ class ProductCard extends StatelessWidget {
                                 ? Image(
                                     image: imgProvider,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) => Container(
-                                      color: ColorTheme.neutral100,
-                                      child: const Center(
-                                        child: AppSvgIcon(
-                                          AssetTheme.gallery,
-                                          size: 52,
-                                          color: ColorTheme.neutral400,
-                                        ),
-                                      ),
-                                    ),
+                                    errorBuilder:
+                                        (context, error, stackTrace) =>
+                                            Container(
+                                              color: ColorTheme.neutral100,
+                                              child: const Center(
+                                                child: AppSvgIcon(
+                                                  AssetTheme.gallery,
+                                                  size: 52,
+                                                  color: ColorTheme.neutral400,
+                                                ),
+                                              ),
+                                            ),
                                   )
                                 : Container(
                                     color: ColorTheme.neutral100,
@@ -102,7 +109,10 @@ class ProductCard extends StatelessWidget {
                                 color: Colors.white.withValues(alpha: 0.55),
                                 alignment: Alignment.center,
                                 child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: ColorTheme.semanticRed,
                                     borderRadius: BorderRadius.circular(6),
@@ -180,7 +190,8 @@ class ProductCard extends StatelessWidget {
                                     borderRadius: BorderRadius.circular(8),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: ColorTheme.buttonPrimary.withValues(alpha: 0.25),
+                                        color: ColorTheme.buttonPrimary
+                                            .withValues(alpha: 0.25),
                                         blurRadius: 4,
                                         offset: const Offset(0, 1.5),
                                       ),

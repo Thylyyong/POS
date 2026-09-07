@@ -215,6 +215,7 @@ class PosController extends ChangeNotifier {
   void showPaymentOnCustomerDisplay({
     required CartController cart,
     required String qrPayload,
+    String? qrImagePath,
   }) {
     final payload = PresentationPayload(
       state: CfdScreenState.paymentQr,
@@ -225,6 +226,7 @@ class PosController extends ChangeNotifier {
       totalAmount: cart.totalAmount,
       currencySymbol: cart.currencySymbol,
       qrData: qrPayload,
+      qrImagePath: qrImagePath,
     );
     _presentationService.sendToCustomerDisplay(payload);
   }
@@ -248,6 +250,7 @@ class PosController extends ChangeNotifier {
     required StoreSettingsModel settings,
     String branchId = 'store_a',
     TableController? tableController,
+    bool clearCartAfter = false,
   }) async {
     if (cart.items.isEmpty) return null;
 
@@ -255,7 +258,8 @@ class PosController extends ChangeNotifier {
       final orderId =
           cart.currentPendingOrderId ??
           'ord_${DateTime.now().millisecondsSinceEpoch}';
-      final receiptNo = await _orderDao.generateNextReceiptNumber();
+      final receiptNo =
+          cart.currentReceiptNo ?? await _orderDao.generateNextReceiptNumber();
       final dailyOrderNo =
           cart.orderNumber ?? await _orderDao.generateNextDailyOrderNumber();
       final totalAmount = cart.totalAmount;
@@ -281,6 +285,7 @@ class PosController extends ChangeNotifier {
         cashTendered: 0.0,
         changeAmount: 0.0,
         status: OrderStatus.pending,
+        kitchenStatus: KitchenStatus.pending,
         createdAt: DateTime.now(),
       );
 
@@ -300,13 +305,27 @@ class PosController extends ChangeNotifier {
       );
       _lastReceiptSaveResult = saveResult;
 
+      // Print kitchen ticket for chef to prepare items (strictly no prices)
+      await _printerService.printKitchenTicket(
+        order: savedOrder,
+        settings: settings,
+      );
+
       // Reload table states across app
       if (tableController != null) {
         await tableController.loadTables();
       }
 
-      // Clear cart
-      cart.clearCart();
+      // Update cart state: either clear or retain as confirmed pending
+      if (clearCartAfter) {
+        cart.clearCart();
+      } else {
+        cart.markOrderConfirmed(
+          orderId: savedOrder.id,
+          orderNumber: savedOrder.orderNumber,
+          receiptNo: savedOrder.receiptNo,
+        );
+      }
       notifyListeners();
 
       return savedOrder;
@@ -314,6 +333,23 @@ class PosController extends ChangeNotifier {
       _setError('Failed to save pending order: $e');
       return null;
     }
+  }
+
+  // ── Confirm Order for Chef (Prints Ticket to Kitchen & Leaves Payment Pending) ──
+  Future<OrderModel?> confirmOrderToKitchen({
+    required CartController cart,
+    required StoreSettingsModel settings,
+    String branchId = 'store_a',
+    TableController? tableController,
+    bool clearCartAfter = false,
+  }) async {
+    return await saveOrderAsPending(
+      cart: cart,
+      settings: settings,
+      branchId: branchId,
+      tableController: tableController,
+      clearCartAfter: clearCartAfter,
+    );
   }
 
   // ── Complete Checkout & Payment ───────────────────────────────────────────
@@ -334,7 +370,8 @@ class PosController extends ChangeNotifier {
       final orderId =
           cart.currentPendingOrderId ??
           'ord_${DateTime.now().millisecondsSinceEpoch}';
-      final receiptNo = await _orderDao.generateNextReceiptNumber();
+      final receiptNo =
+          cart.currentReceiptNo ?? await _orderDao.generateNextReceiptNumber();
       final dailyOrderNo =
           cart.orderNumber ?? await _orderDao.generateNextDailyOrderNumber();
       final totalAmount = cart.totalAmount;
@@ -415,13 +452,20 @@ class PosController extends ChangeNotifier {
         );
       }
 
-      // 2. Hardware: kick cash drawer / print receipt
+      // 2. Hardware: kick cash drawer / print receipt / kitchen ticket
       if (settings.autoPrintOnPayment) {
         await _printerService.printReceipt(
           order: savedOrder,
           settings: settings,
           isReprint: false,
         );
+        // Print kitchen ticket only if not previously confirmed & sent to chef
+        if (!isExistingPending) {
+          await _printerService.printKitchenTicket(
+            order: savedOrder,
+            settings: settings,
+          );
+        }
       } else if (settings.autoKickCashDrawer &&
           paymentMethod == PaymentMethod.cash) {
         await _printerService.kickCashDrawer();

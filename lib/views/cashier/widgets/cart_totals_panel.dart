@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../../app_config.dart';
 import '../../../controllers/cart_controller.dart';
 import '../../../controllers/auth_controller.dart';
 import '../../../controllers/pos_controller.dart';
@@ -13,6 +12,7 @@ import '../../../widgets/custom_dialogs.dart';
 import '../../../widgets/receipt_preview_dialog.dart';
 import '../../../core/theme/asset_theme.dart';
 import '../../../widgets/app_svg_icon.dart';
+import '../../../services/printer_service.dart';
 
 class CartTotalsPanel extends StatefulWidget {
   final String currency;
@@ -26,9 +26,101 @@ class CartTotalsPanel extends StatefulWidget {
 class _CartTotalsPanelState extends State<CartTotalsPanel> {
   bool _isProcessing = false;
 
-  Future<void> _handleSaveAsPending() async {
+  Future<void> _handleConfirmOrderToChef() async {
     if (_isProcessing) return;
     final cart = context.read<CartController>();
+    if (cart.isEmpty) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.soup_kitchen_rounded, color: Color(0xFFD97706), size: 24),
+            SizedBox(width: 8),
+            Text(
+              'Confirm Print for Chef',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Send this order to the kitchen now? A kitchen ticket will be printed for the Chef.',
+              style: TextStyle(fontSize: 13, color: Color(0xFF334155)),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Table / Destination:', style: TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+                      Text(
+                        cart.tableNumber ?? (cart.orderType == 'TAKEAWAY' ? 'Takeaway' : 'Table T01'),
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Total Items:', style: TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+                      Text('${cart.totalItemCount} items', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Order Subtotal:', style: TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+                      Text('${widget.currency}${cart.subtotal.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              '* Chef receipt will print without prices. Payment remains pending until cashier taps to pay.',
+              style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontStyle: FontStyle.italic),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD97706),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            icon: const Icon(Icons.print, size: 16),
+            label: const Text('Confirm & Print to Chef', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
     final posCtrl = context.read<PosController>();
     final settings = context.read<SettingsController>().settings;
     final branchId = context.read<AuthController>().currentBranchId;
@@ -36,11 +128,12 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
 
     setState(() => _isProcessing = true);
     try {
-      final order = await posCtrl.saveOrderAsPending(
+      final order = await posCtrl.confirmOrderToKitchen(
         cart: cart,
         settings: settings,
         branchId: branchId,
         tableController: tableCtrl,
+        clearCartAfter: false,
       );
 
       if (order != null && mounted) {
@@ -48,15 +141,18 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
           SnackBar(
             content: Row(
               children: [
-                const AppSvgIcon(AssetTheme.success, color: Colors.white, size: 18),
-                const SizedBox(width: 8),
-                Text(
-                  'Order #${order.orderNumber ?? order.receiptNo} saved for ${order.tableNumber ?? "Table"}!',
+                const Icon(Icons.soup_kitchen_rounded, color: Colors.white, size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Order #${order.orderNumber ?? order.receiptNo} confirmed & sent to Chef! Tap below to pay when ready.',
+                    style: const TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ),
               ],
             ),
-            backgroundColor: AppConfig.accentAmber,
-            duration: const Duration(seconds: 3),
+            backgroundColor: const Color(0xFF0F766E),
+            duration: const Duration(seconds: 4),
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -64,6 +160,73 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
     } finally {
       if (mounted) setState(() => _isProcessing = false);
     }
+  }
+
+  Future<void> _handleReprintChefTicket() async {
+    if (_isProcessing) return;
+    final posCtrl = context.read<PosController>();
+    final settings = context.read<SettingsController>().settings;
+    final order = posCtrl.lastCompletedOrder;
+
+    if (order == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Row(
+          children: [
+            Icon(Icons.print_outlined, color: Color(0xFF0F766E), size: 22),
+            SizedBox(width: 8),
+            Text('Confirm Print for Chef', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          ],
+        ),
+        content: Text('Print a duplicate kitchen ticket for Order #${order.orderNumber ?? order.receiptNo} to the Chef printer?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0F766E),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            icon: const Icon(Icons.print, size: 16),
+            label: const Text('Confirm & Print', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final printerService = PrinterService();
+    await printerService.printKitchenTicket(order: order, settings: settings);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Kitchen ticket reprinted for Chef!'),
+          backgroundColor: Color(0xFF0F766E),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
+  }
+
+  void _handleNewOrder() {
+    final cart = context.read<CartController>();
+    cart.clearCart();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('New order started. Previous order is pending on Table/History.'),
+        backgroundColor: Color(0xFF334155),
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 
   Future<void> _handleCashCheckout() async {
@@ -117,7 +280,11 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
 
     final qrPayload =
         '${settings.qrPayloadTemplate}${DateTime.now().millisecondsSinceEpoch}&amount=${cart.totalAmount.toStringAsFixed(2)}';
-    posCtrl.showPaymentOnCustomerDisplay(cart: cart, qrPayload: qrPayload);
+    posCtrl.showPaymentOnCustomerDisplay(
+      cart: cart,
+      qrPayload: qrPayload,
+      qrImagePath: settings.qrImagePath,
+    );
 
     final confirmed = await showDialog<bool>(
       context: context,
@@ -126,6 +293,7 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
         totalAmount: cart.totalAmount,
         currencySymbol: settings.currencySymbol,
         qrPayload: qrPayload,
+        qrImagePath: settings.qrImagePath,
         onPaymentConfirmed: () => Navigator.of(context).pop(true),
       ),
     );
@@ -556,97 +724,222 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
           const SizedBox(height: 14),
 
           // ── Checkout Action Buttons ──────────────────────────────────────────
-          // Row 1: Hold / Save Order
-          SizedBox(
-            width: double.infinity,
-            height: 40,
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFF334155),
-                backgroundColor: const Color(0xFFF1F5F9),
-                side: const BorderSide(color: Color(0xFFCBD5E1)),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
+          if (cart.isConfirmedPending) ...[
+            // Status banner for confirmed order
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              margin: const EdgeInsets.only(bottom: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFEF3C7),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFFCD34D)),
               ),
-              onPressed: !isEmpty && !_isProcessing
-                  ? _handleSaveAsPending
-                  : null,
-              icon: const AppSvgIcon(
-                AssetTheme.snooze,
-                size: 20,
-                color: Color(0xFF334155),
-              ),
-              label: const Text(
-                'Hold Order (Pay Later)',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+              child: Row(
+                children: [
+                  const Icon(Icons.soup_kitchen_rounded, size: 18, color: Color(0xFF92400E)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Order #${cart.orderNumber ?? ""} Sent to Chef • Unpaid',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF92400E),
+                      ),
+                    ),
+                  ),
+                  InkWell(
+                    onTap: _handleReprintChefTicket,
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                      child: Text(
+                        'Reprint Ticket',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFFB45309),
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(height: 8),
 
-          // Row 2: Cash & QR Payment buttons
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 48,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0F766E),
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: const Color(0xFF0F766E)
-                          .withValues(alpha: 0.35),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+            // Row 1: Payment buttons: "TAP TO PAY"
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0F766E),
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: const Color(0xFF0F766E)
+                            .withValues(alpha: 0.35),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        elevation: 0,
                       ),
-                      elevation: 0,
-                    ),
-                    onPressed: !isEmpty && !_isProcessing
-                        ? _handleCashCheckout
-                        : null,
-                    icon: const AppSvgIcon(AssetTheme.wallet, size: 21, color: Colors.white),
-                    label: const Text(
-                      'CASH PAY',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: SizedBox(
-                  height: 48,
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF0D9488),
-                      foregroundColor: Colors.white,
-                      disabledBackgroundColor: const Color(0xFF0D9488)
-                          .withValues(alpha: 0.35),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      elevation: 0,
-                    ),
-                    onPressed: !isEmpty && !_isProcessing
-                        ? _handleQrCheckout
-                        : null,
-                    icon: const AppSvgIcon(AssetTheme.searchQR, size: 21, color: Colors.white),
-                    label: const Text(
-                      'QR CODE',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                      onPressed: !_isProcessing ? _handleCashCheckout : null,
+                      icon: const AppSvgIcon(AssetTheme.wallet, size: 21, color: Colors.white),
+                      label: const Text(
+                        'CASH PAY',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                   ),
                 ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: SizedBox(
+                    height: 48,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0D9488),
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: const Color(0xFF0D9488)
+                            .withValues(alpha: 0.35),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        elevation: 0,
+                      ),
+                      onPressed: !_isProcessing ? _handleQrCheckout : null,
+                      icon: const AppSvgIcon(AssetTheme.searchQR, size: 21, color: Colors.white),
+                      label: const Text(
+                        'QR CODE',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+
+            // Row 2: Secondary action: Start New Order
+            SizedBox(
+              width: double.infinity,
+              height: 38,
+              child: OutlinedButton.icon(
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF475569),
+                  backgroundColor: const Color(0xFFF8FAFC),
+                  side: const BorderSide(color: Color(0xFFCBD5E1)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                onPressed: _handleNewOrder,
+                icon: const Icon(Icons.add_shopping_cart, size: 17),
+                label: const Text(
+                  'Start New Order (Keep Table Active)',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                ),
               ),
-            ],
-          ),
+            ),
+          ] else ...[
+            // Row 1: CONFIRM ORDER (PRINT FOR CHEF)
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFFD97706),
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: const Color(0xFFD97706)
+                      .withValues(alpha: 0.35),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: 0,
+                ),
+                onPressed: !isEmpty && !_isProcessing
+                    ? _handleConfirmOrderToChef
+                    : null,
+                icon: const Icon(Icons.soup_kitchen_rounded, size: 21, color: Colors.white),
+                label: const Text(
+                  'CONFIRM ORDER (PRINT TO CHEF)',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+
+            // Row 2: Cash & QR Payment buttons (Immediate Pay)
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 44,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF0F766E),
+                        backgroundColor: const Color(0xFFF0FDFA),
+                        side: const BorderSide(color: Color(0xFF0F766E)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: !isEmpty && !_isProcessing
+                          ? _handleCashCheckout
+                          : null,
+                      icon: const AppSvgIcon(AssetTheme.wallet, size: 19, color: Color(0xFF0F766E)),
+                      label: const Text(
+                        'CASH PAY',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: SizedBox(
+                    height: 44,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF0D9488),
+                        backgroundColor: const Color(0xFFF0FDFA),
+                        side: const BorderSide(color: Color(0xFF0D9488)),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: !isEmpty && !_isProcessing
+                          ? _handleQrCheckout
+                          : null,
+                      icon: const AppSvgIcon(AssetTheme.searchQR, size: 19, color: Color(0xFF0D9488)),
+                      label: const Text(
+                        'QR CODE',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

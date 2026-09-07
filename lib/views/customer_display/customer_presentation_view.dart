@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -528,20 +529,32 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView> {
                   ),
                 ],
               ),
-              child: QrImageView(
-                data: qrData,
-                version: QrVersions.auto,
-                size: 240,
-                backgroundColor: Colors.white,
-                eyeStyle: const QrEyeStyle(
-                  eyeShape: QrEyeShape.square,
-                  color: Color(0xFF0F172A),
-                ),
-                dataModuleStyle: const QrDataModuleStyle(
-                  dataModuleShape: QrDataModuleShape.square,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
+              child: (_payload.qrImagePath != null &&
+                      _payload.qrImagePath!.isNotEmpty &&
+                      File(_payload.qrImagePath!).existsSync())
+                  ? ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: Image.file(
+                        File(_payload.qrImagePath!),
+                        width: 240,
+                        height: 240,
+                        fit: BoxFit.contain,
+                      ),
+                    )
+                  : QrImageView(
+                      data: qrData,
+                      version: QrVersions.auto,
+                      size: 240,
+                      backgroundColor: Colors.white,
+                      eyeStyle: const QrEyeStyle(
+                        eyeShape: QrEyeShape.square,
+                        color: Color(0xFF0F172A),
+                      ),
+                      dataModuleStyle: const QrDataModuleStyle(
+                        dataModuleShape: QrDataModuleShape.square,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
             ),
             const SizedBox(height: 18),
 

@@ -5,3 +5,4 @@ export 'product_dao.dart';
 export 'register_dao.dart';
 export 'settings_dao.dart';
 export 'table_dao.dart';
+export 'user_dao.dart';

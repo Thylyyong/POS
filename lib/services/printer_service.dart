@@ -83,39 +83,44 @@ class PrinterService {
       );
     }
 
-    final dateStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(order.createdAt);
     bytes += generator.hr(ch: '-');
     bytes += generator.text(
-      'Order: ${order.receiptNo}',
+      'Order: #${order.orderNumber ?? order.receiptNo}',
       styles: const PosStyles(bold: true),
     );
+    final orderTypeStr = order.orderType == 'TAKEAWAY'
+        ? 'Takeaway'
+        : (order.tableNumber != null && order.tableNumber!.isNotEmpty
+            ? 'Dine-In (${order.tableNumber})'
+            : 'Dine-In');
+    bytes += generator.text('Order Type: $orderTypeStr');
+    final dateStr = DateFormat('dd/MM/yyyy, hh:mm:ss a').format(order.createdAt);
     bytes += generator.text('Date: $dateStr');
-    final customer =
-        (order.customerName != null &&
-            order.customerName!.trim().isNotEmpty &&
-            order.customerName!.trim().toLowerCase() != 'guest')
-        ? order.customerName!
-        : '...............';
-    bytes += generator.text('Customer: $customer');
+    bytes += generator.text('Cashier: System Admin');
+    if (order.customerName != null &&
+        order.customerName!.trim().isNotEmpty &&
+        order.customerName!.trim().toLowerCase() != 'guest') {
+      bytes += generator.text('Customer: ${order.customerName!}');
+    }
     bytes += generator.hr(ch: '-');
 
     final curr = settings.currencySymbol;
 
     if (settings.isPaperSize80mm) {
       bytes += generator.row([
-        PosColumn(text: 'NAME', width: 5, styles: const PosStyles(bold: true)),
+        PosColumn(text: 'ITEM', width: 5, styles: const PosStyles(bold: true)),
         PosColumn(
           text: 'QTY',
           width: 1,
           styles: const PosStyles(bold: true, align: PosAlign.right),
         ),
         PosColumn(
-          text: 'UNIT PRICE',
+          text: 'PRICE',
           width: 3,
           styles: const PosStyles(bold: true, align: PosAlign.right),
         ),
         PosColumn(
-          text: 'AMOUNT',
+          text: 'TOTAL',
           width: 3,
           styles: const PosStyles(bold: true, align: PosAlign.right),
         ),
@@ -155,7 +160,7 @@ class PrinterService {
       }
     } else {
       bytes += generator.row([
-        PosColumn(text: 'NAME', width: 4, styles: const PosStyles(bold: true)),
+        PosColumn(text: 'ITEM', width: 4, styles: const PosStyles(bold: true)),
         PosColumn(
           text: 'QTY',
           width: 2,
@@ -167,7 +172,7 @@ class PrinterService {
           styles: const PosStyles(bold: true, align: PosAlign.right),
         ),
         PosColumn(
-          text: 'AMT',
+          text: 'TOTAL',
           width: 3,
           styles: const PosStyles(bold: true, align: PosAlign.right),
         ),
@@ -206,7 +211,7 @@ class PrinterService {
 
     bytes += generator.hr(ch: '-');
     bytes += generator.row([
-      PosColumn(text: 'SUBTOTAL:', width: 6),
+      PosColumn(text: 'Subtotal:', width: 6),
       PosColumn(
         text: '$curr${order.subtotal.toStringAsFixed(2)}',
         width: 6,
@@ -215,7 +220,7 @@ class PrinterService {
     ]);
     bytes += generator.row([
       PosColumn(
-        text: 'TOTAL (USD):',
+        text: 'Total (\$):',
         width: 6,
         styles: const PosStyles(bold: true),
       ),
@@ -230,21 +235,21 @@ class PrinterService {
           .format((order.totalAmount * settings.usdToKhrRate).round());
       bytes += generator.row([
         PosColumn(
-          text: 'TOTAL (KHR):',
+          text: 'Total (KHR):',
           width: 5,
           styles: const PosStyles(bold: true),
         ),
         PosColumn(
-          text: '$khrTotal KHR',
+          text: 'KHR $khrTotal',
           width: 7,
           styles: const PosStyles(bold: true, align: PosAlign.right),
         ),
       ]);
     }
 
-    bytes += generator.hr(ch: '=');
+    bytes += generator.hr(ch: '-');
     bytes += generator.row([
-      PosColumn(text: 'PAYMENT METHOD:', width: 6),
+      PosColumn(text: 'Payment Method:', width: 6),
       PosColumn(
         text: order.paymentMethod.displayName.toUpperCase(),
         width: 6,
@@ -256,7 +261,7 @@ class PrinterService {
           ? order.cashTendered
           : order.totalAmount;
       bytes += generator.row([
-        PosColumn(text: 'CASH RECEIVED:', width: 6),
+        PosColumn(text: 'Cash Received:', width: 6),
         PosColumn(
           text: '$curr${tendered.toStringAsFixed(2)}',
           width: 6,
@@ -264,7 +269,7 @@ class PrinterService {
         ),
       ]);
       bytes += generator.row([
-        PosColumn(text: 'CHANGE RETURN:', width: 6),
+        PosColumn(text: 'Change Return:', width: 6),
         PosColumn(
           text: '$curr${order.changeAmount.toStringAsFixed(2)}',
           width: 6,
@@ -276,11 +281,146 @@ class PrinterService {
     bytes += generator.hr(ch: '-');
     bytes += generator.feed(1);
     bytes += generator.text(
-      '***THANK YOU FOR YOUR VISIT***',
+      'SCAN TO PAY WITH KHQR',
       styles: const PosStyles(align: PosAlign.center, bold: true),
     );
     bytes += generator.text(
-      '***Please Come Again***',
+      'Bakong & All Mobile Banking Apps',
+      styles: const PosStyles(align: PosAlign.center, fontType: PosFontType.fontB),
+    );
+    bytes += generator.feed(1);
+
+    // ── Dynamic QR Code Footer ──────────────────────────────────────────────
+    final qrData = (settings.qrPayloadTemplate.isNotEmpty)
+        ? '${settings.qrPayloadTemplate}${order.receiptNo}'
+        : 'REC:${order.receiptNo}';
+    try {
+      bytes += generator.qrcode(
+        qrData,
+        align: PosAlign.center,
+        size: QRSize.size4,
+        cor: QRCorrection.M,
+      );
+      bytes += generator.text(
+        'Scan with banking app or pay with Cash / Card',
+        styles: const PosStyles(align: PosAlign.center, fontType: PosFontType.fontB),
+      );
+    } catch (_) {
+      // Fallback if printer profile does not support native QR
+    }
+
+    bytes += generator.feed(1);
+    bytes += generator.hr(ch: '-');
+    bytes += generator.feed(1);
+    bytes += generator.text(
+      '*** Thank you for your visit ***',
+      styles: const PosStyles(align: PosAlign.center, bold: true),
+    );
+    bytes += generator.text(
+      'Please come again',
+      styles: const PosStyles(align: PosAlign.center),
+    );
+
+    bytes += generator.feed(2);
+    bytes += generator.cut();
+
+    return bytes;
+  }
+
+  /// Generate ESC/POS byte sequence for Kitchen Ticket (Strictly NO prices or totals)
+  Future<List<int>> generateKitchenTicketBytes({
+    required OrderModel order,
+    required StoreSettingsModel settings,
+  }) async {
+    CapabilityProfile profile;
+    try {
+      final profileName = (settings.printerProfile.toLowerCase() == 'epson')
+          ? 'TM-T88V'
+          : settings.printerProfile;
+      profile = await CapabilityProfile.load(name: profileName);
+    } catch (_) {
+      profile = await CapabilityProfile.load();
+    }
+
+    final paperSize = settings.isPaperSize80mm ? PaperSize.mm80 : PaperSize.mm58;
+    final generator = Generator(paperSize, profile);
+    List<int> bytes = [];
+
+    bytes += generator.reset();
+
+    // 1. Header
+    bytes += generator.text(
+      '*** KITCHEN ORDER ***',
+      styles: const PosStyles(
+        align: PosAlign.center,
+        height: PosTextSize.size2,
+        width: PosTextSize.size2,
+        bold: true,
+      ),
+    );
+    bytes += generator.feed(1);
+
+    // 2. Metadata (Table, Order #, Type, Time)
+    final orderNum = order.orderNumber ?? order.receiptNo.split('-').last;
+    final tableNum = (order.tableNumber != null && order.tableNumber!.isNotEmpty)
+        ? order.tableNumber!
+        : (order.orderType == 'TAKEAWAY' ? 'TAKEAWAY' : 'COUNTER');
+
+    bytes += generator.text(
+      'ORDER #: $orderNum',
+      styles: const PosStyles(
+        bold: true,
+        height: PosTextSize.size2,
+        width: PosTextSize.size2,
+      ),
+    );
+    bytes += generator.text(
+      'TABLE: $tableNum',
+      styles: const PosStyles(
+        bold: true,
+        height: PosTextSize.size2,
+        width: PosTextSize.size2,
+      ),
+    );
+    bytes += generator.text('TYPE: ${order.orderType}');
+    bytes += generator.text(
+      'TIME: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(order.createdAt)}',
+    );
+    if (order.customerName != null &&
+        order.customerName!.trim().isNotEmpty &&
+        order.customerName!.trim().toLowerCase() != 'guest') {
+      bytes += generator.text('CUSTOMER: ${order.customerName}');
+    }
+
+    bytes += generator.hr(ch: '=');
+    bytes += generator.text(
+      'ITEMS TO PREPARE',
+      styles: const PosStyles(bold: true, align: PosAlign.center),
+    );
+    bytes += generator.hr(ch: '-');
+
+    // 3. Items list with large bold text (Strictly NO prices or totals)
+    for (var item in order.items) {
+      bytes += generator.text(
+        '${item.quantity}x ${item.productName.toUpperCase()}',
+        styles: const PosStyles(
+          bold: true,
+          height: PosTextSize.size2,
+          width: PosTextSize.size2,
+        ),
+      );
+      if (item.notes != null && item.notes!.trim().isNotEmpty) {
+        bytes += generator.text(
+          '   ** SPECIAL NOTE: ${item.notes} **',
+          styles: const PosStyles(bold: true),
+        );
+      }
+      bytes += generator.feed(1);
+    }
+
+    bytes += generator.hr(ch: '=');
+    bytes += generator.text(
+      '--- KITCHEN COPY ---',
       styles: const PosStyles(align: PosAlign.center, bold: true),
     );
     bytes += generator.feed(2);
@@ -296,7 +436,7 @@ class PrinterService {
     return generator.drawer();
   }
 
-  /// Print or Mock Print Dispatcher
+  /// Print or Mock Print Dispatcher for Customer Receipt
   Future<bool> printReceipt({
     required OrderModel order,
     required StoreSettingsModel settings,
@@ -308,11 +448,22 @@ class PrinterService {
         settings: settings,
         isReprint: isReprint,
       );
+      return bytes.isNotEmpty;
+    } catch (e) {
+      return false;
+    }
+  }
 
-      // In production POS terminals with Serial/USB/Network printer:
-      // The bytes are dispatched to printer socket / USB endpoint / native printer service.
-      // E.g.: Socket.connect(settings.printerIpOrAddress, 9100)...
-      // We retain the full binary ESC/POS stream.
+  /// Print Kitchen Ticket Dispatcher
+  Future<bool> printKitchenTicket({
+    required OrderModel order,
+    required StoreSettingsModel settings,
+  }) async {
+    try {
+      final bytes = await generateKitchenTicketBytes(
+        order: order,
+        settings: settings,
+      );
       return bytes.isNotEmpty;
     } catch (e) {
       return false;

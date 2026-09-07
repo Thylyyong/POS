@@ -522,4 +522,67 @@ class OrderDao {
         )
         .toList();
   }
+
+  // ── Kitchen Display System (KDS) Methods ────────────────────────────────────
+
+  /// Get active kitchen orders (PENDING, PREPARING, and recent COMPLETED)
+  Future<List<OrderModel>> getKitchenOrders({
+    KitchenStatus? statusFilter,
+    String? orderTypeFilter,
+    int readyHistoryLimit = 20,
+  }) async {
+    final db = await _dbHelper.database;
+    final whereClauses = <String>[];
+    final whereArgs = <dynamic>[];
+
+    if (statusFilter != null) {
+      whereClauses.add('kitchen_status = ?');
+      whereArgs.add(statusFilter.displayName);
+    } else {
+      // By default return all pending, preparing, and recent completed within 12 hours
+      final cutoff = DateTime.now().subtract(const Duration(hours: 12)).toIso8601String();
+      whereClauses.add("(kitchen_status IN ('PENDING', 'PREPARING') OR (kitchen_status = 'COMPLETED' AND created_at >= ?))");
+      whereArgs.add(cutoff);
+    }
+
+    if (orderTypeFilter != null &&
+        orderTypeFilter.isNotEmpty &&
+        orderTypeFilter.toUpperCase() != 'ALL') {
+      whereClauses.add('order_type = ?');
+      whereArgs.add(orderTypeFilter.toUpperCase());
+    }
+
+    final whereString = whereClauses.isNotEmpty ? whereClauses.join(' AND ') : null;
+
+    final orderMaps = await db.query(
+      'orders',
+      where: whereString,
+      whereArgs: whereArgs.isNotEmpty ? whereArgs : null,
+      orderBy: 'created_at ASC',
+    );
+
+    final orders = <OrderModel>[];
+    for (var m in orderMaps) {
+      final orderId = m['id'] as String;
+      final itemMaps = await db.query(
+        'order_items',
+        where: 'order_id = ?',
+        whereArgs: [orderId],
+      );
+      final items = itemMaps.map((im) => OrderItemModel.fromMap(im)).toList();
+      orders.add(OrderModel.fromMap(m, items: items));
+    }
+    return orders;
+  }
+
+  /// Update Kitchen Cooking Status
+  Future<void> updateKitchenStatus(String orderId, KitchenStatus status) async {
+    final db = await _dbHelper.database;
+    await db.update(
+      'orders',
+      {'kitchen_status': status.displayName},
+      where: 'id = ?',
+      whereArgs: [orderId],
+    );
+  }
 }

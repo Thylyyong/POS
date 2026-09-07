@@ -36,6 +36,7 @@ class PresentationPayload {
   final double totalAmount;
   final String currencySymbol;
   final String? qrData;
+  final String? qrImagePath;
   final String? receiptNo;
   final double? cashTendered;
   final double? changeAmount;
@@ -50,6 +51,7 @@ class PresentationPayload {
     this.totalAmount = 0.0,
     this.currencySymbol = '\$',
     this.qrData,
+    this.qrImagePath,
     this.receiptNo,
     this.cashTendered,
     this.changeAmount,
@@ -66,6 +68,7 @@ class PresentationPayload {
       'totalAmount': totalAmount,
       'currencySymbol': currencySymbol,
       'qrData': qrData,
+      'qrImagePath': qrImagePath,
       'receiptNo': receiptNo,
       'cashTendered': cashTendered,
       'changeAmount': changeAmount,
@@ -86,6 +89,7 @@ class PresentationPayload {
       totalAmount: (map['totalAmount'] as num?)?.toDouble() ?? 0.0,
       currencySymbol: map['currencySymbol'] as String? ?? '\$',
       qrData: map['qrData'] as String?,
+      qrImagePath: map['qrImagePath'] as String?,
       receiptNo: map['receiptNo'] as String?,
       cashTendered: (map['cashTendered'] as num?)?.toDouble(),
       changeAmount: (map['changeAmount'] as num?)?.toDouble(),

@@ -62,11 +62,29 @@ class PdfReceiptService {
     final doc = pw.Document();
 
     final currency = settings.currencySymbol;
-    final dateFormatted = DateFormat('yyyy-MM-dd HH:mm:ss')
-        .format(order.createdAt);
     final is80mm = settings.isPaperSize80mm;
     final rollWidth = is80mm ? 226.0 : 164.0;
     final baseFontSize = is80mm ? 8.0 : 7.0;
+
+    pw.MemoryImage? logoImage;
+    if (settings.logoPath != null && settings.logoPath!.trim().isNotEmpty) {
+      final file = File(settings.logoPath!.trim());
+      if (file.existsSync()) {
+        try {
+          logoImage = pw.MemoryImage(file.readAsBytesSync());
+        } catch (_) {}
+      }
+    }
+
+    pw.MemoryImage? qrImage;
+    if (settings.qrImagePath != null && settings.qrImagePath!.trim().isNotEmpty) {
+      final file = File(settings.qrImagePath!.trim());
+      if (file.existsSync()) {
+        try {
+          qrImage = pw.MemoryImage(file.readAsBytesSync());
+        } catch (_) {}
+      }
+    }
 
     doc.addPage(
       pw.Page(
@@ -79,6 +97,19 @@ class PdfReceiptService {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.stretch,
             children: [
+              // Store Logo at the Top
+              if (logoImage != null) ...[
+                pw.Center(
+                  child: pw.Image(
+                    logoImage,
+                    width: is80mm ? 48 : 36,
+                    height: is80mm ? 48 : 36,
+                    fit: pw.BoxFit.contain,
+                  ),
+                ),
+                pw.SizedBox(height: 4),
+              ],
+
               // Store Header
               pw.Text(
                 settings.storeName.toUpperCase(),
@@ -89,7 +120,7 @@ class PdfReceiptService {
                 ),
               ),
               pw.SizedBox(height: 3),
-              pw.Divider(thickness: 1.2, color: PdfColors.black),
+              pw.Divider(thickness: 0.8, color: PdfColors.black, borderStyle: pw.BorderStyle.dashed),
               pw.SizedBox(height: 2),
 
               if (isReprint) ...[
@@ -106,20 +137,25 @@ class PdfReceiptService {
               ],
 
               // Order Metadata
-              _buildMetaRow('Order:', order.receiptNo, fontSize: baseFontSize),
-              _buildMetaRow('Date:', dateFormatted, fontSize: baseFontSize),
+              _buildMetaRow('Order:', '#${order.orderNumber ?? order.receiptNo}', fontSize: baseFontSize),
               _buildMetaRow(
-                'Customer:',
-                (order.customerName != null &&
-                        order.customerName!.trim().isNotEmpty &&
-                        order.customerName!.trim().toLowerCase() != 'guest')
-                    ? order.customerName!
-                    : '...............',
+                'Order Type:',
+                order.orderType == 'TAKEAWAY'
+                    ? 'Takeaway'
+                    : (order.tableNumber != null && order.tableNumber!.isNotEmpty
+                        ? 'Dine-In (${order.tableNumber})'
+                        : 'Dine-In'),
                 fontSize: baseFontSize,
               ),
+              _buildMetaRow('Date:', DateFormat('dd/MM/yyyy, hh:mm:ss a').format(order.createdAt), fontSize: baseFontSize),
+              _buildMetaRow('Cashier:', 'System Admin', fontSize: baseFontSize),
+              if (order.customerName != null &&
+                  order.customerName!.trim().isNotEmpty &&
+                  order.customerName!.trim().toLowerCase() != 'guest')
+                _buildMetaRow('Customer:', order.customerName!, fontSize: baseFontSize),
 
               pw.SizedBox(height: 2),
-              pw.Divider(thickness: 1.2, color: PdfColors.black),
+              pw.Divider(thickness: 0.8, color: PdfColors.black, borderStyle: pw.BorderStyle.dashed),
               pw.SizedBox(height: 2),
 
               // Items Table Header
@@ -128,7 +164,7 @@ class PdfReceiptService {
                   pw.Expanded(
                     flex: 5,
                     child: pw.Text(
-                      'NAME',
+                      'ITEM',
                       style: pw.TextStyle(
                         fontSize: baseFontSize,
                         fontWeight: pw.FontWeight.bold,
@@ -139,6 +175,17 @@ class PdfReceiptService {
                     width: is80mm ? 26 : 20,
                     child: pw.Text(
                       'QTY',
+                      textAlign: pw.TextAlign.center,
+                      style: pw.TextStyle(
+                        fontSize: baseFontSize,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  pw.Expanded(
+                    flex: 3,
+                    child: pw.Text(
+                      'PRICE',
                       textAlign: pw.TextAlign.right,
                       style: pw.TextStyle(
                         fontSize: baseFontSize,
@@ -149,19 +196,7 @@ class PdfReceiptService {
                   pw.Expanded(
                     flex: 3,
                     child: pw.Text(
-                      'UNIT PRICE',
-                      textAlign: pw.TextAlign.right,
-
-                      style: pw.TextStyle(
-                        fontSize: baseFontSize,
-                        fontWeight: pw.FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  pw.Expanded(
-                    flex: 3,
-                    child: pw.Text(
-                      'AMOUNT',
+                      'TOTAL',
                       textAlign: pw.TextAlign.right,
                       style: pw.TextStyle(
                         fontSize: baseFontSize,
@@ -172,7 +207,7 @@ class PdfReceiptService {
                 ],
               ),
               pw.SizedBox(height: 2),
-              pw.Divider(thickness: 0.8, color: PdfColors.black),
+              pw.Divider(thickness: 0.8, color: PdfColors.black, borderStyle: pw.BorderStyle.dashed),
               pw.SizedBox(height: 2),
 
               // Line Items
@@ -200,7 +235,7 @@ class PdfReceiptService {
                             width: is80mm ? 26 : 20,
                             child: pw.Text(
                               '${item.quantity}',
-                              textAlign: pw.TextAlign.right,
+                              textAlign: pw.TextAlign.center,
                               style: pw.TextStyle(fontSize: baseFontSize),
                             ),
                           ),
@@ -251,75 +286,128 @@ class PdfReceiptService {
               }),
 
               pw.SizedBox(height: 2),
-              pw.Divider(thickness: 0.8, color: PdfColors.black),
+              pw.Divider(thickness: 0.8, color: PdfColors.black, borderStyle: pw.BorderStyle.dashed),
               pw.SizedBox(height: 2),
 
               // Totals
               _buildTwoCol(
-                'SUBTOTAL:',
+                'Subtotal:',
                 '$currency${order.subtotal.toStringAsFixed(2)}',
                 fontSize: baseFontSize,
               ),
               _buildTwoCol(
-                'TOTAL (USD):',
+                'Total (\$):',
                 '$currency${order.totalAmount.toStringAsFixed(2)}',
                 bold: true,
-                fontSize: baseFontSize + 2,
+                fontSize: baseFontSize + 1.5,
               ),
               if (settings.showKhrDualCurrency)
                 _buildTwoCol(
-                  'TOTAL (KHR):',
-                  '${NumberFormat('#,###').format((order.totalAmount * settings.usdToKhrRate).round())} KHR',
+                  'Total (KHR):',
+                  'KHR ${NumberFormat('#,###').format((order.totalAmount * settings.usdToKhrRate).round())}',
                   bold: true,
-                  fontSize: baseFontSize + 2,
+                  fontSize: baseFontSize + 1.5,
                 ),
 
-              pw.SizedBox(height: 2),
-              pw.Divider(thickness: 1.8, color: PdfColors.black),
-              pw.SizedBox(height: 2),
-
-              // Payment Details
-              _buildTwoCol(
-                'PAYMENT METHOD:',
-                order.paymentMethod.displayName.toUpperCase(),
-                fontSize: baseFontSize,
-              ),
               if (order.paymentMethod == PaymentMethod.cash) ...[
+                pw.SizedBox(height: 1),
                 _buildTwoCol(
-                  'CASH RECEIVED:',
-                  '$currency${(order.cashTendered > 0 ? order.cashTendered : order.totalAmount).toStringAsFixed(2)}',
-                  fontSize: baseFontSize,
+                  'Payment Method:',
+                  order.paymentMethod.displayName.toUpperCase(),
+                  fontSize: baseFontSize - 0.5,
                 ),
                 _buildTwoCol(
-                  'CHANGE RETURN:',
+                  'Cash Received:',
+                  '$currency${(order.cashTendered > 0 ? order.cashTendered : order.totalAmount).toStringAsFixed(2)}',
+                  fontSize: baseFontSize - 0.5,
+                ),
+                _buildTwoCol(
+                  'Change Return:',
                   '$currency${order.changeAmount.toStringAsFixed(2)}',
-                  fontSize: baseFontSize,
+                  fontSize: baseFontSize - 0.5,
                 ),
               ],
 
               pw.SizedBox(height: 2),
-              pw.Divider(thickness: 0.8, color: PdfColors.black),
-              pw.SizedBox(height: 6),
+              pw.Divider(thickness: 0.8, color: PdfColors.black, borderStyle: pw.BorderStyle.dashed),
+              pw.SizedBox(height: 4),
 
-              // Footer
+              // KHQR Section
+              pw.Center(
+                child: pw.Text(
+                  'SCAN TO PAY WITH KHQR',
+                  style: pw.TextStyle(
+                    fontSize: baseFontSize,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 1),
+              pw.Center(
+                child: pw.Text(
+                  'Bakong & All Mobile Banking Apps',
+                  style: pw.TextStyle(
+                    fontSize: baseFontSize - 1.5,
+                    color: PdfColors.grey700,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 4),
+
+              // QR Code
+              if (qrImage != null)
+                pw.Center(
+                  child: pw.Image(
+                    qrImage,
+                    width: is80mm ? 52 : 42,
+                    height: is80mm ? 52 : 42,
+                    fit: pw.BoxFit.contain,
+                  ),
+                )
+              else
+                pw.Center(
+                  child: pw.BarcodeWidget(
+                    barcode: pw.Barcode.qrCode(),
+                    data: (settings.qrPayloadTemplate.isNotEmpty)
+                        ? '${settings.qrPayloadTemplate}${order.receiptNo}'
+                        : 'REC:${order.receiptNo}',
+                    width: is80mm ? 52 : 42,
+                    height: is80mm ? 52 : 42,
+                  ),
+                ),
+              pw.SizedBox(height: 2),
+              pw.Center(
+                child: pw.Text(
+                  'Scan with banking app or pay with Cash / Card',
+                  style: pw.TextStyle(
+                    fontSize: baseFontSize - 2.0,
+                    color: PdfColors.grey700,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 3),
+
+              pw.Divider(thickness: 0.8, color: PdfColors.black, borderStyle: pw.BorderStyle.dashed),
+              pw.SizedBox(height: 3),
+
+              // Footer (under the QR code)
               pw.Text(
-                '***THANK YOU FOR YOUR VISIT***',
+                '*** Thank you for your visit ***',
                 textAlign: pw.TextAlign.center,
                 style: pw.TextStyle(
-                  fontSize: baseFontSize + 0.5,
+                  fontSize: baseFontSize,
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
-              pw.SizedBox(height: 1.5),
+              pw.SizedBox(height: 1),
               pw.Text(
-                '***Please Come Again***',
+                'Please come again',
                 textAlign: pw.TextAlign.center,
                 style: pw.TextStyle(
-                  fontSize: baseFontSize + 0.5,
-                  fontWeight: pw.FontWeight.bold,
+                  fontSize: baseFontSize - 0.5,
                 ),
               ),
-              pw.SizedBox(height: 6),
+              pw.SizedBox(height: 4),
             ],
           );
         },

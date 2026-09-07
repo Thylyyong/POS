@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../app_config.dart';
@@ -344,6 +345,7 @@ class QrPaymentDialog extends StatefulWidget {
   final double totalAmount;
   final String currencySymbol;
   final String qrPayload;
+  final String? qrImagePath;
   final VoidCallback? onPaymentConfirmed;
 
   const QrPaymentDialog({
@@ -351,6 +353,7 @@ class QrPaymentDialog extends StatefulWidget {
     required this.totalAmount,
     required this.currencySymbol,
     required this.qrPayload,
+    this.qrImagePath,
     this.onPaymentConfirmed,
   });
 
@@ -387,6 +390,9 @@ class _QrPaymentDialogState extends State<QrPaymentDialog> {
     final currency = widget.currencySymbol;
     final minutes = (_secondsRemaining ~/ 60).toString().padLeft(2, '0');
     final seconds = (_secondsRemaining % 60).toString().padLeft(2, '0');
+    final hasImage = widget.qrImagePath != null &&
+        widget.qrImagePath!.isNotEmpty &&
+        File(widget.qrImagePath!).existsSync();
 
     return Dialog(
       backgroundColor: Colors.white,
@@ -452,7 +458,7 @@ class _QrPaymentDialogState extends State<QrPaymentDialog> {
               ),
               const SizedBox(height: 12),
 
-              // Dynamic QR Code Container
+              // Dynamic QR Code or Uploaded Static QR Image Container
               Center(
                 child: Container(
                   padding: const EdgeInsets.all(12),
@@ -468,12 +474,22 @@ class _QrPaymentDialogState extends State<QrPaymentDialog> {
                     ],
                     border: Border.all(color: const Color(0xFFE2E8F0)),
                   ),
-                  child: QrImageView(
-                    data: widget.qrPayload,
-                    version: QrVersions.auto,
-                    size: 140.0,
-                    backgroundColor: Colors.white,
-                  ),
+                  child: hasImage
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: Image.file(
+                            File(widget.qrImagePath!),
+                            width: 160,
+                            height: 160,
+                            fit: BoxFit.contain,
+                          ),
+                        )
+                      : QrImageView(
+                          data: widget.qrPayload,
+                          version: QrVersions.auto,
+                          size: 140.0,
+                          backgroundColor: Colors.white,
+                        ),
                 ),
               ),
               const SizedBox(height: 10),

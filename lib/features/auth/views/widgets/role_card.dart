@@ -18,6 +18,7 @@ class RoleCard extends StatelessWidget {
     String badgeText;
 
     switch (user.role) {
+      case UserRole.owner:
       case UserRole.mainBoss:
         cardBorderColor = const Color(0xFFD8B4FE);
         iconBgColor = const Color(0xFFFAF5FF);
@@ -25,7 +26,7 @@ class RoleCard extends StatelessWidget {
         icon = Icons.shield;
         description =
             'Boss (Admin / Owner): Full System Control, P&L, Inventory & Settings';
-        badgeText = 'BOSS';
+        badgeText = 'OWNER';
         break;
       case UserRole.subBoss:
         cardBorderColor = const Color(0xFFBAE6FD);
@@ -34,6 +35,14 @@ class RoleCard extends StatelessWidget {
         icon = Icons.store;
         description = 'Store Manager: Local Branch P&L, Inventory & Petty Cash';
         badgeText = (user.branchName ?? '').toUpperCase();
+        break;
+      case UserRole.chef:
+        cardBorderColor = const Color(0xFFFDE68A);
+        iconBgColor = const Color(0xFFFFFBEB);
+        iconColor = const Color(0xFFD97706);
+        icon = Icons.soup_kitchen;
+        description = 'Kitchen Chef: Kitchen Display System (KDS) & Cooking Status';
+        badgeText = 'CHEF';
         break;
       case UserRole.cashier:
         cardBorderColor = const Color(0xFFBBF7D0);

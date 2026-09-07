@@ -80,6 +80,11 @@ class CartController extends ChangeNotifier {
   String? _orderNumber; // e.g. "001", "002"
   String? get orderNumber => _orderNumber;
 
+  String? _currentReceiptNo;
+  String? get currentReceiptNo => _currentReceiptNo;
+
+  bool get isConfirmedPending => _currentPendingOrderId != null;
+
   // Held Carts (multi-table / suspended transactions)
   final List<List<CartItem>> _heldCarts = [];
   List<List<CartItem>> get heldCarts => List.unmodifiable(_heldCarts);
@@ -158,6 +163,18 @@ class CartController extends ChangeNotifier {
     _orderType = 'DINE_IN';
     _currentPendingOrderId = null;
     _orderNumber = null;
+    _currentReceiptNo = null;
+    notifyListeners();
+  }
+
+  void markOrderConfirmed({
+    required String orderId,
+    String? orderNumber,
+    String? receiptNo,
+  }) {
+    _currentPendingOrderId = orderId;
+    if (orderNumber != null) _orderNumber = orderNumber;
+    if (receiptNo != null) _currentReceiptNo = receiptNo;
     notifyListeners();
   }
 
@@ -174,6 +191,7 @@ class CartController extends ChangeNotifier {
     _customerName = order.customerName;
     _orderType = order.orderType;
     _orderNumber = order.orderNumber;
+    _currentReceiptNo = order.receiptNo;
     _discountPercent = order.discountPercent;
     _discountFixed = order.discountAmount > 0 && order.discountPercent == 0 ? order.discountAmount : 0.0;
 
