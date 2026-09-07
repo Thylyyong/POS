@@ -1,3 +1,6 @@
 {
-    "cmake.sourceDirectory": "C:/Projects/pos_flutter/windows"
+    "cmake.sourceDirectory": "C:/Projects/pos_flutter/windows",
+    "files.exclude": {
+        "**/.dart_tool": false
+    }
 }

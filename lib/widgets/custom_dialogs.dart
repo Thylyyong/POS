@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../app_config.dart';
+import '../core/theme/asset_theme.dart';
+import 'app_svg_icon.dart';
 
 class CashPaymentDialog extends StatefulWidget {
   final double totalAmount;
@@ -107,7 +109,7 @@ class _CashPaymentDialogState extends State<CashPaymentDialog> {
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.payments_outlined, color: Color(0xFF0F172A), size: 22),
+                      AppSvgIcon(AssetTheme.payment, color: Color(0xFF0F172A), size: 22),
                       SizedBox(width: 8),
                       Text(
                         'Cash Payment & Change',
@@ -120,7 +122,7 @@ class _CashPaymentDialogState extends State<CashPaymentDialog> {
                     ],
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Color(0xFF64748B), size: 20),
+                    icon: const AppSvgIcon(AssetTheme.close, color: Color(0xFF64748B), size: 18),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                     onPressed: () {
@@ -283,7 +285,7 @@ class _CashPaymentDialogState extends State<CashPaymentDialog> {
                           }
                         }
                       : null,
-                  icon: const Icon(Icons.check_circle, size: 18),
+                  icon: const AppSvgIcon(AssetTheme.success, size: 18, color: Colors.white),
                   label: Text(
                     _isExactOrOver
                         ? 'Complete Cash Sale ($currency${_tenderedAmount.toStringAsFixed(2)})'
@@ -407,7 +409,7 @@ class _QrPaymentDialogState extends State<QrPaymentDialog> {
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.qr_code_2, color: Color(0xFF0F172A), size: 22),
+                      AppSvgIcon(AssetTheme.searchQR, color: Color(0xFF0F172A), size: 20),
                       SizedBox(width: 8),
                       Text(
                         'Customer QR Payment',
@@ -416,7 +418,7 @@ class _QrPaymentDialogState extends State<QrPaymentDialog> {
                     ],
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Color(0xFF64748B), size: 20),
+                    icon: const AppSvgIcon(AssetTheme.close, color: Color(0xFF64748B), size: 18),
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                     onPressed: () {
@@ -480,7 +482,7 @@ class _QrPaymentDialogState extends State<QrPaymentDialog> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.timer_outlined, color: AppConfig.accentAmber, size: 16),
+                  const AppSvgIcon(AssetTheme.clock, color: AppConfig.accentAmber, size: 16),
                   const SizedBox(width: 4),
                   Text(
                     'Expires in $minutes:$seconds',
@@ -506,7 +508,7 @@ class _QrPaymentDialogState extends State<QrPaymentDialog> {
                       Navigator.of(context).pop(true);
                     }
                   },
-                  icon: const Icon(Icons.done_all, size: 18),
+                  icon: const AppSvgIcon(AssetTheme.success, size: 18, color: Colors.white),
                   label: const Text(
                     'Confirm Payment Received',
                     style: TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold),

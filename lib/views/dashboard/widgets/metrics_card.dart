@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import '../../../core/theme/asset_theme.dart';
+import '../../../widgets/app_svg_icon.dart';
 
 class MetricsCard extends StatelessWidget {
   final String title;
   final String value;
   final String? subtitle;
-  final IconData icon;
+  final String? svgAsset;
+  final IconData? icon;
   final Color? trendColor;
   final VoidCallback? onTap;
 
@@ -13,7 +16,8 @@ class MetricsCard extends StatelessWidget {
     required this.title,
     required this.value,
     this.subtitle,
-    required this.icon,
+    this.svgAsset,
+    this.icon,
     this.trendColor,
     this.onTap,
   });
@@ -66,7 +70,7 @@ class MetricsCard extends StatelessWidget {
                         color: const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(icon, color: const Color(0xFF64748B), size: 16),
+                      child: AppSvgIcon(svgAsset ?? AssetTheme.report, color: const Color(0xFF64748B), size: 16),
                     ),
                   ],
                 ),

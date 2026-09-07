@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../../app_config.dart';
 import '../../../controllers/cart_controller.dart';
+import '../../../controllers/auth_controller.dart';
 import '../../../controllers/pos_controller.dart';
 import '../../../controllers/settings_controller.dart';
 import '../../../controllers/table_controller.dart';
@@ -9,6 +11,8 @@ import '../../../models/order_model.dart';
 import '../../../models/store_settings_model.dart';
 import '../../../widgets/custom_dialogs.dart';
 import '../../../widgets/receipt_preview_dialog.dart';
+import '../../../core/theme/asset_theme.dart';
+import '../../../widgets/app_svg_icon.dart';
 
 class CartTotalsPanel extends StatefulWidget {
   final String currency;
@@ -27,6 +31,7 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
     final cart = context.read<CartController>();
     final posCtrl = context.read<PosController>();
     final settings = context.read<SettingsController>().settings;
+    final branchId = context.read<AuthController>().currentBranchId;
     final tableCtrl = context.read<TableController>();
 
     setState(() => _isProcessing = true);
@@ -34,6 +39,7 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
       final order = await posCtrl.saveOrderAsPending(
         cart: cart,
         settings: settings,
+        branchId: branchId,
         tableController: tableCtrl,
       );
 
@@ -42,9 +48,11 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
           SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.check_circle, color: Colors.white, size: 18),
+                const AppSvgIcon(AssetTheme.success, color: Colors.white, size: 18),
                 const SizedBox(width: 8),
-                Text('Order #${order.orderNumber ?? order.receiptNo} saved for ${order.tableNumber ?? "Table"}!'),
+                Text(
+                  'Order #${order.orderNumber ?? order.receiptNo} saved for ${order.tableNumber ?? "Table"}!',
+                ),
               ],
             ),
             backgroundColor: AppConfig.accentAmber,
@@ -63,6 +71,7 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
     final cart = context.read<CartController>();
     final posCtrl = context.read<PosController>();
     final settings = context.read<SettingsController>().settings;
+    final branchId = context.read<AuthController>().currentBranchId;
     final tableCtrl = context.read<TableController>();
 
     final tendered = await showDialog<double>(
@@ -85,6 +94,7 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
       final order = await posCtrl.processCheckout(
         cart: cart,
         settings: settings,
+        branchId: branchId,
         paymentMethod: PaymentMethod.cash,
         cashTendered: tendered,
         tableController: tableCtrl,
@@ -102,6 +112,7 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
     final cart = context.read<CartController>();
     final posCtrl = context.read<PosController>();
     final settings = context.read<SettingsController>().settings;
+    final branchId = context.read<AuthController>().currentBranchId;
     final tableCtrl = context.read<TableController>();
 
     final qrPayload =
@@ -129,6 +140,7 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
       final order = await posCtrl.processCheckout(
         cart: cart,
         settings: settings,
+        branchId: branchId,
         paymentMethod: PaymentMethod.qr,
         tableController: tableCtrl,
       );
@@ -151,7 +163,8 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
         order: order,
         settings: settings,
         existingSaveResult: posCtrl.lastReceiptSaveResult,
-        onReprint: () => posCtrl.reprintReceipt(order: order, settings: settings),
+        onReprint: () =>
+            posCtrl.reprintReceipt(order: order, settings: settings),
       ),
     );
   }
@@ -160,7 +173,9 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
     final textCtrl = TextEditingController(
       text: cart.discountPercent > 0
           ? cart.discountPercent.toStringAsFixed(0)
-          : (cart.discountFixed > 0 ? cart.discountFixed.toStringAsFixed(2) : ''),
+          : (cart.discountFixed > 0
+                ? cart.discountFixed.toStringAsFixed(2)
+                : ''),
     );
     bool isPercent = cart.discountFixed == 0 || cart.discountPercent > 0;
 
@@ -170,7 +185,9 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
         builder: (context, setDialogState) {
           return AlertDialog(
             backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
             contentPadding: const EdgeInsets.symmetric(horizontal: 20),
             actionsPadding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
@@ -182,7 +199,11 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                     color: const Color(0xFFF0FDFA),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: const Icon(Icons.percent, color: Color(0xFF0D9488), size: 20),
+                  child: const AppSvgIcon(
+                    AssetTheme.discount,
+                    color: Color(0xFF0D9488),
+                    size: 20,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 const Text(
@@ -210,7 +231,9 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           decoration: BoxDecoration(
-                            color: isPercent ? const Color(0xFF0D9488) : const Color(0xFFF1F5F9),
+                            color: isPercent
+                                ? const Color(0xFF0D9488)
+                                : const Color(0xFFF1F5F9),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           alignment: Alignment.center,
@@ -219,7 +242,9 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                             style: TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.bold,
-                              color: isPercent ? Colors.white : const Color(0xFF475569),
+                              color: isPercent
+                                  ? Colors.white
+                                  : const Color(0xFF475569),
                             ),
                           ),
                         ),
@@ -233,7 +258,9 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 8),
                           decoration: BoxDecoration(
-                            color: !isPercent ? const Color(0xFF0D9488) : const Color(0xFFF1F5F9),
+                            color: !isPercent
+                                ? const Color(0xFF0D9488)
+                                : const Color(0xFFF1F5F9),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           alignment: Alignment.center,
@@ -242,7 +269,9 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                             style: TextStyle(
                               fontSize: 12.5,
                               fontWeight: FontWeight.bold,
-                              color: !isPercent ? Colors.white : const Color(0xFF475569),
+                              color: !isPercent
+                                  ? Colors.white
+                                  : const Color(0xFF475569),
                             ),
                           ),
                         ),
@@ -264,7 +293,10 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                         },
                         borderRadius: BorderRadius.circular(6),
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
                           decoration: BoxDecoration(
                             color: const Color(0xFFF8FAFC),
                             borderRadius: BorderRadius.circular(6),
@@ -288,7 +320,9 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                 // Number Input
                 TextField(
                   controller: textCtrl,
-                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
                   autofocus: true,
                   style: const TextStyle(
                     fontSize: 20,
@@ -296,9 +330,14 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                     color: Color(0xFF0F172A),
                   ),
                   decoration: InputDecoration(
-                    labelText: isPercent ? 'Discount Percentage (%)' : 'Discount Amount (${widget.currency})',
+                    labelText: isPercent
+                        ? 'Discount Percentage (%)'
+                        : 'Discount Amount (${widget.currency})',
                     suffixText: isPercent ? '%' : widget.currency,
-                    suffixStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                    suffixStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                     filled: true,
                     fillColor: const Color(0xFFF8FAFC),
                     border: OutlineInputBorder(
@@ -307,7 +346,10 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: Color(0xFF0D9488), width: 1.8),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF0D9488),
+                        width: 1.8,
+                      ),
                     ),
                   ),
                 ),
@@ -320,18 +362,32 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                     cart.clearDiscount();
                     Navigator.of(ctx).pop();
                   },
-                  child: const Text('Remove Discount', style: TextStyle(color: Color(0xFFEF4444), fontWeight: FontWeight.w600)),
+                  child: const Text(
+                    'Remove Discount',
+                    style: TextStyle(
+                      color: Color(0xFFEF4444),
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
                 ),
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+                child: const Text(
+                  'Cancel',
+                  style: TextStyle(color: Color(0xFF64748B)),
+                ),
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0D9488),
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
                 ),
                 onPressed: () {
                   final val = double.tryParse(textCtrl.text.trim()) ?? 0.0;
@@ -342,7 +398,10 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                   }
                   Navigator.of(ctx).pop();
                 },
-                child: const Text('Apply', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text(
+                  'Apply',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           );
@@ -367,8 +426,11 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
         mainAxisSize: MainAxisSize.min,
         children: [
           // Subtotal
-          _buildSummaryRow('Subtotal', '$curr${cart.subtotal.toStringAsFixed(2)}'),
-          
+          _buildSummaryRow(
+            'Subtotal',
+            '$curr${cart.subtotal.toStringAsFixed(2)}',
+          ),
+
           // ── Discount Bar / Insertion Row ─────────────────────────────────
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 3),
@@ -378,34 +440,49 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                 Row(
                   children: [
                     InkWell(
-                      onTap: isEmpty ? null : () => _showDiscountDialog(context, cart),
+                      onTap: isEmpty
+                          ? null
+                          : () => _showDiscountDialog(context, cart),
                       borderRadius: BorderRadius.circular(6),
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
-                          color: cart.discountAmount > 0 ? const Color(0xFFFEF2F2) : const Color(0xFFF0FDFA),
+                          color: cart.discountAmount > 0
+                              ? const Color(0xFFFEF2F2)
+                              : const Color(0xFFF0FDFA),
                           borderRadius: BorderRadius.circular(6),
                           border: Border.all(
-                            color: cart.discountAmount > 0 ? const Color(0xFFFECACA) : const Color(0xFF99F6E4),
+                            color: cart.discountAmount > 0
+                                ? const Color(0xFFFECACA)
+                                : const Color(0xFF99F6E4),
                           ),
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.percent,
-                              size: 13,
-                              color: cart.discountAmount > 0 ? const Color(0xFFEF4444) : const Color(0xFF0D9488),
+                            AppSvgIcon(
+                              AssetTheme.discount,
+                              size: 16,
+                              color: cart.discountAmount > 0
+                                  ? const Color(0xFFEF4444)
+                                  : const Color(0xFF0D9488),
                             ),
                             const SizedBox(width: 4),
                             Text(
                               cart.discountPercent > 0
                                   ? 'Discount (${cart.discountPercent.toStringAsFixed(0)}%)'
-                                  : (cart.discountFixed > 0 ? 'Discount (Fixed)' : 'Add % Discount'),
+                                  : (cart.discountFixed > 0
+                                        ? 'Discount (Fixed)'
+                                        : 'Add % Discount'),
                               style: TextStyle(
                                 fontSize: 11.5,
                                 fontWeight: FontWeight.bold,
-                                color: cart.discountAmount > 0 ? const Color(0xFFEF4444) : const Color(0xFF0D9488),
+                                color: cart.discountAmount > 0
+                                    ? const Color(0xFFEF4444)
+                                    : const Color(0xFF0D9488),
                               ),
                             ),
                           ],
@@ -419,18 +496,28 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                         borderRadius: BorderRadius.circular(12),
                         child: const Padding(
                           padding: EdgeInsets.all(2),
-                          child: Icon(Icons.cancel, size: 16, color: Color(0xFF94A3B8)),
+                          child: AppSvgIcon(
+                            AssetTheme.close,
+                            size: 16,
+                            color: Color(0xFF94A3B8),
+                          ),
                         ),
                       ),
                     ],
                   ],
                 ),
                 Text(
-                  cart.discountAmount > 0 ? '-$curr${cart.discountAmount.toStringAsFixed(2)}' : '$curr 0.00',
+                  cart.discountAmount > 0
+                      ? '-$curr${cart.discountAmount.toStringAsFixed(2)}'
+                      : '$curr 0.00',
                   style: TextStyle(
                     fontSize: 12.5,
-                    color: cart.discountAmount > 0 ? const Color(0xFFEF4444) : const Color(0xFF94A3B8),
-                    fontWeight: cart.discountAmount > 0 ? FontWeight.bold : FontWeight.w500,
+                    color: cart.discountAmount > 0
+                        ? const Color(0xFFEF4444)
+                        : const Color(0xFF94A3B8),
+                    fontWeight: cart.discountAmount > 0
+                        ? FontWeight.bold
+                        : FontWeight.w500,
                   ),
                 ),
               ],
@@ -438,7 +525,10 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
           ),
 
           if (cart.taxAmount > 0)
-            _buildSummaryRow('Tax (${cart.taxRate.toStringAsFixed(0)}%)', '$curr${cart.taxAmount.toStringAsFixed(2)}'),
+            _buildSummaryRow(
+              'Tax (${cart.taxRate.toStringAsFixed(0)}%)',
+              '$curr${cart.taxAmount.toStringAsFixed(2)}',
+            ),
           const Divider(height: 14, color: Color(0xFFCBD5E1)),
 
           // Total Due
@@ -447,11 +537,19 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
             children: [
               const Text(
                 'TOTAL DUE',
-                style: TextStyle(fontSize: 16.5, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                style: TextStyle(
+                  fontSize: 16.5,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF0F172A),
+                ),
               ),
               Text(
                 '$curr${cart.totalAmount.toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 23, fontWeight: FontWeight.w900, color: Color(0xFF0F172A)),
+                style: const TextStyle(
+                  fontSize: 23,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF0F172A),
+                ),
               ),
             ],
           ),
@@ -467,10 +565,18 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                 foregroundColor: const Color(0xFF334155),
                 backgroundColor: const Color(0xFFF1F5F9),
                 side: const BorderSide(color: Color(0xFFCBD5E1)),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
               ),
-              onPressed: !isEmpty && !_isProcessing ? _handleSaveAsPending : null,
-              icon: const Icon(Icons.bookmark_border, size: 17, color: Color(0xFF334155)),
+              onPressed: !isEmpty && !_isProcessing
+                  ? _handleSaveAsPending
+                  : null,
+              icon: const AppSvgIcon(
+                AssetTheme.snooze,
+                size: 20,
+                color: Color(0xFF334155),
+              ),
               label: const Text(
                 'Hold Order (Pay Later)',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
@@ -489,13 +595,24 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF0F766E),
                       foregroundColor: Colors.white,
-                      disabledBackgroundColor: const Color(0xFF0F766E).withValues(alpha: 0.35),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      disabledBackgroundColor: const Color(0xFF0F766E)
+                          .withValues(alpha: 0.35),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       elevation: 0,
                     ),
-                    onPressed: !isEmpty && !_isProcessing ? _handleCashCheckout : null,
-                    icon: const Icon(Icons.payments_outlined, size: 18),
-                    label: const Text('CASH PAY', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    onPressed: !isEmpty && !_isProcessing
+                        ? _handleCashCheckout
+                        : null,
+                    icon: const AppSvgIcon(AssetTheme.wallet, size: 21, color: Colors.white),
+                    label: const Text(
+                      'CASH PAY',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -507,13 +624,24 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF0D9488),
                       foregroundColor: Colors.white,
-                      disabledBackgroundColor: const Color(0xFF0D9488).withValues(alpha: 0.35),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      disabledBackgroundColor: const Color(0xFF0D9488)
+                          .withValues(alpha: 0.35),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
                       elevation: 0,
                     ),
-                    onPressed: !isEmpty && !_isProcessing ? _handleQrCheckout : null,
-                    icon: const Icon(Icons.qr_code_2, size: 18),
-                    label: const Text('QR CODE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                    onPressed: !isEmpty && !_isProcessing
+                        ? _handleQrCheckout
+                        : null,
+                    icon: const AppSvgIcon(AssetTheme.searchQR, size: 21, color: Colors.white),
+                    label: const Text(
+                      'QR CODE',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -524,7 +652,11 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
     );
   }
 
-  Widget _buildSummaryRow(String label, String value, {bool isHighlight = false}) {
+  Widget _buildSummaryRow(
+    String label,
+    String value, {
+    bool isHighlight = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2.5),
       child: Row(
@@ -534,7 +666,9 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
             label,
             style: TextStyle(
               fontSize: 12.5,
-              color: isHighlight ? const Color(0xFFEF4444) : const Color(0xFF64748B),
+              color: isHighlight
+                  ? const Color(0xFFEF4444)
+                  : const Color(0xFF64748B),
               fontWeight: isHighlight ? FontWeight.bold : FontWeight.w500,
             ),
           ),
@@ -542,7 +676,9 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
             value,
             style: TextStyle(
               fontSize: 12.5,
-              color: isHighlight ? const Color(0xFFEF4444) : const Color(0xFF0F172A),
+              color: isHighlight
+                  ? const Color(0xFFEF4444)
+                  : const Color(0xFF0F172A),
               fontWeight: FontWeight.w700,
             ),
           ),

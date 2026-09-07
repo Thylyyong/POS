@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
 import '../app_config.dart';
 import '../controllers/auth_controller.dart';
 import '../controllers/settings_controller.dart';
+import '../core/theme/asset_theme.dart';
+import 'app_svg_icon.dart';
 
 /// Reusable Admin PIN Code modal dialog with touchscreen keypad & physical keyboard support.
 /// Enforces a 4-digit master PIN with automatic login when the 4th digit is entered.
@@ -31,10 +34,7 @@ class AdminPinDialog extends StatefulWidget {
     final result = await showDialog<bool>(
       context: context,
       barrierDismissible: true,
-      builder: (ctx) => AdminPinDialog(
-        title: title,
-        subtitle: subtitle,
-      ),
+      builder: (ctx) => AdminPinDialog(title: title, subtitle: subtitle),
     );
     return result ?? false;
   }
@@ -43,7 +43,8 @@ class AdminPinDialog extends StatefulWidget {
   State<AdminPinDialog> createState() => _AdminPinDialogState();
 }
 
-class _AdminPinDialogState extends State<AdminPinDialog> with SingleTickerProviderStateMixin {
+class _AdminPinDialogState extends State<AdminPinDialog>
+    with SingleTickerProviderStateMixin {
   String _pin = '';
   String? _errorMessage;
   late AnimationController _shakeCtrl;
@@ -57,9 +58,10 @@ class _AdminPinDialogState extends State<AdminPinDialog> with SingleTickerProvid
       vsync: this,
       duration: const Duration(milliseconds: 350),
     );
-    _shakeAnim = Tween<double>(begin: 0.0, end: 12.0)
-        .chain(CurveTween(curve: Curves.elasticIn))
-        .animate(_shakeCtrl);
+    _shakeAnim = Tween<double>(
+      begin: 0.0,
+      end: 12.0,
+    ).chain(CurveTween(curve: Curves.elasticIn)).animate(_shakeCtrl);
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _focusNode.requestFocus();
@@ -105,9 +107,9 @@ class _AdminPinDialogState extends State<AdminPinDialog> with SingleTickerProvid
   void _verifyPin(String pinToVerify) {
     final settings = context.read<SettingsController>().settings;
     final authCtrl = context.read<AuthController>();
-    final correctPin = settings.adminPin;
 
-    if (authCtrl.authenticateAdmin(pinToVerify, correctPin)) {
+    if (settings.verifyAdminPin(pinToVerify)) {
+      authCtrl.loginAsAdmin();
       Navigator.of(context).pop(true);
     } else {
       setState(() {
@@ -125,7 +127,8 @@ class _AdminPinDialogState extends State<AdminPinDialog> with SingleTickerProvid
       onKeyEvent: (event) {
         if (event is KeyDownEvent) {
           final key = event.logicalKey;
-          if (key == LogicalKeyboardKey.enter || key == LogicalKeyboardKey.numpadEnter) {
+          if (key == LogicalKeyboardKey.enter ||
+              key == LogicalKeyboardKey.numpadEnter) {
             if (_pin.length == 4) {
               _verifyPin(_pin);
             }
@@ -159,9 +162,9 @@ class _AdminPinDialogState extends State<AdminPinDialog> with SingleTickerProvid
                   color: const Color(0xFF0F172A).withValues(alpha: 0.08),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(
-                  Icons.shield_outlined,
-                  size: 28,
+                child: const AppSvgIcon(
+                  AssetTheme.verify,
+                  size: 26,
                   color: Color(0xFF0F172A),
                 ),
               ),
@@ -191,17 +194,25 @@ class _AdminPinDialogState extends State<AdminPinDialog> with SingleTickerProvid
                 animation: _shakeAnim,
                 builder: (context, child) {
                   return Transform.translate(
-                    offset: Offset(_shakeAnim.value * (_shakeCtrl.value > 0 ? 1 : 0), 0),
+                    offset: Offset(
+                      _shakeAnim.value * (_shakeCtrl.value > 0 ? 1 : 0),
+                      0,
+                    ),
                     child: child,
                   );
                 },
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 24),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 14,
+                    horizontal: 24,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFF8FAFC),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: _errorMessage != null ? AppConfig.accentRose : const Color(0xFFE2E8F0),
+                      color: _errorMessage != null
+                          ? AppConfig.accentRose
+                          : const Color(0xFFE2E8F0),
                       width: 1.5,
                     ),
                   ),
@@ -215,9 +226,13 @@ class _AdminPinDialogState extends State<AdminPinDialog> with SingleTickerProvid
                         height: 16,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: isFilled ? const Color(0xFF0D9488) : const Color(0xFFE2E8F0),
+                          color: isFilled
+                              ? const Color(0xFF0D9488)
+                              : const Color(0xFFE2E8F0),
                           border: Border.all(
-                            color: isFilled ? const Color(0xFF0D9488) : const Color(0xFF94A3B8),
+                            color: isFilled
+                                ? const Color(0xFF0D9488)
+                                : const Color(0xFF94A3B8),
                             width: 1.5,
                           ),
                         ),
@@ -256,13 +271,13 @@ class _AdminPinDialogState extends State<AdminPinDialog> with SingleTickerProvid
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
                         _buildActionButton(
-                          icon: Icons.clear,
+                          svgAsset: AssetTheme.close,
                           tooltip: 'Clear',
                           onTap: _onClear,
                         ),
                         _buildDigitButton('0'),
                         _buildActionButton(
-                          icon: Icons.backspace_outlined,
+                          svgAsset: AssetTheme.chevronLeft,
                           tooltip: 'Backspace',
                           onTap: _onBackspace,
                         ),
@@ -282,10 +297,15 @@ class _AdminPinDialogState extends State<AdminPinDialog> with SingleTickerProvid
                     side: const BorderSide(color: Color(0xFFCBD5E1)),
                     foregroundColor: const Color(0xFF64748B),
                     padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
                   ),
                   onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Cancel', style: TextStyle(fontWeight: FontWeight.w600)),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                 ),
               ),
             ],
@@ -328,7 +348,7 @@ class _AdminPinDialogState extends State<AdminPinDialog> with SingleTickerProvid
   }
 
   Widget _buildActionButton({
-    required IconData icon,
+    required String svgAsset,
     required String tooltip,
     required VoidCallback onTap,
   }) {
@@ -346,7 +366,7 @@ class _AdminPinDialogState extends State<AdminPinDialog> with SingleTickerProvid
             border: Border.all(color: const Color(0xFFE2E8F0)),
           ),
           alignment: Alignment.center,
-          child: Icon(icon, size: 20, color: const Color(0xFF64748B)),
+          child: AppSvgIcon(svgAsset, size: 20, color: const Color(0xFF64748B)),
         ),
       ),
     );

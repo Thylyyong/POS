@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import '../app_config.dart';
+import '../core/theme/asset_theme.dart';
+import 'app_svg_icon.dart';
 
 class ImagePickerDialog extends StatefulWidget {
   final String title;
@@ -154,7 +156,7 @@ class _ImagePickerDialogState extends State<ImagePickerDialog> {
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.folder_special, color: ColorTheme.buttonPrimary, size: 26),
+                      const AppSvgIcon(AssetTheme.gallery, color: ColorTheme.buttonPrimary, size: 26),
                       const SizedBox(width: 10),
                       Text(
                         widget.title,
@@ -167,7 +169,7 @@ class _ImagePickerDialogState extends State<ImagePickerDialog> {
                     ],
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: ColorTheme.neutral600),
+                    icon: const AppSvgIcon(AssetTheme.close, color: ColorTheme.neutral600, size: 18),
                     onPressed: () => Navigator.of(context).pop(null),
                   ),
                 ],
@@ -188,7 +190,7 @@ class _ImagePickerDialogState extends State<ImagePickerDialog> {
                         elevation: 0,
                       ),
                       onPressed: _pickFromFileManager,
-                      icon: const Icon(Icons.drive_folder_upload, size: 18),
+                      icon: const AppSvgIcon(AssetTheme.box, size: 18, color: Colors.white),
                       label: const Text('Browse Real Folders / Storage', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                     ),
                   ),
@@ -204,7 +206,7 @@ class _ImagePickerDialogState extends State<ImagePickerDialog> {
                         foregroundColor: ColorTheme.primary400,
                       ),
                       onPressed: () => _pickFromImagePicker(ImageSource.gallery),
-                      icon: const Icon(Icons.photo_library_outlined, size: 18, color: ColorTheme.primary400),
+                      icon: const AppSvgIcon(AssetTheme.gallery, size: 18, color: ColorTheme.primary400),
                       label: const Text('Photo Gallery', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: ColorTheme.primary400)),
                     ),
                   ),
@@ -227,7 +229,7 @@ class _ImagePickerDialogState extends State<ImagePickerDialog> {
                   ),
                   TextButton.icon(
                     onPressed: _scanCommonDeviceFolders,
-                    icon: const Icon(Icons.refresh, size: 15, color: ColorTheme.primary400),
+                    icon: const Icon(Icons.refresh, size: 16, color: ColorTheme.primary400),
                     label: const Text('Rescan', style: TextStyle(fontSize: 12, color: ColorTheme.primary400, fontWeight: FontWeight.w600)),
                   ),
                 ],
@@ -252,7 +254,7 @@ class _ImagePickerDialogState extends State<ImagePickerDialog> {
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   const SizedBox(height: 8),
-                                  const Icon(Icons.folder_open, size: 44, color: ColorTheme.neutral400),
+                                  const AppSvgIcon(AssetTheme.gallery, size: 44, color: ColorTheme.neutral400),
                                   const SizedBox(height: 8),
                                   const Text(
                                     'No photos found in default folders',
@@ -273,7 +275,7 @@ class _ImagePickerDialogState extends State<ImagePickerDialog> {
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                                     ),
                                     onPressed: _pickFromFileManager,
-                                    icon: const Icon(Icons.drive_folder_upload, size: 16),
+                                    icon: const AppSvgIcon(AssetTheme.box, size: 16, color: Colors.white),
                                     label: const Text('Open Device File Manager', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold)),
                                   ),
                                   const SizedBox(height: 8),

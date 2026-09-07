@@ -1,6 +1,8 @@
 import 'dart:io';
+
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
+
 import '../models/order_model.dart';
 import '../models/store_settings_model.dart';
 
@@ -16,10 +18,7 @@ class ReceiptSaveResult {
   /// Whether the app-docs path was saved successfully.
   bool get success => appDocPath.isNotEmpty;
 
-  const ReceiptSaveResult({
-    required this.appDocPath,
-    this.downloadsPath,
-  });
+  const ReceiptSaveResult({required this.appDocPath, this.downloadsPath});
 }
 
 /// Service that persists each completed order as a Markdown receipt file.
@@ -33,8 +32,6 @@ class ReceiptFileService {
   ReceiptFileService._internal();
 
   static const _receiptSubDir = 'receipts';
-  static const _downloadsSubDir = 'POS_Receipts';
-
   // ── Public API ─────────────────────────────────────────────────────────────
 
   /// Saves [order] + [settings] as a `.md` file in both locations.
@@ -43,7 +40,11 @@ class ReceiptFileService {
     required StoreSettingsModel settings,
     bool isReprint = false,
   }) async {
-    final markdown = _buildMarkdown(order: order, settings: settings, isReprint: isReprint);
+    final markdown = _buildMarkdown(
+      order: order,
+      settings: settings,
+      isReprint: isReprint,
+    );
     final fileName = '${order.receiptNo}.md';
     final dateFolder = DateFormat('yyyy-MM-dd').format(order.createdAt);
 
@@ -54,17 +55,7 @@ class ReceiptFileService {
       fileName: fileName,
     );
 
-    // 2. Downloads folder (public, best-effort)
-    final downloadsPath = await _writeToDownloads(
-      markdown: markdown,
-      dateFolder: dateFolder,
-      fileName: fileName,
-    );
-
-    return ReceiptSaveResult(
-      appDocPath: appDocPath,
-      downloadsPath: downloadsPath,
-    );
+    return ReceiptSaveResult(appDocPath: appDocPath);
   }
 
   /// Returns all saved receipt files for a given [date] from app Documents.
@@ -90,7 +81,9 @@ class ReceiptFileService {
     try {
       final dateFolder = DateFormat('yyyy-MM-dd').format(date);
       final docsDir = await getApplicationDocumentsDirectory();
-      final file = File('${docsDir.path}/$_receiptSubDir/$dateFolder/$receiptNo.md');
+      final file = File(
+        '${docsDir.path}/$_receiptSubDir/$dateFolder/$receiptNo.md',
+      );
       if (await file.exists()) return await file.readAsString();
     } catch (_) {}
     return null;
@@ -113,48 +106,6 @@ class ReceiptFileService {
     } catch (_) {
       return '';
     }
-  }
-
-  Future<String?> _writeToDownloads({
-    required String markdown,
-    required String dateFolder,
-    required String fileName,
-  }) async {
-    try {
-      final downloadsDir = await _getDownloadsDir();
-      if (downloadsDir == null) return null;
-
-      final dir = Directory('${downloadsDir.path}/$_downloadsSubDir/$dateFolder');
-      if (!await dir.exists()) await dir.create(recursive: true);
-      final file = File('${dir.path}/$fileName');
-      await file.writeAsString(markdown, flush: true);
-      return file.path;
-    } catch (_) {
-      return null; // best-effort — no crash if permission denied
-    }
-  }
-
-  /// Returns the public Downloads directory on Android.
-  Future<Directory?> _getDownloadsDir() async {
-    try {
-      // Primary public Downloads path on Android
-      const path = '/storage/emulated/0/Download';
-      final dir = Directory(path);
-      if (await dir.exists()) return dir;
-
-      // Fallback: navigate up from external storage path
-      final external = await getExternalStorageDirectory();
-      if (external != null) {
-        final parts = external.path.split('/');
-        final androidIdx = parts.indexOf('Android');
-        if (androidIdx > 0) {
-          final rootPath = parts.sublist(0, androidIdx).join('/');
-          final downloadDir = Directory('$rootPath/Download');
-          if (await downloadDir.exists()) return downloadDir;
-        }
-      }
-    } catch (_) {}
-    return null;
   }
 
   // ── Markdown Builder ───────────────────────────────────────────────────────
@@ -187,11 +138,18 @@ class ReceiptFileService {
     }
 
     // Metadata
-    buf.writeln('## Receipt No: `${order.receiptNo}`');
+    buf.writeln('## Order: `${order.receiptNo}`');
     buf.writeln();
     buf.writeln('| Field | Value |');
     buf.writeln('|-------|-------|');
     buf.writeln('| **Date / Time** | $dateStr |');
+    final cust =
+        (order.customerName != null &&
+            order.customerName!.trim().isNotEmpty &&
+            order.customerName!.trim().toLowerCase() != 'guest')
+        ? order.customerName!
+        : '...............';
+    buf.writeln('| **Customer** | $cust |');
     buf.writeln('| **Payment Method** | ${order.paymentMethod.displayName} |');
     buf.writeln('| **Status** | ${order.status.displayName} |');
     buf.writeln();
@@ -201,12 +159,19 @@ class ReceiptFileService {
     // Items Table
     buf.writeln('## \u{1F6D2} Order Items');
     buf.writeln();
-    buf.writeln('| # | Item | Qty | Unit Price | Total |');
-    buf.writeln('|---|------|:---:|:----------:|------:|');
+    buf.writeln('| # | NAME | QTY | UNIT PRICE | AMOUNT |');
+    buf.writeln('|---|------|:---:|:----------:|-------:|');
     for (var i = 0; i < order.items.length; i++) {
       final item = order.items[i];
+      final itemSubtotal = item.unitPrice * item.quantity;
+      final discount = itemSubtotal - item.totalPrice;
+      final hasDiscount = discount > 0.009;
+      final discInfo = hasDiscount
+          ? '<br>_Discount: -$curr${discount.toStringAsFixed(2)}_'
+          : '';
+
       buf.writeln(
-        '| ${i + 1} | ${item.productName} | ${item.quantity} '
+        '| ${i + 1} | ${item.productName}$discInfo | ${item.quantity} '
         '| $curr${item.unitPrice.toStringAsFixed(2)} '
         '| **$curr${item.totalPrice.toStringAsFixed(2)}** |',
       );
@@ -226,7 +191,9 @@ class ReceiptFileService {
       final discLabel = order.discountPercent > 0
           ? 'Discount (${order.discountPercent.toStringAsFixed(0)}%)'
           : 'Discount';
-      buf.writeln('| $discLabel | **-$curr${order.discountAmount.toStringAsFixed(2)}** |');
+      buf.writeln(
+        '| $discLabel | **-$curr${order.discountAmount.toStringAsFixed(2)}** |',
+      );
     }
 
     if (order.taxAmount > 0) {
@@ -236,12 +203,23 @@ class ReceiptFileService {
       );
     }
 
-    buf.writeln('| **TOTAL DUE** | **$curr${order.totalAmount.toStringAsFixed(2)}** |');
+    buf.writeln(
+      '| **TOTAL (USD)** | **$curr${order.totalAmount.toStringAsFixed(2)}** |',
+    );
+
+    if (settings.showKhrDualCurrency) {
+      final khrTotal = NumberFormat('#,###')
+          .format((order.totalAmount * settings.usdToKhrRate).round());
+      buf.writeln('| **TOTAL (KHR)** | **$khrTotal KHR** |');
+    }
 
     if (order.paymentMethod == PaymentMethod.cash) {
-      buf.writeln('| Cash Tendered | $curr${order.cashTendered.toStringAsFixed(2)} |');
+      final tendered = order.cashTendered > 0
+          ? order.cashTendered
+          : order.totalAmount;
+      buf.writeln('| CASH RECEIVED | $curr${tendered.toStringAsFixed(2)} |');
       buf.writeln(
-        '| **Change Due** | **$curr${order.changeAmount.toStringAsFixed(2)}** |',
+        '| **CHANGE RETURN** | **$curr${order.changeAmount.toStringAsFixed(2)}** |',
       );
     }
 

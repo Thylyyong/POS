@@ -137,6 +137,7 @@ class OrderItemModel {
 
 class OrderModel {
   final String id;
+  final String branchId;
   final String receiptNo;
   final String? orderNumber; // Sequential daily order # e.g. "001", "002"
   final String? tableId;
@@ -158,6 +159,7 @@ class OrderModel {
 
   OrderModel({
     required this.id,
+    this.branchId = 'store_a',
     required this.receiptNo,
     this.orderNumber,
     this.tableId,
@@ -184,6 +186,7 @@ class OrderModel {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'branch_id': branchId,
       'receipt_no': receiptNo,
       'order_number': orderNumber,
       'table_id': tableId,
@@ -204,9 +207,13 @@ class OrderModel {
     };
   }
 
-  factory OrderModel.fromMap(Map<String, dynamic> map, {List<OrderItemModel> items = const []}) {
+  factory OrderModel.fromMap(
+    Map<String, dynamic> map, {
+    List<OrderItemModel> items = const [],
+  }) {
     return OrderModel(
       id: map['id'] as String,
+      branchId: map['branch_id'] as String? ?? 'store_a',
       receiptNo: map['receipt_no'] as String,
       orderNumber: map['order_number'] as String?,
       tableId: map['table_id'] as String?,
@@ -219,7 +226,9 @@ class OrderModel {
       taxAmount: (map['tax_amount'] as num?)?.toDouble() ?? 0.0,
       taxRate: (map['tax_rate'] as num?)?.toDouble() ?? 0.0,
       totalAmount: (map['total_amount'] as num).toDouble(),
-      paymentMethod: PaymentMethod.fromString(map['payment_method'] as String? ?? 'CASH'),
+      paymentMethod: PaymentMethod.fromString(
+        map['payment_method'] as String? ?? 'CASH',
+      ),
       cashTendered: (map['cash_tendered'] as num?)?.toDouble() ?? 0.0,
       changeAmount: (map['change_amount'] as num?)?.toDouble() ?? 0.0,
       status: OrderStatus.fromString(map['status'] as String? ?? 'COMPLETED'),
@@ -232,6 +241,7 @@ class OrderModel {
 
   OrderModel copyWith({
     String? id,
+    String? branchId,
     String? receiptNo,
     String? orderNumber,
     String? tableId,
@@ -253,6 +263,7 @@ class OrderModel {
   }) {
     return OrderModel(
       id: id ?? this.id,
+      branchId: branchId ?? this.branchId,
       receiptNo: receiptNo ?? this.receiptNo,
       orderNumber: orderNumber ?? this.orderNumber,
       tableId: tableId ?? this.tableId,
@@ -279,7 +290,8 @@ class ReceiptLogModel {
   final String id;
   final String receiptNo;
   final String orderId;
-  final String action; // 'INITIAL_PRINT', 'REPRINT', 'DIGITAL_VIEW', 'PDF_EXPORT'
+  final String
+  action; // 'INITIAL_PRINT', 'REPRINT', 'DIGITAL_VIEW', 'PDF_EXPORT'
   final DateTime timestamp;
   final bool isSuccess;
   final String? errorMessage;

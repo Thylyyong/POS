@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../../controllers/cart_controller.dart';
 import '../../../controllers/settings_controller.dart';
+import '../../../core/theme/asset_theme.dart';
+import '../../../widgets/app_svg_icon.dart';
 
 class CartItemTile extends StatelessWidget {
   final CartItem item;
   final int index;
 
-  const CartItemTile({
-    super.key,
-    required this.item,
-    required this.index,
-  });
+  const CartItemTile({super.key, required this.item, required this.index});
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +46,10 @@ class CartItemTile extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       '$currency${item.unitPrice.toStringAsFixed(2)} each',
-                      style: const TextStyle(color: Color(0xFF64748B), fontSize: 11),
+                      style: const TextStyle(
+                        color: Color(0xFF64748B),
+                        fontSize: 11,
+                      ),
                     ),
                   ],
                 ),
@@ -68,7 +70,11 @@ class CartItemTile extends StatelessWidget {
                       borderRadius: BorderRadius.circular(6),
                       child: const Padding(
                         padding: EdgeInsets.all(6),
-                        child: Icon(Icons.remove, size: 15, color: Color(0xFF475569)),
+                        child: AppSvgIcon(
+                          AssetTheme.minus,
+                          size: 15,
+                          color: Color(0xFF475569),
+                        ),
                       ),
                     ),
                     Padding(
@@ -87,7 +93,11 @@ class CartItemTile extends StatelessWidget {
                       borderRadius: BorderRadius.circular(6),
                       child: const Padding(
                         padding: EdgeInsets.all(6),
-                        child: Icon(Icons.add, size: 15, color: Color(0xFF475569)),
+                        child: AppSvgIcon(
+                          AssetTheme.plus,
+                          size: 15,
+                          color: Color(0xFF475569),
+                        ),
                       ),
                     ),
                   ],
@@ -107,14 +117,6 @@ class CartItemTile extends StatelessWidget {
                     color: Color(0xFF0F172A),
                   ),
                 ),
-              ),
-
-              // Delete button
-              IconButton(
-                icon: const Icon(Icons.close, size: 16, color: Color(0xFF94A3B8)),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(),
-                onPressed: () => cart.removeItem(index),
               ),
             ],
           ),
@@ -137,4 +139,3 @@ class CartItemTile extends StatelessWidget {
     );
   }
 }
-

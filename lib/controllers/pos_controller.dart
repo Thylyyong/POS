@@ -1,5 +1,7 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
+
 import '../core/async_guard.dart';
 import '../core/debouncer.dart';
 import '../database/order_dao.dart';
@@ -28,7 +30,9 @@ class PosController extends ChangeNotifier {
 
   // ── Utilities ─────────────────────────────────────────────────────────────
   final _productGuard = AsyncGuard();
-  final _searchDebouncer = Debouncer(duration: const Duration(milliseconds: 300));
+  final _searchDebouncer = Debouncer(
+    duration: const Duration(milliseconds: 300),
+  );
 
   // ── State ─────────────────────────────────────────────────────────────────
   List<Category> _categories = [];
@@ -147,7 +151,9 @@ class PosController extends ChangeNotifier {
     } else {
       var list = await _productDao.getProductsByCategory(_selectedCategoryId);
       if (_selectedSubcategoryId != null) {
-        list = list.where((p) => p.subcategoryId == _selectedSubcategoryId).toList();
+        list = list
+            .where((p) => p.subcategoryId == _selectedSubcategoryId)
+            .toList();
       }
       result = list;
     }
@@ -240,22 +246,29 @@ class PosController extends ChangeNotifier {
   Future<OrderModel?> saveOrderAsPending({
     required CartController cart,
     required StoreSettingsModel settings,
+    String branchId = 'store_a',
     TableController? tableController,
   }) async {
     if (cart.items.isEmpty) return null;
 
     try {
-      final orderId = cart.currentPendingOrderId ?? 'ord_${DateTime.now().millisecondsSinceEpoch}';
+      final orderId =
+          cart.currentPendingOrderId ??
+          'ord_${DateTime.now().millisecondsSinceEpoch}';
       final receiptNo = await _orderDao.generateNextReceiptNumber();
-      final dailyOrderNo = cart.orderNumber ?? await _orderDao.generateNextDailyOrderNumber();
+      final dailyOrderNo =
+          cart.orderNumber ?? await _orderDao.generateNextDailyOrderNumber();
       final totalAmount = cart.totalAmount;
 
       final order = OrderModel(
         id: orderId,
+        branchId: branchId,
         receiptNo: receiptNo,
         orderNumber: dailyOrderNo,
         tableId: cart.tableId,
-        tableNumber: cart.tableNumber ?? (cart.orderType == 'TAKEAWAY' ? 'Takeaway' : 'T01'),
+        tableNumber:
+            cart.tableNumber ??
+            (cart.orderType == 'TAKEAWAY' ? 'Takeaway' : 'T01'),
         customerName: cart.customerName ?? 'Guest',
         orderType: cart.orderType,
         subtotal: cart.subtotal,
@@ -308,6 +321,7 @@ class PosController extends ChangeNotifier {
     required CartController cart,
     required StoreSettingsModel settings,
     required PaymentMethod paymentMethod,
+    String branchId = 'store_a',
     double cashTendered = 0.0,
     TableController? tableController,
   }) async {
@@ -317,9 +331,12 @@ class PosController extends ChangeNotifier {
 
     try {
       final isExistingPending = cart.currentPendingOrderId != null;
-      final orderId = cart.currentPendingOrderId ?? 'ord_${DateTime.now().millisecondsSinceEpoch}';
+      final orderId =
+          cart.currentPendingOrderId ??
+          'ord_${DateTime.now().millisecondsSinceEpoch}';
       final receiptNo = await _orderDao.generateNextReceiptNumber();
-      final dailyOrderNo = cart.orderNumber ?? await _orderDao.generateNextDailyOrderNumber();
+      final dailyOrderNo =
+          cart.orderNumber ?? await _orderDao.generateNextDailyOrderNumber();
       final totalAmount = cart.totalAmount;
       final changeAmount = paymentMethod == PaymentMethod.cash
           ? (cashTendered - totalAmount).clamp(0.0, double.infinity)
@@ -327,10 +344,13 @@ class PosController extends ChangeNotifier {
 
       final order = OrderModel(
         id: orderId,
+        branchId: branchId,
         receiptNo: receiptNo,
         orderNumber: dailyOrderNo,
         tableId: cart.tableId,
-        tableNumber: cart.tableNumber ?? (cart.orderType == 'TAKEAWAY' ? 'Takeaway' : 'T01'),
+        tableNumber:
+            cart.tableNumber ??
+            (cart.orderType == 'TAKEAWAY' ? 'Takeaway' : 'T01'),
         customerName: cart.customerName ?? 'Guest',
         orderType: cart.orderType,
         subtotal: cart.subtotal,
@@ -340,7 +360,9 @@ class PosController extends ChangeNotifier {
         taxRate: cart.taxRate,
         totalAmount: totalAmount,
         paymentMethod: paymentMethod,
-        cashTendered: paymentMethod == PaymentMethod.cash ? cashTendered : totalAmount,
+        cashTendered: paymentMethod == PaymentMethod.cash
+            ? cashTendered
+            : totalAmount,
         changeAmount: changeAmount,
         status: OrderStatus.completed,
         createdAt: DateTime.now(),
@@ -400,7 +422,8 @@ class PosController extends ChangeNotifier {
           settings: settings,
           isReprint: false,
         );
-      } else if (settings.autoKickCashDrawer && paymentMethod == PaymentMethod.cash) {
+      } else if (settings.autoKickCashDrawer &&
+          paymentMethod == PaymentMethod.cash) {
         await _printerService.kickCashDrawer();
       }
 
@@ -408,13 +431,15 @@ class PosController extends ChangeNotifier {
       final cfdPayload = PresentationPayload(
         state: CfdScreenState.paymentSuccess,
         items: items
-            .map((i) => {
-                  'productId': i.productId,
-                  'productName': i.productName,
-                  'quantity': i.quantity,
-                  'unitPrice': i.unitPrice,
-                  'totalPrice': i.totalPrice,
-                })
+            .map(
+              (i) => {
+                'productId': i.productId,
+                'productName': i.productName,
+                'quantity': i.quantity,
+                'unitPrice': i.unitPrice,
+                'totalPrice': i.totalPrice,
+              },
+            )
             .toList(),
         subtotal: savedOrder.subtotal,
         discountAmount: savedOrder.discountAmount,
@@ -475,7 +500,9 @@ class PosController extends ChangeNotifier {
         orderId: order.id,
         action: 'REPRINT',
         isSuccess: success,
-        receiptFilePath: saveResult.appDocPath.isNotEmpty ? saveResult.appDocPath : null,
+        receiptFilePath: saveResult.appDocPath.isNotEmpty
+            ? saveResult.appDocPath
+            : null,
       );
       return success;
     } catch (e) {

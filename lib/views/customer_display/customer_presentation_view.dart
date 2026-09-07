@@ -9,6 +9,8 @@ import '../../../database/settings_dao.dart';
 import '../../../models/store_settings_model.dart';
 import '../../../services/presentation_service.dart';
 import '../../../widgets/app_logo_widget.dart';
+import '../../../core/theme/asset_theme.dart';
+import '../../../widgets/app_svg_icon.dart';
 
 /// Customer-Facing Display (CFD / CDS).
 /// Shows live items, quantities, and prices on the left.
@@ -120,7 +122,7 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView> {
                     logoPath: _settings.logoPath,
                     size: 28,
                     borderRadius: 6,
-                    fallbackIcon: Icons.restaurant,
+                    fallbackSvg: AssetTheme.store,
                   ),
                   const SizedBox(width: 10),
 
@@ -144,12 +146,16 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView> {
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.circle, color: Color(0xFF10B981), size: 6.5),
-                        SizedBox(width: 5),
-                        Text(
+                        Container(
+                          width: 6.5,
+                          height: 6.5,
+                          decoration: const BoxDecoration(color: Color(0xFF10B981), shape: BoxShape.circle),
+                        ),
+                        const SizedBox(width: 5),
+                        const Text(
                           'LIVE DISPLAY',
                           style: TextStyle(
                             fontSize: 10.5,
@@ -172,7 +178,7 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.access_time, size: 14, color: Color(0xFF64748B)),
+                        const AppSvgIcon(AssetTheme.clock, size: 14, color: Color(0xFF64748B)),
                         const SizedBox(width: 6),
                         Text(
                           _currentTime,
@@ -197,7 +203,7 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView> {
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.close, color: Colors.white, size: 14),
+                            AppSvgIcon(AssetTheme.close, color: Colors.white, size: 14),
                             SizedBox(width: 4),
                             Text(
                               'Return to POS',
@@ -278,7 +284,7 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView> {
                                     child: Column(
                                       mainAxisAlignment: MainAxisAlignment.center,
                                       children: [
-                                        Icon(Icons.receipt_long_outlined, size: 40, color: Color(0xFFCBD5E1)),
+                                        AppSvgIcon(AssetTheme.files, size: 40, color: Color(0xFFCBD5E1)),
                                         SizedBox(height: 10),
                                         Text(
                                           'No items currently added',
@@ -470,7 +476,7 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView> {
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.qr_code_2, color: Color(0xFF0D9488), size: 18),
+                  AppSvgIcon(AssetTheme.searchQR, color: Color(0xFF0D9488), size: 18),
                   SizedBox(width: 6),
                   Text(
                     'QR CODE PAYMENT',
@@ -549,7 +555,7 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView> {
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.camera_alt_outlined, size: 16, color: Color(0xFF64748B)),
+                  AppSvgIcon(AssetTheme.gallery, size: 16, color: Color(0xFF64748B)),
                   SizedBox(width: 8),
                   Text(
                     'Compatible with Mobile Banking & Camera scanners',
@@ -581,7 +587,7 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView> {
                   logoPath: _settings.logoPath,
                   size: logoSize,
                   borderRadius: logoSize * 0.22,
-                  fallbackIcon: Icons.restaurant,
+                  fallbackSvg: AssetTheme.store,
                   boxShadow: [
                     BoxShadow(
                       color: Colors.black.withValues(alpha: 0.08),

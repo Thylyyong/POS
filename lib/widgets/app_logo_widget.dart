@@ -1,11 +1,14 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import '../core/theme/asset_theme.dart';
+import 'app_svg_icon.dart';
 
 class AppLogoWidget extends StatelessWidget {
   final String? logoPath;
   final double size;
   final double borderRadius;
-  final IconData fallbackIcon;
+  final String? fallbackSvg;
+  final IconData? fallbackIcon;
   final List<BoxShadow>? boxShadow;
 
   const AppLogoWidget({
@@ -13,7 +16,8 @@ class AppLogoWidget extends StatelessWidget {
     this.logoPath,
     this.size = 48,
     this.borderRadius = 12,
-    this.fallbackIcon = Icons.point_of_sale,
+    this.fallbackSvg,
+    this.fallbackIcon,
     this.boxShadow,
   });
 
@@ -35,6 +39,16 @@ class AppLogoWidget extends StatelessWidget {
       return FileImage(File(logoPath!.trim()));
     }
     return null;
+  }
+
+  Widget _buildFallback() {
+    return Center(
+      child: AppSvgIcon(
+        fallbackSvg ?? AssetTheme.store,
+        size: size * 0.55,
+        color: Colors.white,
+      ),
+    );
   }
 
   @override
@@ -83,11 +97,11 @@ class AppLogoWidget extends StatelessWidget {
                         end: Alignment.bottomRight,
                       ),
                     ),
-                    child: Icon(fallbackIcon, size: size * 0.52, color: Colors.white),
+                    child: _buildFallback(),
                   );
                 },
               )
-            : Icon(fallbackIcon, size: size * 0.52, color: Colors.white),
+            : _buildFallback(),
       ),
     );
   }

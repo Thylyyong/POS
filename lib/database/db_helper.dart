@@ -4,7 +4,7 @@ import 'package:sqflite/sqflite.dart';
 
 class DbHelper {
   static const String _dbName = 'omni_pos.db';
-  static const int _dbVersion = 4;
+  static const int _dbVersion = 5;
 
   static DbHelper? _instance;
   static Database? _database;
@@ -77,7 +77,7 @@ class DbHelper {
       )
     ''');
 
-    // Dining Tables Table (v3)
+    // Dining Tables Table
     await db.execute('''
       CREATE TABLE dining_tables (
         id TEXT PRIMARY KEY,
@@ -93,10 +93,11 @@ class DbHelper {
       )
     ''');
 
-    // Orders Table (v3: includes table, customer, order_number, order_type)
+    // Orders Table
     await db.execute('''
       CREATE TABLE orders (
         id TEXT PRIMARY KEY,
+        branch_id TEXT NOT NULL DEFAULT 'store_a',
         receipt_no TEXT UNIQUE NOT NULL,
         order_number TEXT,
         table_id TEXT,
@@ -155,7 +156,7 @@ class DbHelper {
       )
     ''');
 
-    // Receipt Logs Table (v2: includes receipt_file_path)
+    // Receipt Logs Table
     await db.execute('''
       CREATE TABLE receipt_logs (
         id TEXT PRIMARY KEY,
@@ -170,6 +171,75 @@ class DbHelper {
       )
     ''');
 
+    // Cash Register Sessions Table (v5)
+    await db.execute('''
+      CREATE TABLE register_sessions (
+        id TEXT PRIMARY KEY,
+        branch_id TEXT NOT NULL,
+        branch_name TEXT NOT NULL,
+        cashier_id TEXT NOT NULL,
+        cashier_name TEXT NOT NULL,
+        opened_at TEXT NOT NULL,
+        closed_at TEXT,
+        opening_cash REAL NOT NULL DEFAULT 0.0,
+        opening_notes TEXT,
+        closing_cash_counted REAL DEFAULT 0.0,
+        closing_card_counted REAL DEFAULT 0.0,
+        closing_customer_account_counted REAL DEFAULT 0.0,
+        expected_cash REAL DEFAULT 0.0,
+        cash_difference REAL DEFAULT 0.0,
+        closing_notes TEXT,
+        status TEXT NOT NULL DEFAULT 'OPEN',
+        total_orders INTEGER DEFAULT 0,
+        total_cash_sales REAL DEFAULT 0.0,
+        total_card_sales REAL DEFAULT 0.0,
+        total_qr_sales REAL DEFAULT 0.0,
+        total_cash_in REAL DEFAULT 0.0,
+        total_cash_out REAL DEFAULT 0.0
+      )
+    ''');
+
+    // Cash Movements (Petty Cash) Table (v5)
+    await db.execute('''
+      CREATE TABLE cash_movements (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        type TEXT NOT NULL,
+        amount REAL NOT NULL,
+        reason TEXT NOT NULL,
+        authorized_by_id TEXT NOT NULL,
+        authorized_by_name TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (session_id) REFERENCES register_sessions (id) ON DELETE CASCADE
+      )
+    ''');
+
+    // Expenses Table (v5)
+    await db.execute('''
+      CREATE TABLE expenses (
+        id TEXT PRIMARY KEY,
+        branch_id TEXT NOT NULL,
+        category TEXT NOT NULL,
+        title TEXT NOT NULL,
+        amount REAL NOT NULL,
+        notes TEXT,
+        logged_by_user_id TEXT NOT NULL,
+        logged_by_user_name TEXT,
+        created_at TEXT NOT NULL
+      )
+    ''');
+
+    // Hybrid Settlement Config Table (v5)
+    await db.execute('''
+      CREATE TABLE hybrid_settlement_configs (
+        id TEXT PRIMARY KEY,
+        branch_id TEXT UNIQUE NOT NULL,
+        base_rent_amount REAL NOT NULL DEFAULT 500.0,
+        royalty_percent REAL NOT NULL DEFAULT 3.0,
+        settlement_cycle TEXT NOT NULL DEFAULT 'MONTHLY'
+      )
+    ''');
+
     // Indexes
     await db.execute('CREATE INDEX idx_products_category ON products (category_id)');
     await db.execute('CREATE INDEX idx_products_barcode ON products (barcode)');
@@ -179,6 +249,9 @@ class DbHelper {
     await db.execute('CREATE INDEX idx_receipt_logs_order ON receipt_logs (order_id)');
     await db.execute('CREATE INDEX idx_tables_status ON dining_tables (status)');
     await db.execute('CREATE INDEX idx_daily_reports_date ON daily_reports (report_date)');
+    await db.execute('CREATE INDEX idx_register_status ON register_sessions (status)');
+    await db.execute('CREATE INDEX idx_cash_movements_session ON cash_movements (session_id)');
+    await db.execute('CREATE INDEX idx_expenses_branch ON expenses (branch_id)');
 
     // Seed Initial Data
     await _seedInitialData(db);
@@ -186,12 +259,11 @@ class DbHelper {
 
   FutureOr<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
-      await db.execute(
-        'ALTER TABLE receipt_logs ADD COLUMN receipt_file_path TEXT',
-      );
+      try {
+        await db.execute('ALTER TABLE receipt_logs ADD COLUMN receipt_file_path TEXT');
+      } catch (_) {}
     }
     if (oldVersion < 3) {
-      // Create dining_tables table
       await db.execute('''
         CREATE TABLE IF NOT EXISTS dining_tables (
           id TEXT PRIMARY KEY,
@@ -207,7 +279,6 @@ class DbHelper {
         )
       ''');
 
-      // Add columns to orders
       try {
         await db.execute('ALTER TABLE orders ADD COLUMN order_number TEXT');
       } catch (_) {}
@@ -224,7 +295,6 @@ class DbHelper {
         await db.execute('ALTER TABLE orders ADD COLUMN order_type TEXT DEFAULT "DINE_IN"');
       } catch (_) {}
 
-      // Create daily_reports table
       await db.execute('''
         CREATE TABLE IF NOT EXISTS daily_reports (
           id TEXT PRIMARY KEY,
@@ -239,14 +309,88 @@ class DbHelper {
         )
       ''');
 
-      // Seed default tables
       await _seedDefaultTables(db);
     }
     if (oldVersion < 4) {
-      // Add description column to products (nullable, safe)
       try {
         await db.execute('ALTER TABLE products ADD COLUMN description TEXT');
       } catch (_) {}
+    }
+    if (oldVersion < 5) {
+      // Add branch_id to orders
+      try {
+        await db.execute('ALTER TABLE orders ADD COLUMN branch_id TEXT DEFAULT "store_a"');
+      } catch (_) {}
+
+      // Create register sessions table
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS register_sessions (
+          id TEXT PRIMARY KEY,
+          branch_id TEXT NOT NULL,
+          branch_name TEXT NOT NULL,
+          cashier_id TEXT NOT NULL,
+          cashier_name TEXT NOT NULL,
+          opened_at TEXT NOT NULL,
+          closed_at TEXT,
+          opening_cash REAL NOT NULL DEFAULT 0.0,
+          opening_notes TEXT,
+          closing_cash_counted REAL DEFAULT 0.0,
+          closing_card_counted REAL DEFAULT 0.0,
+          closing_customer_account_counted REAL DEFAULT 0.0,
+          expected_cash REAL DEFAULT 0.0,
+          cash_difference REAL DEFAULT 0.0,
+          closing_notes TEXT,
+          status TEXT NOT NULL DEFAULT 'OPEN',
+          total_orders INTEGER DEFAULT 0,
+          total_cash_sales REAL DEFAULT 0.0,
+          total_card_sales REAL DEFAULT 0.0,
+          total_qr_sales REAL DEFAULT 0.0,
+          total_cash_in REAL DEFAULT 0.0,
+          total_cash_out REAL DEFAULT 0.0
+        )
+      ''');
+
+      // Create cash movements table
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS cash_movements (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL,
+          type TEXT NOT NULL,
+          amount REAL NOT NULL,
+          reason TEXT NOT NULL,
+          authorized_by_id TEXT NOT NULL,
+          authorized_by_name TEXT,
+          created_at TEXT NOT NULL
+        )
+      ''');
+
+      // Create expenses table
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS expenses (
+          id TEXT PRIMARY KEY,
+          branch_id TEXT NOT NULL,
+          category TEXT NOT NULL,
+          title TEXT NOT NULL,
+          amount REAL NOT NULL,
+          notes TEXT,
+          logged_by_user_id TEXT NOT NULL,
+          logged_by_user_name TEXT,
+          created_at TEXT NOT NULL
+        )
+      ''');
+
+      // Create hybrid settlement config table
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS hybrid_settlement_configs (
+          id TEXT PRIMARY KEY,
+          branch_id TEXT UNIQUE NOT NULL,
+          base_rent_amount REAL NOT NULL DEFAULT 500.0,
+          royalty_percent REAL NOT NULL DEFAULT 3.0,
+          settlement_cycle TEXT NOT NULL DEFAULT 'MONTHLY'
+        )
+      ''');
+
+      await _seedV5Data(db);
     }
   }
 
@@ -339,6 +483,9 @@ class DbHelper {
 
     // 6. Sample historical orders
     await _seedSampleOrders(db);
+
+    // 7. Seed V5 Data (Expenses & Hybrid Settlement Configs)
+    await _seedV5Data(db);
   }
 
   Future<void> _seedDefaultTables(Database db) async {
@@ -369,6 +516,7 @@ class DbHelper {
     final sampleOrders = [
       {
         'id': 'ord_demo_01',
+        'branch_id': 'store_a',
         'receipt_no': 'REC-DEMO-001',
         'order_number': '001',
         'table_number': 'T01',
@@ -393,6 +541,7 @@ class DbHelper {
       },
       {
         'id': 'ord_demo_02',
+        'branch_id': 'store_a',
         'receipt_no': 'REC-DEMO-002',
         'order_number': '002',
         'table_number': 'VIP-1',
@@ -417,6 +566,7 @@ class DbHelper {
       },
       {
         'id': 'ord_demo_03',
+        'branch_id': 'store_b',
         'receipt_no': 'REC-DEMO-003',
         'order_number': '003',
         'table_number': 'Takeaway',
@@ -460,5 +610,104 @@ class DbHelper {
         'error_message': null,
       }, conflictAlgorithm: ConflictAlgorithm.ignore);
     }
+  }
+
+  Future<void> _seedV5Data(Database db) async {
+    final now = DateTime.now();
+
+    // 1. Seed Hybrid Settlement Configs for Store A and Store B
+    await db.insert('hybrid_settlement_configs', {
+      'id': 'config_store_a',
+      'branch_id': 'store_a',
+      'base_rent_amount': 500.0,
+      'royalty_percent': 3.0,
+      'settlement_cycle': 'MONTHLY',
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
+
+    await db.insert('hybrid_settlement_configs', {
+      'id': 'config_store_b',
+      'branch_id': 'store_b',
+      'base_rent_amount': 500.0,
+      'royalty_percent': 3.0,
+      'settlement_cycle': 'MONTHLY',
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
+
+    // 2. Seed Sample Operating Expenses
+    final expenses = [
+      {
+        'id': 'exp_01',
+        'branch_id': 'store_a',
+        'category': 'SALARIES',
+        'title': 'Cashier Staff Bi-Weekly Wage',
+        'amount': 1200.0,
+        'notes': 'Staff shift payment',
+        'logged_by_user_id': 'manager_store_a',
+        'logged_by_user_name': 'Sub Boss 1',
+        'created_at': now.subtract(const Duration(days: 5)).toIso8601String(),
+      },
+      {
+        'id': 'exp_02',
+        'branch_id': 'store_a',
+        'category': 'UTILITIES',
+        'title': 'Electricity & Air Conditioning',
+        'amount': 350.0,
+        'notes': 'Monthly power bill',
+        'logged_by_user_id': 'manager_store_a',
+        'logged_by_user_name': 'Sub Boss 1',
+        'created_at': now.subtract(const Duration(days: 3)).toIso8601String(),
+      },
+      {
+        'id': 'exp_03',
+        'branch_id': 'store_a',
+        'category': 'SUPPLIES',
+        'title': '80mm Thermal Receipt Rolls (Box of 50)',
+        'amount': 45.0,
+        'notes': 'POS Printer paper supplies',
+        'logged_by_user_id': 'manager_store_a',
+        'logged_by_user_name': 'Sub Boss 1',
+        'created_at': now.subtract(const Duration(days: 1)).toIso8601String(),
+      },
+      {
+        'id': 'exp_04',
+        'branch_id': 'store_b',
+        'category': 'SALARIES',
+        'title': 'Cashier Staff Bi-Weekly Wage',
+        'amount': 1100.0,
+        'notes': 'Store B staff shift payment',
+        'logged_by_user_id': 'manager_store_b',
+        'logged_by_user_name': 'Sub Boss 2',
+        'created_at': now.subtract(const Duration(days: 4)).toIso8601String(),
+      },
+    ];
+
+    for (var exp in expenses) {
+      await db.insert('expenses', exp, conflictAlgorithm: ConflictAlgorithm.ignore);
+    }
+
+    // 3. Seed an active or recent register session for Store A
+    await db.insert('register_sessions', {
+      'id': 'sess_demo_01',
+      'branch_id': 'store_a',
+      'branch_name': 'Store Branch A (Downtown)',
+      'cashier_id': 'cashier_01',
+      'cashier_name': 'Staff Cashier',
+      'opened_at': now.subtract(const Duration(hours: 4)).toIso8601String(),
+      'closed_at': null,
+      'opening_cash': 345.00,
+      'opening_notes': '1 x \$5, 2 x \$20, 1 x \$100, 1 x \$200 = \$345.00',
+      'closing_cash_counted': 0.0,
+      'closing_card_counted': 0.0,
+      'closing_customer_account_counted': 0.0,
+      'expected_cash': 366.73,
+      'cash_difference': 0.0,
+      'closing_notes': null,
+      'status': 'OPEN',
+      'total_orders': 2,
+      'total_cash_sales': 21.73,
+      'total_card_sales': 0.0,
+      'total_qr_sales': 34.10,
+      'total_cash_in': 0.0,
+      'total_cash_out': 0.0,
+    }, conflictAlgorithm: ConflictAlgorithm.ignore);
   }
 }

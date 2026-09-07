@@ -1,12 +1,14 @@
 import 'dart:io';
+
 import 'package:excel/excel.dart';
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 import 'package:share_plus/share_plus.dart';
+
 import '../database/order_dao.dart';
 import '../models/order_model.dart';
+import '../models/accounting_model.dart';
 import '../models/store_settings_model.dart';
 
 class ExcelExportService {
@@ -14,23 +16,65 @@ class ExcelExportService {
   factory ExcelExportService() => _instance;
   ExcelExportService._internal();
 
+  Future<String> exportProfitLossReports({
+    required List<ProfitLossReportModel> reports,
+    required StoreSettingsModel settings,
+    required String periodLabel,
+  }) async {
+    final excel = Excel.createExcel();
+    final sheet = excel['P&L Reports'];
+    sheet.appendRow([TextCellValue('OMNIPOS PROFIT & LOSS REPORTS')]);
+    sheet.appendRow([TextCellValue('Period'), TextCellValue(periodLabel)]);
+    sheet.appendRow([
+      TextCellValue('Generated At'),
+      TextCellValue(DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())),
+    ]);
+    sheet.appendRow([TextCellValue('')]);
+    sheet.appendRow([
+      TextCellValue('Report'),
+      TextCellValue('Sales'),
+      TextCellValue('COGS'),
+      TextCellValue('Gross Profit'),
+      TextCellValue('Operating Expenses'),
+      TextCellValue('Rent / Royalty'),
+      TextCellValue('Net Operating Income'),
+      TextCellValue('Other Income'),
+      TextCellValue('Other Expenses'),
+      TextCellValue('Net Income'),
+    ]);
+    for (final report in reports) {
+      sheet.appendRow([
+        TextCellValue(report.branchName),
+        DoubleCellValue(report.grossSalesRevenue),
+        DoubleCellValue(report.costOfSales),
+        DoubleCellValue(report.grossProfit),
+        DoubleCellValue(report.operatingExpenses),
+        DoubleCellValue(report.totalHybridSettlementToMainBoss),
+        DoubleCellValue(report.netOperatingIncome),
+        DoubleCellValue(report.otherIncome),
+        DoubleCellValue(report.otherExpenses),
+        DoubleCellValue(report.netIncome),
+      ]);
+    }
+    final bytes = excel.encode();
+    if (bytes == null) throw Exception('Failed to generate P&L Excel file');
+    final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+    final fileName = 'OmniPOS_PL_Reports_${periodLabel}_$timestamp.xlsx';
+    final docsDir = await getApplicationDocumentsDirectory();
+    final reportsDir = Directory(
+      '${docsDir.path}${Platform.pathSeparator}reports',
+    );
+    await reportsDir.create(recursive: true);
+    final file = File('${reportsDir.path}${Platform.pathSeparator}$fileName');
+    await file.writeAsBytes(bytes, flush: true);
+    return file.path;
+  }
+
   /// Request storage permission on Android
   Future<bool> requestStoragePermission() async {
-    if (!Platform.isAndroid) return true;
-
-    try {
-      if (await Permission.manageExternalStorage.isGranted) {
-        return true;
-      }
-      final requestedManage = await Permission.manageExternalStorage.request();
-      if (requestedManage.isGranted) {
-        return true;
-      }
-      final storageStatus = await Permission.storage.request();
-      return storageStatus.isGranted;
-    } catch (_) {
-      return false;
-    }
+    // Export files are created in app-private storage. Sharing/opening them
+    // should use the system share sheet rather than broad storage access.
+    return true;
   }
 
   /// Export Sales & Profit Report to .xlsx file
@@ -53,7 +97,8 @@ class ExcelExportService {
     final dateRangeStr = (startDate != null && endDate != null)
         ? '${DateFormat('yyyy-MM-dd').format(startDate)} to ${DateFormat('yyyy-MM-dd').format(endDate)}'
         : 'All Time / Complete History';
-    final generatedAt = DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now());
+    final generatedAt = DateFormat('yyyy-MM-dd HH:mm:ss')
+        .format(DateTime.now());
     final currency = settings.currencySymbol;
 
     // Calculate total discount and tax from actual orders if available
@@ -74,15 +119,35 @@ class ExcelExportService {
     // SHEET 1: Sales & Profit Summary
     // -------------------------------------------------------------
     final summarySheet = excel['Sales & Profit Summary'];
-    summarySheet.appendRow([TextCellValue('OMNIPOS EXECUTIVE SALES & PROFIT REPORT')]);
-    summarySheet.appendRow([TextCellValue('Store Name:'), TextCellValue(settings.storeName.isNotEmpty ? settings.storeName : 'OmniPOS')]);
-    summarySheet.appendRow([TextCellValue('Reporting Period:'), TextCellValue(dateRangeStr)]);
-    summarySheet.appendRow([TextCellValue('Generated At:'), TextCellValue(generatedAt)]);
-    summarySheet.appendRow([TextCellValue('Currency:'), TextCellValue(currency)]);
+    summarySheet.appendRow([
+      TextCellValue('OMNIPOS EXECUTIVE SALES & PROFIT REPORT'),
+    ]);
+    summarySheet.appendRow([
+      TextCellValue('Store Name:'),
+      TextCellValue(
+        settings.storeName.isNotEmpty ? settings.storeName : 'OmniPOS',
+      ),
+    ]);
+    summarySheet.appendRow([
+      TextCellValue('Reporting Period:'),
+      TextCellValue(dateRangeStr),
+    ]);
+    summarySheet.appendRow([
+      TextCellValue('Generated At:'),
+      TextCellValue(generatedAt),
+    ]);
+    summarySheet.appendRow([
+      TextCellValue('Currency:'),
+      TextCellValue(currency),
+    ]);
     summarySheet.appendRow([TextCellValue('')]);
 
     // Financial Metrics Header
-    summarySheet.appendRow([TextCellValue('FINANCIAL METRIC'), TextCellValue('AMOUNT / VALUE'), TextCellValue('NOTES')]);
+    summarySheet.appendRow([
+      TextCellValue('FINANCIAL METRIC'),
+      TextCellValue('AMOUNT / VALUE'),
+      TextCellValue('NOTES'),
+    ]);
     summarySheet.appendRow([
       TextCellValue('Total Revenue (Net Sales)'),
       TextCellValue('$currency${metrics.totalRevenue.toStringAsFixed(2)}'),
@@ -90,7 +155,9 @@ class ExcelExportService {
     ]);
     summarySheet.appendRow([
       TextCellValue('Gross Sales (Before Discounts)'),
-      TextCellValue('$currency${(totalGrossSales > 0 ? totalGrossSales : metrics.totalRevenue).toStringAsFixed(2)}'),
+      TextCellValue(
+        '$currency${(totalGrossSales > 0 ? totalGrossSales : metrics.totalRevenue).toStringAsFixed(2)}',
+      ),
       TextCellValue('Subtotal of all items before discounts and tax'),
     ]);
     summarySheet.appendRow([
@@ -120,7 +187,9 @@ class ExcelExportService {
     ]);
     summarySheet.appendRow([
       TextCellValue('Completed Orders Count'),
-      IntCellValue(metrics.totalOrders > 0 ? metrics.totalOrders : orders.length),
+      IntCellValue(
+        metrics.totalOrders > 0 ? metrics.totalOrders : orders.length,
+      ),
       TextCellValue('Total completed transactions'),
     ]);
     summarySheet.appendRow([
@@ -136,9 +205,18 @@ class ExcelExportService {
     summarySheet.appendRow([TextCellValue('')]);
 
     // Payment Methods Breakdown
-    summarySheet.appendRow([TextCellValue('PAYMENT METHOD'), TextCellValue('REVENUE ($currency)'), TextCellValue('TRANSACTIONS'), TextCellValue('SHARE %')]);
-    final double cashShare = metrics.totalRevenue > 0 ? (metrics.cashRevenue / metrics.totalRevenue) * 100 : 0.0;
-    final double qrShare = metrics.totalRevenue > 0 ? (metrics.qrRevenue / metrics.totalRevenue) * 100 : 0.0;
+    summarySheet.appendRow([
+      TextCellValue('PAYMENT METHOD'),
+      TextCellValue('REVENUE ($currency)'),
+      TextCellValue('TRANSACTIONS'),
+      TextCellValue('SHARE %'),
+    ]);
+    final double cashShare = metrics.totalRevenue > 0
+        ? (metrics.cashRevenue / metrics.totalRevenue) * 100
+        : 0.0;
+    final double qrShare = metrics.totalRevenue > 0
+        ? (metrics.qrRevenue / metrics.totalRevenue) * 100
+        : 0.0;
 
     summarySheet.appendRow([
       TextCellValue('Cash Payment'),
@@ -167,7 +245,9 @@ class ExcelExportService {
 
     for (var i = 0; i < topItems.length; i++) {
       final t = topItems[i];
-      final double share = metrics.totalRevenue > 0 ? (t.totalRevenue / metrics.totalRevenue) * 100 : 0.0;
+      final double share = metrics.totalRevenue > 0
+          ? (t.totalRevenue / metrics.totalRevenue) * 100
+          : 0.0;
       topSheet.appendRow([
         IntCellValue(i + 1),
         TextCellValue(t.productName),
@@ -332,11 +412,19 @@ class ExcelExportService {
     try {
       final file = File(filePath);
       if (!await file.exists()) {
-        return OpenResult(type: ResultType.fileNotFound, message: 'Excel file not found at: $filePath');
+        return OpenResult(
+          type: ResultType.fileNotFound,
+          message: 'Excel file not found at: $filePath',
+        );
       }
       final absolutePath = file.absolute.path;
       if (Platform.isWindows) {
-        final result = await Process.run('cmd', ['/c', 'start', '', absolutePath], runInShell: true);
+        final result = await Process.run('cmd', [
+          '/c',
+          'start',
+          '',
+          absolutePath,
+        ], runInShell: true);
         if (result.exitCode == 0) {
           return OpenResult(type: ResultType.done, message: 'Opened');
         }
@@ -353,7 +441,10 @@ class ExcelExportService {
       try {
         final file = File(filePath);
         if (await file.exists()) {
-          await Process.run('explorer.exe', ['/select,', file.absolute.path], runInShell: true);
+          await Process.run('explorer.exe', [
+            '/select,',
+            file.absolute.path,
+          ], runInShell: true);
         }
       } catch (_) {}
     }

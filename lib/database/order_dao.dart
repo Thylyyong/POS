@@ -1,5 +1,6 @@
 import 'package:intl/intl.dart';
 import 'package:sqflite/sqflite.dart';
+
 import '../models/order_model.dart';
 import 'db_helper.dart';
 
@@ -92,11 +93,19 @@ class OrderDao {
     final db = await _dbHelper.database;
 
     return await db.transaction((txn) async {
-      await txn.insert('orders', order.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      await txn.insert(
+        'orders',
+        order.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
 
       for (var item in items) {
         final itemMap = item.toMap()..['order_id'] = order.id;
-        await txn.insert('order_items', itemMap, conflictAlgorithm: ConflictAlgorithm.replace);
+        await txn.insert(
+          'order_items',
+          itemMap,
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
       }
 
       if (order.tableId != null && order.tableId!.isNotEmpty) {
@@ -128,12 +137,20 @@ class OrderDao {
 
     return await db.transaction((txn) async {
       // 1. Insert/Update Order
-      await txn.insert('orders', order.toMap(), conflictAlgorithm: ConflictAlgorithm.replace);
+      await txn.insert(
+        'orders',
+        order.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
 
       // 2. Insert Order Items
       for (var item in items) {
         final itemMap = item.toMap()..['order_id'] = order.id;
-        await txn.insert('order_items', itemMap, conflictAlgorithm: ConflictAlgorithm.replace);
+        await txn.insert(
+          'order_items',
+          itemMap,
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
       }
 
       // 3. Free Table if assigned
@@ -205,7 +222,11 @@ class OrderDao {
     final orders = <OrderModel>[];
     for (var m in orderMaps) {
       final orderId = m['id'] as String;
-      final itemMaps = await db.query('order_items', where: 'order_id = ?', whereArgs: [orderId]);
+      final itemMaps = await db.query(
+        'order_items',
+        where: 'order_id = ?',
+        whereArgs: [orderId],
+      );
       final items = itemMaps.map((im) => OrderItemModel.fromMap(im)).toList();
       orders.add(OrderModel.fromMap(m, items: items));
     }
@@ -284,6 +305,7 @@ class OrderDao {
   Future<List<OrderModel>> getOrders({
     DateTime? startDate,
     DateTime? endDate,
+    String? branchId,
     String? searchQuery,
     int limit = 100,
   }) async {
@@ -291,6 +313,10 @@ class OrderDao {
     final whereClauses = <String>[];
     final whereArgs = <dynamic>[];
 
+    if (branchId != null && branchId.isNotEmpty && branchId != 'all') {
+      whereClauses.add('branch_id = ?');
+      whereArgs.add(branchId);
+    }
     if (startDate != null) {
       whereClauses.add('created_at >= ?');
       whereArgs.add(startDate.toIso8601String());
@@ -300,14 +326,18 @@ class OrderDao {
       whereArgs.add(endDate.toIso8601String());
     }
     if (searchQuery != null && searchQuery.trim().isNotEmpty) {
-      whereClauses.add('(receipt_no LIKE ? OR payment_method LIKE ? OR customer_name LIKE ? OR table_number LIKE ?)');
+      whereClauses.add(
+        '(receipt_no LIKE ? OR payment_method LIKE ? OR customer_name LIKE ? OR table_number LIKE ?)',
+      );
       whereArgs.add('%${searchQuery.trim()}%');
       whereArgs.add('%${searchQuery.trim()}%');
       whereArgs.add('%${searchQuery.trim()}%');
       whereArgs.add('%${searchQuery.trim()}%');
     }
 
-    final whereString = whereClauses.isNotEmpty ? whereClauses.join(' AND ') : null;
+    final whereString = whereClauses.isNotEmpty
+        ? whereClauses.join(' AND ')
+        : null;
 
     final orderMaps = await db.query(
       'orders',
@@ -343,11 +373,19 @@ class OrderDao {
   }
 
   // Analytics Metrics Calculation for Dashboard
-  Future<SalesMetrics> getSalesMetrics({DateTime? startDate, DateTime? endDate}) async {
+  Future<SalesMetrics> getSalesMetrics({
+    DateTime? startDate,
+    DateTime? endDate,
+    String? branchId,
+  }) async {
     final db = await _dbHelper.database;
     final whereClauses = <String>["status = 'COMPLETED'"];
     final whereArgs = <dynamic>[];
 
+    if (branchId != null && branchId.isNotEmpty && branchId != 'all') {
+      whereClauses.add('branch_id = ?');
+      whereArgs.add(branchId);
+    }
     if (startDate != null) {
       whereClauses.add('created_at >= ?');
       whereArgs.add(startDate.toIso8601String());
@@ -373,9 +411,12 @@ class OrderDao {
     ''', whereArgs);
 
     final totalOrders = (orderSummary.first['total_orders'] as int?) ?? 0;
-    final totalRevenue = (orderSummary.first['total_revenue'] as num?)?.toDouble() ?? 0.0;
-    final cashRevenue = (orderSummary.first['cash_revenue'] as num?)?.toDouble() ?? 0.0;
-    final qrRevenue = (orderSummary.first['qr_revenue'] as num?)?.toDouble() ?? 0.0;
+    final totalRevenue =
+        (orderSummary.first['total_revenue'] as num?)?.toDouble() ?? 0.0;
+    final cashRevenue =
+        (orderSummary.first['cash_revenue'] as num?)?.toDouble() ?? 0.0;
+    final qrRevenue =
+        (orderSummary.first['qr_revenue'] as num?)?.toDouble() ?? 0.0;
     final cashOrders = (orderSummary.first['cash_orders'] as int?) ?? 0;
     final qrOrders = (orderSummary.first['qr_orders'] as int?) ?? 0;
 
@@ -383,6 +424,10 @@ class OrderDao {
     final itemWhereClauses = <String>["o.status = 'COMPLETED'"];
     final itemWhereArgs = <dynamic>[];
 
+    if (branchId != null && branchId.isNotEmpty && branchId != 'all') {
+      itemWhereClauses.add('o.branch_id = ?');
+      itemWhereArgs.add(branchId);
+    }
     if (startDate != null) {
       itemWhereClauses.add('o.created_at >= ?');
       itemWhereArgs.add(startDate.toIso8601String());
@@ -405,9 +450,12 @@ class OrderDao {
     ''', itemWhereArgs);
 
     final totalItemsSold = (itemSummary.first['total_items'] as int?) ?? 0;
-    final totalCost = (itemSummary.first['total_cost'] as num?)?.toDouble() ?? 0.0;
+    final totalCost =
+        (itemSummary.first['total_cost'] as num?)?.toDouble() ?? 0.0;
     final grossProfit = totalRevenue - totalCost;
-    final averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0.0;
+    final averageOrderValue = totalOrders > 0
+        ? totalRevenue / totalOrders
+        : 0.0;
 
     return SalesMetrics(
       totalRevenue: totalRevenue,
@@ -427,12 +475,17 @@ class OrderDao {
   Future<List<TopSellingItem>> getTopSellingItems({
     DateTime? startDate,
     DateTime? endDate,
+    String? branchId,
     int limit = 10,
   }) async {
     final db = await _dbHelper.database;
     final whereClauses = <String>["o.status = 'COMPLETED'"];
     final whereArgs = <dynamic>[];
 
+    if (branchId != null && branchId.isNotEmpty && branchId != 'all') {
+      whereClauses.add('o.branch_id = ?');
+      whereArgs.add(branchId);
+    }
     if (startDate != null) {
       whereClauses.add('o.created_at >= ?');
       whereArgs.add(startDate.toIso8601String());
@@ -458,11 +511,15 @@ class OrderDao {
       LIMIT $limit
     ''', whereArgs);
 
-    return results.map((r) => TopSellingItem(
-      productId: r['product_id'] as String,
-      productName: r['product_name'] as String,
-      totalQuantity: (r['total_qty'] as num?)?.toInt() ?? 0,
-      totalRevenue: (r['total_rev'] as num?)?.toDouble() ?? 0.0,
-    )).toList();
+    return results
+        .map(
+          (r) => TopSellingItem(
+            productId: r['product_id'] as String,
+            productName: r['product_name'] as String,
+            totalQuantity: (r['total_qty'] as num?)?.toInt() ?? 0,
+            totalRevenue: (r['total_rev'] as num?)?.toDouble() ?? 0.0,
+          ),
+        )
+        .toList();
   }
 }

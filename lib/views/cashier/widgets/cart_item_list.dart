@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../controllers/cart_controller.dart';
 import 'cart_item_tile.dart';
+import '../../../core/theme/asset_theme.dart';
+import '../../../widgets/app_svg_icon.dart';
 
 class CartItemList extends StatelessWidget {
   const CartItemList({super.key});
@@ -16,14 +18,14 @@ class CartItemList extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(22),
               decoration: const BoxDecoration(
                 color: Color(0xFFF1F5F9),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.add_shopping_cart,
-                size: 36,
+              child: const AppSvgIcon(
+                AssetTheme.cart,
+                size: 48,
                 color: Color(0xFF94A3B8),
               ),
             ),

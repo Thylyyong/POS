@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../app_config.dart';
+import '../../../core/theme/asset_theme.dart';
+import '../../../widgets/app_svg_icon.dart';
 
 class CfdQrDisplay extends StatelessWidget {
   final String qrData;
@@ -37,8 +39,8 @@ class CfdQrDisplay extends StatelessWidget {
           const Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(Icons.qr_code_scanner, color: AppConfig.accentCyan, size: 28),
-              SizedBox(width: 10),
+              AppSvgIcon(AssetTheme.searchQR, color: AppConfig.accentCyan, size: 36),
+              SizedBox(width: 12),
               Text(
                 'Scan QR to Pay',
                 style: TextStyle(

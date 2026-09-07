@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../controllers/auth_controller.dart';
 import '../../controllers/settings_controller.dart';
 import '../../controllers/pos_controller.dart';
 import '../../widgets/admin_pin_dialog.dart';
 import '../../widgets/error_banner.dart';
+import '../accounting/profit_loss_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../history/receipt_history_screen.dart';
 import '../products/category_screen.dart';
@@ -34,10 +36,10 @@ class _CashierMainLayoutState extends State<CashierMainLayout> {
   }
 
   Future<void> _navigateToTab(CashierNavTab tab) async {
-    final isAdminTab = tab == CashierNavTab.dashboard ||
+    final isAdminTab =
+        tab == CashierNavTab.dashboard ||
         tab == CashierNavTab.settings ||
-        tab == CashierNavTab.products ||
-        tab == CashierNavTab.categories;
+        tab == CashierNavTab.accounting;
 
     if (isAdminTab) {
       final authCtrl = context.read<AuthController>();
@@ -79,9 +81,9 @@ class _CashierMainLayoutState extends State<CashierMainLayout> {
                         Expanded(
                           child: Row(
                             children: [
-                              const Expanded(flex: 65, child: ItemGrid()),
+                              const Expanded(flex: 70, child: ItemGrid()),
                               Expanded(
-                                flex: 35,
+                                flex: 30,
                                 child: CartPanel(
                                   onOpenTablePicker: () =>
                                       _navigateToTab(CashierNavTab.tables),
@@ -105,7 +107,10 @@ class _CashierMainLayoutState extends State<CashierMainLayout> {
                             switchInCurve: Curves.easeOut,
                             switchOutCurve: Curves.easeIn,
                             transitionBuilder: (child, animation) =>
-                                FadeTransition(opacity: animation, child: child),
+                                FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                ),
                             child: KeyedSubtree(
                               key: ValueKey(_currentTab),
                               child: _buildView(_currentTab),
@@ -138,6 +143,8 @@ class _CashierMainLayoutState extends State<CashierMainLayout> {
         return ReceiptHistoryScreen(
           onSwitchToPos: () => _navigateToTab(CashierNavTab.pos),
         );
+      case CashierNavTab.accounting:
+        return const ProfitLossScreen();
       case CashierNavTab.dashboard:
         return const DashboardScreen();
       case CashierNavTab.settings:

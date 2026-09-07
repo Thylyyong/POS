@@ -2,6 +2,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import '../../../app_config.dart';
 import '../../../models/product_model.dart';
+import '../../../core/theme/asset_theme.dart';
+import '../../../widgets/app_svg_icon.dart';
 
 class ProductCard extends StatelessWidget {
   final Product product;
@@ -75,9 +77,9 @@ class ProductCard extends StatelessWidget {
                                     errorBuilder: (context, error, stackTrace) => Container(
                                       color: ColorTheme.neutral100,
                                       child: const Center(
-                                        child: Icon(
-                                          Icons.image_outlined,
-                                          size: 36,
+                                        child: AppSvgIcon(
+                                          AssetTheme.gallery,
+                                          size: 52,
                                           color: ColorTheme.neutral400,
                                         ),
                                       ),
@@ -86,9 +88,9 @@ class ProductCard extends StatelessWidget {
                                 : Container(
                                     color: ColorTheme.neutral100,
                                     child: const Center(
-                                      child: Icon(
-                                        Icons.image_outlined,
-                                        size: 36,
+                                      child: AppSvgIcon(
+                                        AssetTheme.gallery,
+                                        size: 52,
                                         color: ColorTheme.neutral400,
                                       ),
                                     ),
@@ -169,13 +171,13 @@ class ProductCard extends StatelessWidget {
                               color: Colors.transparent,
                               child: InkWell(
                                 onTap: onTap,
-                                borderRadius: BorderRadius.circular(7),
+                                borderRadius: BorderRadius.circular(8),
                                 child: Container(
-                                  width: 28,
-                                  height: 28,
+                                  width: 32,
+                                  height: 32,
                                   decoration: BoxDecoration(
                                     color: ColorTheme.buttonPrimary,
-                                    borderRadius: BorderRadius.circular(7),
+                                    borderRadius: BorderRadius.circular(8),
                                     boxShadow: [
                                       BoxShadow(
                                         color: ColorTheme.buttonPrimary.withValues(alpha: 0.25),
@@ -185,9 +187,9 @@ class ProductCard extends StatelessWidget {
                                     ],
                                   ),
                                   child: const Center(
-                                    child: Icon(
-                                      Icons.add,
-                                      size: 17,
+                                    child: AppSvgIcon(
+                                      AssetTheme.plus,
+                                      size: 18,
                                       color: Colors.white,
                                     ),
                                   ),

@@ -5,6 +5,8 @@ import '../../../controllers/cart_controller.dart';
 import '../../../controllers/pos_controller.dart';
 import '../../../controllers/settings_controller.dart';
 import 'product_card.dart';
+import '../../../core/theme/asset_theme.dart';
+import '../../../widgets/app_svg_icon.dart';
 
 class ProductGrid extends StatelessWidget {
   final PosController posCtrl;
@@ -72,8 +74,8 @@ class ProductGrid extends StatelessWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(
-                          Icons.restaurant_menu_outlined,
+                        AppSvgIcon(
+                          AssetTheme.allCate,
                           size: 52,
                           color: ColorTheme.neutral400.withValues(alpha: 0.7),
                         ),

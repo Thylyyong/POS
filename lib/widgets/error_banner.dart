@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../app_config.dart';
+import '../core/theme/asset_theme.dart';
+import 'app_svg_icon.dart';
 
 /// Slim animated error banner that appears at the top of a view when an
 /// error string is non-null, and self-dismisses after [autoDismiss].
@@ -66,7 +68,7 @@ class _ErrorBannerState extends State<ErrorBanner>
         color: AppConfig.accentRose.withValues(alpha: 0.92),
         child: Row(
           children: [
-            const Icon(Icons.error_outline, color: Colors.white, size: 18),
+            const AppSvgIcon(AssetTheme.clearWarning, color: Colors.white, size: 18),
             const SizedBox(width: 10),
             Expanded(
               child: Text(
@@ -80,7 +82,7 @@ class _ErrorBannerState extends State<ErrorBanner>
             ),
             GestureDetector(
               onTap: _dismiss,
-              child: const Icon(Icons.close, color: Colors.white70, size: 18),
+              child: const AppSvgIcon(AssetTheme.close, color: Colors.white70, size: 16),
             ),
           ],
         ),

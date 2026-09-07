@@ -11,6 +11,8 @@ import '../../models/order_model.dart';
 import '../../models/store_settings_model.dart';
 import '../../services/pdf_receipt_service.dart';
 import '../../widgets/receipt_preview_dialog.dart';
+import '../../core/theme/asset_theme.dart';
+import '../../widgets/app_svg_icon.dart';
 
 enum HistoryTab { orders, folder }
 
@@ -72,7 +74,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.receipt_long_outlined, color: Color(0xFF0F172A), size: 24),
+                    AppSvgIcon(AssetTheme.files, color: Color(0xFF0F172A), size: 24),
                     SizedBox(width: 10),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -103,7 +105,10 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                     style: const TextStyle(color: Color(0xFF0F172A), fontSize: 13),
                     decoration: InputDecoration(
                       hintText: 'Search Receipt #, Table, Guest...',
-                      prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
+                      prefixIcon: const Padding(
+                        padding: EdgeInsets.all(10),
+                        child: AppSvgIcon(AssetTheme.search, size: 18, color: Color(0xFF64748B)),
+                      ),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 0),
                       fillColor: const Color(0xFFF1F5F9),
                       filled: true,
@@ -116,7 +121,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
 
                 // Refresh Button
                 IconButton(
-                  icon: const Icon(Icons.refresh, color: Color(0xFF64748B), size: 20),
+                  icon: const Icon(Icons.refresh, color: Color(0xFF64748B), size: 22),
                   tooltip: 'Refresh',
                   onPressed: _loadData,
                 ),
@@ -136,13 +141,13 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                 _buildTabButton(
                   tab: HistoryTab.orders,
                   title: 'Order Transactions (${_orders.length})',
-                  icon: Icons.receipt_long_outlined,
+                  svgAsset: AssetTheme.files,
                 ),
                 const SizedBox(width: 10),
                 _buildTabButton(
                   tab: HistoryTab.folder,
                   title: 'Saved PDF Folder (${_pdfFiles.length} files)',
-                  icon: Icons.folder_outlined,
+                  svgAsset: AssetTheme.box,
                 ),
                 const Spacer(),
                 const Text(
@@ -169,7 +174,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
   Widget _buildTabButton({
     required HistoryTab tab,
     required String title,
-    required IconData icon,
+    required String svgAsset,
   }) {
     final isSelected = _activeTab == tab;
     return InkWell(
@@ -190,7 +195,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: isSelected ? ColorTheme.primary400 : ColorTheme.neutral600),
+            AppSvgIcon(svgAsset, size: 16, color: isSelected ? ColorTheme.primary400 : ColorTheme.neutral600),
             const SizedBox(width: 8),
             Text(
               title,
@@ -370,17 +375,17 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                       onPressed: () => _openReceiptPreview(context, order, settings, posCtrl),
-                      icon: const Icon(Icons.visibility_outlined, size: 16, color: ColorTheme.primary400),
+                      icon: const AppSvgIcon(AssetTheme.eyeOpen, size: 16, color: ColorTheme.primary400),
                       label: const Text('View Receipt'),
                     ),
                     const SizedBox(width: 8),
                     IconButton(
-                      icon: const Icon(Icons.picture_as_pdf, color: ColorTheme.semanticRed, size: 20),
+                      icon: const AppSvgIcon(AssetTheme.files, color: ColorTheme.semanticRed, size: 20),
                       tooltip: 'Print / Open PDF Receipt',
                       onPressed: () => _pdfService.printReceiptPdf(order: order, settings: settings),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.print_outlined, color: ColorTheme.primary400, size: 20),
+                      icon: const AppSvgIcon(AssetTheme.files, color: ColorTheme.primary400, size: 20),
                       tooltip: 'Reprint Thermal Receipt',
                       onPressed: () async {
                         final success = await posCtrl.reprintReceipt(order: order, settings: settings);
@@ -411,7 +416,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.folder_off, size: 54, color: Color(0xFF94A3B8)),
+            const AppSvgIcon(AssetTheme.files, size: 54, color: Color(0xFF94A3B8)),
             const SizedBox(height: 12),
             const Text(
               'No PDF receipts generated yet',
@@ -428,8 +433,8 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
     }
 
     final filtered = _pdfFiles.where((p) {
-      return _searchQuery.isEmpty ||
-          p.fileName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+      if (_searchQuery.isEmpty) return true;
+      return p.fileName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           p.receiptNo.toLowerCase().contains(_searchQuery.toLowerCase());
     }).toList();
 
@@ -439,28 +444,29 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
       separatorBuilder: (_, _) => const SizedBox(height: 10),
       itemBuilder: (context, index) {
         final pdf = filtered[index];
-        final modStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(pdf.modifiedAt);
+        final modStr = DateFormat('MMM d, yyyy • hh:mm a').format(pdf.modifiedAt);
 
         return Container(
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: const Color(0xFFE2E8F0)),
             boxShadow: [
-              BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 6, offset: const Offset(0, 2)),
+              BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 1)),
             ],
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
           child: Row(
             children: [
-              // PDF Icon
+              // PDF File Icon
               Container(
-                padding: const EdgeInsets.all(10),
+                width: 44,
+                height: 44,
                 decoration: BoxDecoration(
                   color: AppConfig.accentRose.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.picture_as_pdf, color: AppConfig.accentRose, size: 24),
+                child: const Center(child: AppSvgIcon(AssetTheme.files, color: AppConfig.accentRose, size: 24)),
               ),
               const SizedBox(width: 14),
 
@@ -518,18 +524,18 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                         );
                       }
                     },
-                    icon: const Icon(Icons.open_in_new, size: 16),
+                    icon: const AppSvgIcon(AssetTheme.refer, size: 16, color: Colors.white),
                     label: const Text('Open PDF'),
                   ),
                   const SizedBox(width: 6),
                   IconButton(
-                    icon: const Icon(Icons.folder_open_outlined, color: Color(0xFF64748B), size: 20),
+                    icon: const AppSvgIcon(AssetTheme.box, color: Color(0xFF64748B), size: 20),
                     tooltip: 'Show in File Explorer',
                     onPressed: () => _pdfService.showInExplorer(pdf.filePath),
                   ),
                   const SizedBox(width: 4),
                   IconButton(
-                    icon: const Icon(Icons.share, color: AppConfig.accentCyan, size: 20),
+                    icon: const AppSvgIcon(AssetTheme.share, color: AppConfig.accentCyan, size: 20),
                     tooltip: 'Share / Send PDF',
                     onPressed: () => _pdfService.sharePdf(pdf.filePath, subject: 'Receipt ${pdf.receiptNo}'),
                   ),

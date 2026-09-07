@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
@@ -7,6 +8,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:share_plus/share_plus.dart';
+
 import '../models/order_model.dart';
 import '../models/store_settings_model.dart';
 
@@ -26,8 +28,12 @@ class PdfReceiptFileInfo {
   });
 
   String get formattedSize {
-    if (fileSizeBytes < 1024) return '$fileSizeBytes B';
-    if (fileSizeBytes < 1024 * 1024) return '${(fileSizeBytes / 1024).toStringAsFixed(1)} KB';
+    if (fileSizeBytes < 1024) {
+      return '$fileSizeBytes B';
+    }
+    if (fileSizeBytes < 1024 * 1024) {
+      return '${(fileSizeBytes / 1024).toStringAsFixed(1)} KB';
+    }
     return '${(fileSizeBytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 }
@@ -35,12 +41,11 @@ class PdfReceiptFileInfo {
 class PdfReceiptSaveResult {
   final String appDocPath;
   final String? downloadsPath;
-  bool get success => appDocPath.isNotEmpty || (downloadsPath != null && downloadsPath!.isNotEmpty);
+  bool get success =>
+      appDocPath.isNotEmpty ||
+      (downloadsPath != null && downloadsPath!.isNotEmpty);
 
-  const PdfReceiptSaveResult({
-    required this.appDocPath,
-    this.downloadsPath,
-  });
+  const PdfReceiptSaveResult({required this.appDocPath, this.downloadsPath});
 }
 
 class PdfReceiptService {
@@ -57,16 +62,18 @@ class PdfReceiptService {
     final doc = pw.Document();
 
     final currency = settings.currencySymbol;
-    final dateFormatted = DateFormat('yyyy-MM-dd HH:mm:ss').format(order.createdAt);
-    final isDineIn = order.orderType == 'DINE_IN';
-    const rollWidth = 226.0;
+    final dateFormatted = DateFormat('yyyy-MM-dd HH:mm:ss')
+        .format(order.createdAt);
+    final is80mm = settings.isPaperSize80mm;
+    final rollWidth = is80mm ? 226.0 : 164.0;
+    final baseFontSize = is80mm ? 8.0 : 7.0;
 
     doc.addPage(
       pw.Page(
-        pageFormat: const PdfPageFormat(
+        pageFormat: PdfPageFormat(
           rollWidth,
           double.infinity,
-          marginAll: 8.0,
+          marginAll: is80mm ? 8.0 : 5.0,
         ),
         build: (pw.Context context) {
           return pw.Column(
@@ -77,167 +84,242 @@ class PdfReceiptService {
                 settings.storeName.toUpperCase(),
                 textAlign: pw.TextAlign.center,
                 style: pw.TextStyle(
-                  fontSize: 14,
+                  fontSize: is80mm ? 13 : 11,
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
-              if (settings.storeAddress.isNotEmpty)
-                pw.Text(
-                  settings.storeAddress,
-                  textAlign: pw.TextAlign.center,
-                  style: const pw.TextStyle(fontSize: 8),
-                ),
-              if (settings.storePhone.isNotEmpty)
-                pw.Text(
-                  'Tel: ${settings.storePhone}',
-                  textAlign: pw.TextAlign.center,
-                  style: const pw.TextStyle(fontSize: 8),
-                ),
-              pw.SizedBox(height: 4),
-              pw.Divider(thickness: 1, borderStyle: pw.BorderStyle.dashed),
+              pw.SizedBox(height: 3),
+              pw.Divider(thickness: 1.2, color: PdfColors.black),
+              pw.SizedBox(height: 2),
 
               if (isReprint) ...[
                 pw.Center(
                   child: pw.Text(
                     '*** DUPLICATE REPRINT ***',
                     style: pw.TextStyle(
-                      fontSize: 9,
+                      fontSize: baseFontSize,
                       fontWeight: pw.FontWeight.bold,
                     ),
                   ),
                 ),
-                pw.SizedBox(height: 4),
+                pw.SizedBox(height: 2),
               ],
 
-              // Order & Table Info
-              _buildTwoCol('Receipt #:', order.receiptNo, bold: true),
-              if (order.orderNumber != null)
-                _buildTwoCol('Order #:', '#${order.orderNumber}', bold: true),
-              _buildTwoCol('Date:', dateFormatted),
-              _buildTwoCol(
-                'Type:',
-                isDineIn ? 'Dine-In (${order.tableNumber ?? "T01"})' : order.orderType,
+              // Order Metadata
+              _buildMetaRow('Order:', order.receiptNo, fontSize: baseFontSize),
+              _buildMetaRow('Date:', dateFormatted, fontSize: baseFontSize),
+              _buildMetaRow(
+                'Customer:',
+                (order.customerName != null &&
+                        order.customerName!.trim().isNotEmpty &&
+                        order.customerName!.trim().toLowerCase() != 'guest')
+                    ? order.customerName!
+                    : '...............',
+                fontSize: baseFontSize,
               ),
-              if (order.customerName != null && order.customerName!.isNotEmpty)
-                _buildTwoCol('Customer:', order.customerName!),
-              _buildTwoCol('Payment:', order.paymentMethod.displayName),
 
-              pw.SizedBox(height: 4),
-              pw.Divider(thickness: 1, borderStyle: pw.BorderStyle.dashed),
+              pw.SizedBox(height: 2),
+              pw.Divider(thickness: 1.2, color: PdfColors.black),
+              pw.SizedBox(height: 2),
 
               // Items Table Header
               pw.Row(
                 children: [
                   pw.Expanded(
                     flex: 5,
-                    child: pw.Text('ITEM', style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                    child: pw.Text(
+                      'NAME',
+                      style: pw.TextStyle(
+                        fontSize: baseFontSize,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
                   ),
-                  pw.Expanded(
-                    flex: 2,
-                    child: pw.Text('QTY', textAlign: pw.TextAlign.center, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                  pw.SizedBox(
+                    width: is80mm ? 26 : 20,
+                    child: pw.Text(
+                      'QTY',
+                      textAlign: pw.TextAlign.right,
+                      style: pw.TextStyle(
+                        fontSize: baseFontSize,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
                   ),
                   pw.Expanded(
                     flex: 3,
-                    child: pw.Text('TOTAL', textAlign: pw.TextAlign.right, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+                    child: pw.Text(
+                      'UNIT PRICE',
+                      textAlign: pw.TextAlign.right,
+
+                      style: pw.TextStyle(
+                        fontSize: baseFontSize,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                  pw.Expanded(
+                    flex: 3,
+                    child: pw.Text(
+                      'AMOUNT',
+                      textAlign: pw.TextAlign.right,
+                      style: pw.TextStyle(
+                        fontSize: baseFontSize,
+                        fontWeight: pw.FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ],
               ),
-              pw.Divider(thickness: 0.5),
+              pw.SizedBox(height: 2),
+              pw.Divider(thickness: 0.8, color: PdfColors.black),
+              pw.SizedBox(height: 2),
 
               // Line Items
               ...order.items.map((item) {
+                final itemSubtotal = item.unitPrice * item.quantity;
+                final discount = itemSubtotal - item.totalPrice;
+                final hasDiscount = discount > 0.009;
+
                 return pw.Padding(
-                  padding: const pw.EdgeInsets.symmetric(vertical: 1.5),
-                  child: pw.Row(
+                  padding: const pw.EdgeInsets.symmetric(vertical: 1.0),
+                  child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Expanded(
-                        flex: 5,
-                        child: pw.Column(
-                          crossAxisAlignment: pw.CrossAxisAlignment.start,
-                          children: [
-                            pw.Text(item.productName, style: const pw.TextStyle(fontSize: 8)),
-                            if (item.notes != null && item.notes!.isNotEmpty)
-                              pw.Text('* ${item.notes}', style: pw.TextStyle(fontSize: 7, fontStyle: pw.FontStyle.italic)),
-                          ],
+                      pw.Row(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Expanded(
+                            flex: 5,
+                            child: pw.Text(
+                              item.productName,
+                              style: pw.TextStyle(fontSize: baseFontSize),
+                            ),
+                          ),
+                          pw.SizedBox(
+                            width: is80mm ? 26 : 20,
+                            child: pw.Text(
+                              '${item.quantity}',
+                              textAlign: pw.TextAlign.right,
+                              style: pw.TextStyle(fontSize: baseFontSize),
+                            ),
+                          ),
+                          pw.Expanded(
+                            flex: 3,
+                            child: pw.Text(
+                              '$currency${item.unitPrice.toStringAsFixed(2)}',
+                              textAlign: pw.TextAlign.right,
+                              style: pw.TextStyle(fontSize: baseFontSize),
+                            ),
+                          ),
+                          pw.Expanded(
+                            flex: 3,
+                            child: pw.Text(
+                              '$currency${item.totalPrice.toStringAsFixed(2)}',
+                              textAlign: pw.TextAlign.right,
+                              style: pw.TextStyle(fontSize: baseFontSize),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (hasDiscount)
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.only(left: 2, top: 0.5),
+                          child: pw.Text(
+                            '+ Discount: -$currency${discount.toStringAsFixed(2)}',
+                            style: pw.TextStyle(
+                              fontSize: baseFontSize - 1,
+                              color: PdfColors.grey800,
+                            ),
+                          ),
                         ),
-                      ),
-                      pw.Expanded(
-                        flex: 2,
-                        child: pw.Text('${item.quantity}', textAlign: pw.TextAlign.center, style: const pw.TextStyle(fontSize: 8)),
-                      ),
-                      pw.Expanded(
-                        flex: 3,
-                        child: pw.Text(
-                          '$currency${item.totalPrice.toStringAsFixed(2)}',
-                          textAlign: pw.TextAlign.right,
-                          style: const pw.TextStyle(fontSize: 8),
+                      if (item.notes != null && item.notes!.isNotEmpty)
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.only(left: 2, top: 0.5),
+                          child: pw.Text(
+                            '+ Note: ${item.notes}',
+                            style: pw.TextStyle(
+                              fontSize: baseFontSize - 1,
+                              fontStyle: pw.FontStyle.italic,
+                              color: PdfColors.grey700,
+                            ),
+                          ),
                         ),
-                      ),
                     ],
                   ),
                 );
               }),
 
-              pw.SizedBox(height: 4),
-              pw.Divider(thickness: 1, borderStyle: pw.BorderStyle.dashed),
+              pw.SizedBox(height: 2),
+              pw.Divider(thickness: 0.8, color: PdfColors.black),
+              pw.SizedBox(height: 2),
 
               // Totals
-              _buildTwoCol('Subtotal:', '$currency${order.subtotal.toStringAsFixed(2)}'),
-              if (order.discountAmount > 0)
-                _buildTwoCol(
-                  order.discountPercent > 0
-                      ? 'Discount (${order.discountPercent.toStringAsFixed(0)}%):'
-                      : 'Discount:',
-                  '-$currency${order.discountAmount.toStringAsFixed(2)}',
-                ),
-              if (order.taxAmount > 0)
-                _buildTwoCol(
-                  'Tax/VAT (${order.taxRate.toStringAsFixed(0)}%):',
-                  '$currency${order.taxAmount.toStringAsFixed(2)}',
-                ),
-              pw.SizedBox(height: 2),
-              pw.Row(
-                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-                children: [
-                  pw.Text('TOTAL DUE:', style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold)),
-                  pw.Text(
-                    '$currency${order.totalAmount.toStringAsFixed(2)}',
-                    style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
-                  ),
-                ],
+              _buildTwoCol(
+                'SUBTOTAL:',
+                '$currency${order.subtotal.toStringAsFixed(2)}',
+                fontSize: baseFontSize,
               ),
+              _buildTwoCol(
+                'TOTAL (USD):',
+                '$currency${order.totalAmount.toStringAsFixed(2)}',
+                bold: true,
+                fontSize: baseFontSize + 2,
+              ),
+              if (settings.showKhrDualCurrency)
+                _buildTwoCol(
+                  'TOTAL (KHR):',
+                  '${NumberFormat('#,###').format((order.totalAmount * settings.usdToKhrRate).round())} KHR',
+                  bold: true,
+                  fontSize: baseFontSize + 2,
+                ),
 
+              pw.SizedBox(height: 2),
+              pw.Divider(thickness: 1.8, color: PdfColors.black),
+              pw.SizedBox(height: 2),
+
+              // Payment Details
+              _buildTwoCol(
+                'PAYMENT METHOD:',
+                order.paymentMethod.displayName.toUpperCase(),
+                fontSize: baseFontSize,
+              ),
               if (order.paymentMethod == PaymentMethod.cash) ...[
-                pw.SizedBox(height: 2),
-                _buildTwoCol('Cash Tendered:', '$currency${order.cashTendered.toStringAsFixed(2)}'),
-                _buildTwoCol('Change Due:', '$currency${order.changeAmount.toStringAsFixed(2)}', bold: true),
+                _buildTwoCol(
+                  'CASH RECEIVED:',
+                  '$currency${(order.cashTendered > 0 ? order.cashTendered : order.totalAmount).toStringAsFixed(2)}',
+                  fontSize: baseFontSize,
+                ),
+                _buildTwoCol(
+                  'CHANGE RETURN:',
+                  '$currency${order.changeAmount.toStringAsFixed(2)}',
+                  fontSize: baseFontSize,
+                ),
               ],
 
-              pw.SizedBox(height: 6),
-              pw.Center(
-                child: pw.BarcodeWidget(
-                  barcode: pw.Barcode.qrCode(),
-                  data: '${settings.qrPayloadTemplate}${order.receiptNo}',
-                  width: 55,
-                  height: 55,
-                ),
-              ),
-
-              pw.SizedBox(height: 6),
-              if (settings.footerNote.isNotEmpty)
-                pw.Text(
-                  settings.footerNote,
-                  textAlign: pw.TextAlign.center,
-                  style: pw.TextStyle(fontSize: 7.5, fontStyle: pw.FontStyle.italic),
-                ),
               pw.SizedBox(height: 2),
+              pw.Divider(thickness: 0.8, color: PdfColors.black),
+              pw.SizedBox(height: 6),
+
+              // Footer
               pw.Text(
-                '*** OmniPOS Dual-Screen ***',
+                '***THANK YOU FOR YOUR VISIT***',
                 textAlign: pw.TextAlign.center,
-                style: const pw.TextStyle(fontSize: 7),
+                style: pw.TextStyle(
+                  fontSize: baseFontSize + 0.5,
+                  fontWeight: pw.FontWeight.bold,
+                ),
               ),
-              pw.SizedBox(height: 10),
+              pw.SizedBox(height: 1.5),
+              pw.Text(
+                '***Please Come Again***',
+                textAlign: pw.TextAlign.center,
+                style: pw.TextStyle(
+                  fontSize: baseFontSize + 0.5,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+              pw.SizedBox(height: 6),
             ],
           );
         },
@@ -268,7 +350,9 @@ class PdfReceiptService {
     try {
       final appDir = await getApplicationDocumentsDirectory();
       final sep = Platform.isWindows ? '\\' : '/';
-      final targetDir = Directory('${appDir.path}${sep}POS_Receipts$sep$dateFolder');
+      final targetDir = Directory(
+        '${appDir.path}${sep}POS_Receipts$sep$dateFolder',
+      );
       if (!await targetDir.exists()) {
         await targetDir.create(recursive: true);
       }
@@ -277,12 +361,15 @@ class PdfReceiptService {
       appDocPath = file.path;
     } catch (_) {}
 
-    // 2. Windows Downloads Directory or Android Public Downloads Directory
+    // Public Downloads are intentionally not used on Android; receipts can
+    // contain customer and payment information.
     if (Platform.isWindows) {
       try {
         final downloadsDir = await getDownloadsDirectory();
         if (downloadsDir != null) {
-          final targetDir = Directory('${downloadsDir.path}\\POS_Receipts\\$dateFolder');
+          final targetDir = Directory(
+            '${downloadsDir.path}\\POS_Receipts\\$dateFolder',
+          );
           if (!await targetDir.exists()) {
             await targetDir.create(recursive: true);
           }
@@ -290,16 +377,6 @@ class PdfReceiptService {
           await file.writeAsBytes(pdfBytes, flush: true);
           downloadsPath = file.path;
         }
-      } catch (_) {}
-    } else if (Platform.isAndroid) {
-      try {
-        final downloadDir = Directory('/storage/emulated/0/Download/POS_Receipts/$dateFolder');
-        if (!await downloadDir.exists()) {
-          await downloadDir.create(recursive: true);
-        }
-        final file = File('${downloadDir.path}/$fileName');
-        await file.writeAsBytes(pdfBytes, flush: true);
-        downloadsPath = file.path;
       } catch (_) {}
     }
 
@@ -337,11 +414,19 @@ class PdfReceiptService {
     try {
       final file = File(filePath);
       if (!await file.exists()) {
-        return OpenResult(type: ResultType.fileNotFound, message: 'PDF file not found at: $filePath');
+        return OpenResult(
+          type: ResultType.fileNotFound,
+          message: 'PDF file not found at: $filePath',
+        );
       }
       final absolutePath = file.absolute.path;
       if (Platform.isWindows) {
-        final result = await Process.run('cmd', ['/c', 'start', '', absolutePath], runInShell: true);
+        final result = await Process.run('cmd', [
+          '/c',
+          'start',
+          '',
+          absolutePath,
+        ], runInShell: true);
         if (result.exitCode == 0) {
           return OpenResult(type: ResultType.done, message: 'Opened');
         }
@@ -358,7 +443,10 @@ class PdfReceiptService {
       try {
         final file = File(filePath);
         if (await file.exists()) {
-          await Process.run('explorer.exe', ['/select,', file.absolute.path], runInShell: true);
+          await Process.run('explorer.exe', [
+            '/select,',
+            file.absolute.path,
+          ], runInShell: true);
         }
       } catch (_) {}
     }
@@ -367,10 +455,7 @@ class PdfReceiptService {
   /// Share PDF file via Android/Windows share sheet
   Future<ShareResult> sharePdf(String filePath, {String? subject}) async {
     return await SharePlus.instance.share(
-      ShareParams(
-        files: [XFile(filePath)],
-        subject: subject ?? 'Receipt PDF',
-      ),
+      ShareParams(files: [XFile(filePath)], subject: subject ?? 'Receipt PDF'),
     );
   }
 
@@ -387,15 +472,21 @@ class PdfReceiptService {
           if (!seenPaths.contains(normalized)) {
             seenPaths.add(normalized);
             final stat = entity.statSync();
-            final name = entity.path.split(Platform.isWindows ? '\\' : '/').last;
-            final receiptNo = name.replaceAll('Receipt_', '').replaceAll('.pdf', '');
-            results.add(PdfReceiptFileInfo(
-              fileName: name,
-              filePath: normalized,
-              fileSizeBytes: stat.size,
-              modifiedAt: stat.modified,
-              receiptNo: receiptNo,
-            ));
+            final name = entity.path
+                .split(Platform.isWindows ? '\\' : '/')
+                .last;
+            final receiptNo = name
+                .replaceAll('Receipt_', '')
+                .replaceAll('.pdf', '');
+            results.add(
+              PdfReceiptFileInfo(
+                fileName: name,
+                filePath: normalized,
+                fileSizeBytes: stat.size,
+                modifiedAt: stat.modified,
+                receiptNo: receiptNo,
+              ),
+            );
           }
         }
       }
@@ -424,14 +515,52 @@ class PdfReceiptService {
     return results;
   }
 
-  pw.Widget _buildTwoCol(String label, String value, {bool bold = false}) {
+  pw.Widget _buildMetaRow(String label, String value, {double fontSize = 8.0}) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 1),
+      padding: const pw.EdgeInsets.symmetric(vertical: 0.8),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Text(
+            '$label ',
+            style: pw.TextStyle(
+              fontSize: fontSize,
+              fontWeight: pw.FontWeight.bold,
+            ),
+          ),
+          pw.Expanded(
+            child: pw.Text(value, style: pw.TextStyle(fontSize: fontSize)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  pw.Widget _buildTwoCol(
+    String label,
+    String value, {
+    bool bold = false,
+    double fontSize = 8.0,
+  }) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 0.8),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(label, style: pw.TextStyle(fontSize: 8, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
-          pw.Text(value, style: pw.TextStyle(fontSize: 8, fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal)),
+          pw.Text(
+            label,
+            style: pw.TextStyle(
+              fontSize: fontSize,
+              fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+            ),
+          ),
+          pw.Text(
+            value,
+            style: pw.TextStyle(
+              fontSize: fontSize,
+              fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+            ),
+          ),
         ],
       ),
     );

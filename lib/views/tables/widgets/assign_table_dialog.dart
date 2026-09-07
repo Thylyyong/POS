@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../../app_config.dart';
 import '../../../controllers/cart_controller.dart';
 import '../../../controllers/pos_controller.dart';
 import '../../../controllers/table_controller.dart';
 import '../../../database/order_dao.dart';
 import '../../../models/dining_table_model.dart';
+import '../../../core/theme/asset_theme.dart';
+import '../../../widgets/app_svg_icon.dart';
 
 class AssignTableDialog extends StatefulWidget {
   const AssignTableDialog({super.key});
@@ -42,6 +45,17 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
     CartController cartCtrl,
     PosController posCtrl,
   ) async {
+    if (_selectedOrderType == 'DELIVERY') {
+      cartCtrl.setTableInfo(
+        tableId: null,
+        tableNumber: 'Delivery',
+        customerName: _customerNameCtrl.text,
+        orderType: 'DELIVERY',
+      );
+      if (mounted) Navigator.of(context).pop();
+      return;
+    }
+
     if (_selectedOrderType == 'TAKEAWAY') {
       cartCtrl.setTableInfo(
         tableId: null,
@@ -67,7 +81,9 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
       if (_selectedTable!.currentOrderId != null) {
         setState(() => _isLoadingOrder = true);
         try {
-          final existingOrder = await _orderDao.getOrderById(_selectedTable!.currentOrderId!);
+          final existingOrder = await _orderDao.getOrderById(
+            _selectedTable!.currentOrderId!,
+          );
           if (existingOrder != null && mounted) {
             if (cartCtrl.isEmpty) {
               // Load table order into cart for adding more items / checkout
@@ -80,7 +96,8 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
             cartCtrl.setTableInfo(
               tableId: _selectedTable!.id,
               tableNumber: _selectedTable!.tableNumber,
-              customerName: _selectedTable!.customerName ?? _customerNameCtrl.text,
+              customerName:
+                  _selectedTable!.customerName ?? _customerNameCtrl.text,
               orderType: 'DINE_IN',
             );
           }
@@ -135,7 +152,11 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
                 children: [
                   const Row(
                     children: [
-                      Icon(Icons.table_restaurant_outlined, color: Color(0xFF0F172A), size: 24),
+                      Icon(
+                        Icons.table_restaurant,
+                        color: Color(0xFF0F172A),
+                        size: 24,
+                      ),
                       SizedBox(width: 10),
                       Text(
                         'Select Table & Customer',
@@ -148,14 +169,14 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
                     ],
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, color: Color(0xFF64748B)),
+                    icon: const AppSvgIcon(AssetTheme.close, color: Color(0xFF64748B), size: 18),
                     onPressed: () => Navigator.of(context).pop(),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
 
-              // Order Type Toggle (Dine-in vs Takeaway)
+              // Order Type Toggle
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
@@ -173,26 +194,39 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           decoration: BoxDecoration(
-                            color: _selectedOrderType == 'DINE_IN' ? Colors.white : Colors.transparent,
+                            color: _selectedOrderType == 'DINE_IN'
+                                ? Colors.white
+                                : Colors.transparent,
                             borderRadius: BorderRadius.circular(8),
                             boxShadow: _selectedOrderType == 'DINE_IN'
-                                ? [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 4)]
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.06,
+                                      ),
+                                      blurRadius: 4,
+                                    ),
+                                  ]
                                 : null,
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
-                                Icons.restaurant,
+                              AppSvgIcon(
+                                AssetTheme.kitchen,
                                 size: 18,
-                                color: _selectedOrderType == 'DINE_IN' ? ColorTheme.primary400 : ColorTheme.neutral600,
+                                color: _selectedOrderType == 'DINE_IN'
+                                    ? ColorTheme.primary400
+                                    : ColorTheme.neutral600,
                               ),
                               const SizedBox(width: 8),
                               Text(
                                 'Dine-In (Table)',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: _selectedOrderType == 'DINE_IN' ? ColorTheme.primary400 : ColorTheme.neutral600,
+                                  color: _selectedOrderType == 'DINE_IN'
+                                      ? ColorTheme.primary400
+                                      : ColorTheme.neutral600,
                                 ),
                               ),
                             ],
@@ -210,26 +244,89 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 10),
                           decoration: BoxDecoration(
-                            color: _selectedOrderType == 'TAKEAWAY' ? Colors.white : Colors.transparent,
+                            color: _selectedOrderType == 'TAKEAWAY'
+                                ? Colors.white
+                                : Colors.transparent,
                             borderRadius: BorderRadius.circular(8),
                             boxShadow: _selectedOrderType == 'TAKEAWAY'
-                                ? [BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 4)]
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.06,
+                                      ),
+                                      blurRadius: 4,
+                                    ),
+                                  ]
                                 : null,
                           ),
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
-                                Icons.takeout_dining,
+                              AppSvgIcon(
+                                AssetTheme.packageIcon,
                                 size: 18,
-                                color: _selectedOrderType == 'TAKEAWAY' ? AppConfig.accentCyan : const Color(0xFF64748B),
+                                color: _selectedOrderType == 'TAKEAWAY'
+                                    ? AppConfig.accentCyan
+                                    : const Color(0xFF64748B),
                               ),
                               const SizedBox(width: 8),
                               Text(
                                 'Takeaway / To-Go',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: _selectedOrderType == 'TAKEAWAY' ? const Color(0xFF0F172A) : const Color(0xFF64748B),
+                                  color: _selectedOrderType == 'TAKEAWAY'
+                                      ? const Color(0xFF0F172A)
+                                      : const Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => setState(() {
+                          _selectedOrderType = 'DELIVERY';
+                          _selectedTable = null;
+                        }),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 10),
+                          decoration: BoxDecoration(
+                            color: _selectedOrderType == 'DELIVERY'
+                                ? Colors.white
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: _selectedOrderType == 'DELIVERY'
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.06,
+                                      ),
+                                      blurRadius: 4,
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              AppSvgIcon(
+                                AssetTheme.delivery,
+                                size: 18,
+                                color: _selectedOrderType == 'DELIVERY'
+                                    ? const Color(0xFFEA580C)
+                                    : const Color(0xFF64748B),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Delivery',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: _selectedOrderType == 'DELIVERY'
+                                      ? const Color(0xFF0F172A)
+                                      : const Color(0xFF64748B),
                                 ),
                               ),
                             ],
@@ -249,11 +346,24 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
                 decoration: InputDecoration(
                   labelText: 'Customer Name / Phone (Optional)',
                   hintText: 'e.g. John Doe, Table 4 Guest',
-                  prefixIcon: const Icon(Icons.person_outline, color: Color(0xFF64748B)),
+                  prefixIcon: const Padding(
+                    padding: EdgeInsets.all(12),
+                    child: AppSvgIcon(
+                      AssetTheme.user,
+                      color: Color(0xFF64748B),
+                      size: 18,
+                    ),
+                  ),
                   filled: true,
                   fillColor: const Color(0xFFF8FAFC),
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
-                  enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFFE2E8F0))),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
                 ),
               ),
               const SizedBox(height: 14),
@@ -265,7 +375,11 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
                   children: [
                     const Text(
                       'Select Dining Table / VIP Room:',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: Color(0xFF0F172A),
+                      ),
                     ),
                     // Quick filters
                     Row(
@@ -283,28 +397,38 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
 
                 Expanded(
                   child: tables.isEmpty
-                      ? const Center(child: Text('No tables configured', style: TextStyle(color: Color(0xFF94A3B8))))
-                      : GridView.builder(
-                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            childAspectRatio: 1.35,
-                            crossAxisSpacing: 10,
-                            mainAxisSpacing: 10,
+                      ? const Center(
+                          child: Text(
+                            'No tables configured',
+                            style: TextStyle(color: Color(0xFF94A3B8)),
                           ),
+                        )
+                      : GridView.builder(
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 3,
+                                childAspectRatio: 1.35,
+                                crossAxisSpacing: 10,
+                                mainAxisSpacing: 10,
+                              ),
                           itemCount: tables.length,
                           itemBuilder: (context, index) {
                             final table = tables[index];
                             final isSelected = _selectedTable?.id == table.id;
                             final isAvailable = table.isAvailable;
 
-                            Color badgeColor = isAvailable ? AppConfig.accentGreen : AppConfig.accentAmber;
+                            Color badgeColor = isAvailable
+                                ? AppConfig.accentGreen
+                                : AppConfig.accentAmber;
 
                             return InkWell(
                               onTap: () {
                                 setState(() {
                                   _selectedTable = table;
-                                  if (table.customerName != null && table.customerName!.isNotEmpty) {
-                                    _customerNameCtrl.text = table.customerName!;
+                                  if (table.customerName != null &&
+                                      table.customerName!.isNotEmpty) {
+                                    _customerNameCtrl.text =
+                                        table.customerName!;
                                   }
                                 });
                               },
@@ -315,27 +439,35 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
                                 decoration: BoxDecoration(
                                   color: isSelected
                                       ? (table.isOccupied
-                                          ? ColorTheme.statusOrangeBg
-                                          : ColorTheme.primary50.withValues(alpha: 0.15))
+                                            ? ColorTheme.statusOrangeBg
+                                            : ColorTheme.primary50.withValues(
+                                                alpha: 0.15,
+                                              ))
                                       : isAvailable
-                                          ? ColorTheme.cardBg
-                                          : ColorTheme.statusOrangeBg,
+                                      ? ColorTheme.cardBg
+                                      : ColorTheme.statusOrangeBg,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
                                     color: isSelected
-                                        ? (table.isOccupied ? ColorTheme.statusOrange : ColorTheme.buttonPrimary)
+                                        ? (table.isOccupied
+                                              ? ColorTheme.statusOrange
+                                              : ColorTheme.buttonPrimary)
                                         : isAvailable
-                                            ? ColorTheme.neutral300
-                                            : ColorTheme.statusOrange.withValues(alpha: 0.6),
+                                        ? ColorTheme.neutral300
+                                        : ColorTheme.statusOrange.withValues(
+                                            alpha: 0.6,
+                                          ),
                                     width: isSelected ? 2 : 1,
                                   ),
                                 ),
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text(
                                           table.tableNumber,
@@ -343,15 +475,25 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
                                             fontWeight: FontWeight.bold,
                                             fontSize: 16,
                                             color: isSelected
-                                                ? (table.isOccupied ? ColorTheme.statusOrange : ColorTheme.buttonPrimary)
+                                                ? (table.isOccupied
+                                                      ? ColorTheme.statusOrange
+                                                      : ColorTheme
+                                                            .buttonPrimary)
                                                 : ColorTheme.neutral800,
                                           ),
                                         ),
                                         Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 6,
+                                            vertical: 2,
+                                          ),
                                           decoration: BoxDecoration(
-                                            color: badgeColor.withValues(alpha: 0.15),
-                                            borderRadius: BorderRadius.circular(6),
+                                            color: badgeColor.withValues(
+                                              alpha: 0.15,
+                                            ),
+                                            borderRadius: BorderRadius.circular(
+                                              6,
+                                            ),
                                           ),
                                           child: Text(
                                             table.status.displayName,
@@ -365,34 +507,55 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
                                       ],
                                     ),
                                     Text(
-                                      table.isOccupied && table.customerName != null
+                                      table.isOccupied &&
+                                              table.customerName != null
                                           ? 'Guest: ${table.customerName}'
                                           : table.name,
                                       style: TextStyle(
                                         fontSize: 11,
-                                        fontWeight: table.isOccupied ? FontWeight.w600 : FontWeight.normal,
-                                        color: table.isOccupied ? const Color(0xFF92400E) : const Color(0xFF64748B),
+                                        fontWeight: table.isOccupied
+                                            ? FontWeight.w600
+                                            : FontWeight.normal,
+                                        color: table.isOccupied
+                                            ? const Color(0xFF92400E)
+                                            : const Color(0xFF64748B),
                                       ),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                     Row(
                                       children: [
-                                        const Icon(Icons.people_outline, size: 13, color: Color(0xFF94A3B8)),
+                                        const AppSvgIcon(
+                                          AssetTheme.user,
+                                          size: 13,
+                                          color: Color(0xFF94A3B8),
+                                        ),
                                         const SizedBox(width: 4),
                                         Text(
                                           '${table.capacity} Seats',
-                                          style: const TextStyle(fontSize: 10, color: Color(0xFF64748B)),
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            color: Color(0xFF64748B),
+                                          ),
                                         ),
-                                        if (table.isOccupied && table.orderTotal != null) ...[
+                                        if (table.isOccupied &&
+                                            table.orderTotal != null) ...[
                                           const Spacer(),
                                           Text(
                                             '\$${table.orderTotal!.toStringAsFixed(2)}',
-                                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF92400E)),
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              color: Color(0xFF92400E),
+                                            ),
                                           ),
                                         ] else if (table.isVip) ...[
                                           const Spacer(),
-                                          const Icon(Icons.star, size: 14, color: AppConfig.accentPurple),
+                                          const AppSvgIcon(
+                                            AssetTheme.starFilled,
+                                            size: 14,
+                                            color: AppConfig.accentPurple,
+                                          ),
                                         ],
                                       ],
                                     ),
@@ -408,22 +571,35 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
                 if (isSelectedOccupied)
                   Container(
                     margin: const EdgeInsets.only(top: 8),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFEF3C7),
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppConfig.accentAmber.withValues(alpha: 0.5)),
+                      border: Border.all(
+                        color: AppConfig.accentAmber.withValues(alpha: 0.5),
+                      ),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.info_outline, color: Color(0xFF92400E), size: 16),
+                        const AppSvgIcon(
+                          AssetTheme.info,
+                          color: Color(0xFF92400E),
+                          size: 16,
+                        ),
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             cartCtrl.isEmpty
                                 ? 'Table ${_selectedTable!.tableNumber} is eating/pending. Confirming will load existing order to add more items.'
                                 : 'Table ${_selectedTable!.tableNumber} is active. Confirming will merge current cart items into this table order.',
-                            style: const TextStyle(fontSize: 11, color: Color(0xFF92400E), fontWeight: FontWeight.w500),
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF92400E),
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                         ),
                       ],
@@ -453,34 +629,46 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
                     child: ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: isSelectedOccupied
-                            ? (cartCtrl.isEmpty ? AppConfig.accentAmber : const Color(0xFF0D9488))
+                            ? (cartCtrl.isEmpty
+                                  ? AppConfig.accentAmber
+                                  : const Color(0xFF0D9488))
                             : const Color(0xFF0D9488),
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
-                      onPressed: _isLoadingOrder ? null : () => _handleConfirm(cartCtrl, posCtrl),
+                      onPressed: _isLoadingOrder
+                          ? null
+                          : () => _handleConfirm(cartCtrl, posCtrl),
                       icon: _isLoadingOrder
                           ? const SizedBox(
                               width: 18,
                               height: 18,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: Colors.white,
+                              ),
                             )
-                          : Icon(
+                          : AppSvgIcon(
                               isSelectedOccupied
-                                  ? (cartCtrl.isEmpty ? Icons.edit_note : Icons.call_merge)
-                                  : Icons.check_circle,
+                                  ? (cartCtrl.isEmpty
+                                        ? AssetTheme.files
+                                        : AssetTheme.plus)
+                                  : AssetTheme.success,
                               size: 18,
+                              color: Colors.white,
                             ),
                       label: Text(
                         _selectedOrderType == 'TAKEAWAY'
                             ? 'Set as Takeaway'
+                            : _selectedOrderType == 'DELIVERY'
+                            ? 'Set as Delivery'
                             : isSelectedOccupied
-                                ? (cartCtrl.isEmpty
-                                    ? 'Load Table ${_selectedTable!.tableNumber} Order'
-                                    : 'Merge Items with Table ${_selectedTable!.tableNumber}')
-                                : _selectedTable != null
-                                    ? 'Assign Table ${_selectedTable!.tableNumber}'
-                                    : 'Confirm',
+                            ? (cartCtrl.isEmpty
+                                  ? 'Load Table ${_selectedTable!.tableNumber} Order'
+                                  : 'Merge Items with Table ${_selectedTable!.tableNumber}')
+                            : _selectedTable != null
+                            ? 'Assign Table ${_selectedTable!.tableNumber}'
+                            : 'Confirm',
                         style: const TextStyle(fontWeight: FontWeight.bold),
                       ),
                     ),
@@ -504,7 +692,11 @@ class _AssignTableDialogState extends State<AssignTableDialog> {
         decoration: BoxDecoration(
           color: isSelected ? const Color(0xFF0D9488) : const Color(0xFFF1F5F9),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: isSelected ? const Color(0xFF0D9488) : const Color(0xFFCBD5E1)),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF0D9488)
+                : const Color(0xFFCBD5E1),
+          ),
         ),
         child: Text(
           label,

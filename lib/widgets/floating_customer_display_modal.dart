@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../app_config.dart';
 import '../services/presentation_service.dart';
 import '../views/customer_display/customer_main_view.dart';
+import '../core/theme/asset_theme.dart';
+import 'app_svg_icon.dart';
 
 /// Interactive Live Dual-Screen Modal & Floating Window.
 /// Displays the real-time Customer-Facing Display (CFD) alongside the Cashier Screen.
@@ -43,15 +45,15 @@ class FloatingCustomerDisplayModal extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.screen_share, color: AppConfig.accentCyan, size: 20),
+                  const AppSvgIcon(AssetTheme.video, color: AppConfig.accentCyan, size: 20),
                   const SizedBox(width: 10),
-                  const Column(
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Row(
                         children: [
-                          Text(
+                          const Text(
                             'Customer-Facing Display',
                             style: TextStyle(
                               color: Colors.white,
@@ -59,21 +61,25 @@ class FloatingCustomerDisplayModal extends StatelessWidget {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
-                          SizedBox(width: 8),
+                          const SizedBox(width: 8),
                           // Live Indicator Tag
                           DecoratedBox(
-                            decoration: BoxDecoration(
+                            decoration: const BoxDecoration(
                               color: Color(0xFF10B981),
                               borderRadius: BorderRadius.all(Radius.circular(4)),
                             ),
                             child: Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                               child: Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.circle, color: Colors.white, size: 6),
-                                  SizedBox(width: 4),
-                                  Text(
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  const Text(
                                     'LIVE DUAL-SCREEN',
                                     style: TextStyle(
                                       color: Colors.white,
@@ -87,8 +93,8 @@ class FloatingCustomerDisplayModal extends StatelessWidget {
                           ),
                         ],
                       ),
-                      SizedBox(height: 1),
-                      Text(
+                      const SizedBox(height: 1),
+                      const Text(
                         'Mirroring live cart, totals, and QR payments in real time',
                         style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11),
                       ),
@@ -120,14 +126,14 @@ class FloatingCustomerDisplayModal extends StatelessWidget {
                         );
                       }
                     },
-                    icon: const Icon(Icons.open_in_new, size: 15, color: AppConfig.accentCyan),
+                    icon: const AppSvgIcon(AssetTheme.refer, size: 15, color: AppConfig.accentCyan),
                     label: const Text('Open in 2nd Monitor Window', style: TextStyle(fontSize: 12)),
                   ),
                   const SizedBox(width: 10),
 
                   // Close Dialog Button
                   IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white, size: 20),
+                    icon: const AppSvgIcon(AssetTheme.close, color: Colors.white, size: 18),
                     tooltip: 'Close Preview',
                     onPressed: () => Navigator.of(context).pop(),
                   ),

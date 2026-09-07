@@ -4,6 +4,8 @@ import '../../app_config.dart';
 import '../../controllers/pos_controller.dart';
 import '../../database/product_dao.dart';
 import '../../models/product_model.dart';
+import '../../core/theme/asset_theme.dart';
+import '../../widgets/app_svg_icon.dart';
 
 class CategoryScreen extends StatefulWidget {
   const CategoryScreen({super.key});
@@ -76,7 +78,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.restaurant_menu_outlined, color: Color(0xFF0F172A), size: 24),
+                    AppSvgIcon(AssetTheme.allCate, color: Color(0xFF0F172A), size: 24),
                     SizedBox(width: 10),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -109,7 +111,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     style: const TextStyle(fontSize: 13, color: Color(0xFF0F172A)),
                     decoration: InputDecoration(
                       hintText: 'Search categories...',
-                      prefixIcon: const Icon(Icons.search, size: 18, color: Color(0xFF64748B)),
+                      prefixIcon: const Padding(
+                        padding: EdgeInsets.all(10),
+                        child: AppSvgIcon(AssetTheme.search, size: 18, color: Color(0xFF64748B)),
+                      ),
                       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 0),
                       fillColor: const Color(0xFFF1F5F9),
                       filled: true,
@@ -136,7 +141,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     elevation: 0,
                   ),
                   onPressed: () => _showCategoryDialog(context, posCtrl, null),
-                  icon: const Icon(Icons.add, size: 16),
+                  icon: const AppSvgIcon(AssetTheme.plus, size: 16, color: Colors.white),
                   label: const Text('Add Category', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                 ),
               ],
@@ -152,7 +157,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.menu_book_outlined, size: 48, color: Color(0xFFCBD5E1)),
+                            const AppSvgIcon(AssetTheme.allCate, size: 48, color: Color(0xFFCBD5E1)),
                             const SizedBox(height: 12),
                             Text(
                               _searchQuery.isEmpty ? 'No menu categories created yet' : 'No categories match "$_searchQuery"',
@@ -165,7 +170,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                                 side: const BorderSide(color: Color(0xFFCBD5E1)),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                               ),
-                              icon: const Icon(Icons.add, size: 16),
+                              icon: const AppSvgIcon(AssetTheme.plus, size: 16, color: Color(0xFF0F172A)),
                               label: const Text('Create Category'),
                             ),
                           ],
@@ -542,17 +547,17 @@ class _ModernCategoryCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                     ),
-                    icon: const Icon(Icons.add, size: 14),
+                    icon: const AppSvgIcon(AssetTheme.plus, size: 14, color: Color(0xFF0F172A)),
                     label: const Text('Add Subcategory', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
                   ),
                   const SizedBox(width: 6),
                   IconButton(
-                    icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF64748B)),
+                    icon: const AppSvgIcon(AssetTheme.files, size: 18, color: Color(0xFF64748B)),
                     tooltip: 'Edit Category Name',
                     onPressed: onEditCategory,
                   ),
                   IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFF94A3B8)),
+                    icon: const AppSvgIcon(AssetTheme.bin, size: 18, color: Color(0xFF94A3B8)),
                     tooltip: 'Delete Category',
                     onPressed: onDeleteCategory,
                   ),
@@ -562,7 +567,7 @@ class _ModernCategoryCard extends StatelessWidget {
                   AnimatedRotation(
                     duration: const Duration(milliseconds: 180),
                     turns: isExpanded ? 0.5 : 0.0,
-                    child: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF64748B), size: 20),
+                    child: const AppSvgIcon(AssetTheme.chevronDown, color: Color(0xFF64748B), size: 18),
                   ),
                 ],
               ),
@@ -624,7 +629,7 @@ class _ModernCategoryCard extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(4),
                                   child: const Padding(
                                     padding: EdgeInsets.all(2),
-                                    child: Icon(Icons.edit, size: 13, color: Color(0xFF64748B)),
+                                    child: AppSvgIcon(AssetTheme.files, size: 13, color: Color(0xFF64748B)),
                                   ),
                                 ),
                                 const SizedBox(width: 2),
@@ -633,7 +638,7 @@ class _ModernCategoryCard extends StatelessWidget {
                                   borderRadius: BorderRadius.circular(4),
                                   child: const Padding(
                                     padding: EdgeInsets.all(2),
-                                    child: Icon(Icons.close, size: 13, color: Color(0xFF94A3B8)),
+                                    child: AppSvgIcon(AssetTheme.close, size: 13, color: Color(0xFF94A3B8)),
                                   ),
                                 ),
                               ],
@@ -653,7 +658,7 @@ class _ModernCategoryCard extends StatelessWidget {
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.add, size: 14, color: Color(0xFF0F172A)),
+                                AppSvgIcon(AssetTheme.plus, size: 14, color: Color(0xFF0F172A)),
                                 SizedBox(width: 4),
                                 Text(
                                   'Add Subcategory',

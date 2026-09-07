@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../app_config.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/settings_controller.dart';
-import '../../widgets/admin_pin_dialog.dart';
+import '../../features/auth/views/widgets/role_pin_auth_dialog.dart';
+import '../../models/user_model.dart';
 import '../../widgets/app_logo_widget.dart';
+import '../../core/theme/asset_theme.dart';
+import '../../widgets/app_svg_icon.dart';
 import '../cashier/cashier_main_layout.dart';
 import '../cashier/widgets/nav_sidebar.dart';
 
@@ -15,7 +19,9 @@ class SplashScreen extends StatefulWidget {
   State<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late UserModel _selectedUser;
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
@@ -23,14 +29,15 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
+    _selectedUser = AuthController.defaultUsers.last;
     _animCtrl = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 900),
+      duration: const Duration(milliseconds: 800),
     );
 
     _fadeAnim = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
     _slideAnim = Tween<Offset>(
-      begin: const Offset(0, 0.08),
+      begin: const Offset(0, 0.06),
       end: Offset.zero,
     ).animate(CurvedAnimation(parent: _animCtrl, curve: Curves.easeOutCubic));
 
@@ -43,29 +50,30 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     super.dispose();
   }
 
-  void _launchPosMode(BuildContext context) {
-    // POS mode launches immediately with NO PIN code required
-    context.read<AuthController>().loginAsCashier();
-    _navigateToLayout(context, CashierNavTab.pos);
-  }
+  void _promptPinForUser(BuildContext context, UserModel user) {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (ctx) => RolePinAuthDialog(
+        user: user,
+        onAuthenticated: () {
+          final auth = context.read<AuthController>();
+          auth.loginWithUserAndPin(user, user.pinCode);
 
-  Future<void> _launchDashboardMode(BuildContext context) async {
-    // Dashboard mode requires master Admin PIN code
-    final verified = await AdminPinDialog.show(
-      context,
-      title: 'Admin Verification',
-      subtitle: 'Enter master PIN code to unlock Analytics Dashboard and Admin controls',
+          if (user.isMainBoss || user.isSubBoss) {
+            _navigateToLayout(context, CashierNavTab.dashboard);
+          } else {
+            _navigateToLayout(context, CashierNavTab.pos);
+          }
+        },
+      ),
     );
-
-    if (verified && context.mounted) {
-      _navigateToLayout(context, CashierNavTab.dashboard);
-    }
   }
 
   void _navigateToLayout(BuildContext context, CashierNavTab tab) {
     Navigator.of(context).pushReplacement(
       PageRouteBuilder(
-        transitionDuration: const Duration(milliseconds: 500),
+        transitionDuration: const Duration(milliseconds: 400),
         pageBuilder: (_, _, _) => CashierMainLayout(initialTab: tab),
         transitionsBuilder: (_, animation, _, child) =>
             FadeTransition(opacity: animation, child: child),
@@ -78,13 +86,14 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     final settingsCtrl = context.watch<SettingsController>();
     final storeName = settingsCtrl.settings.storeName;
     final logoPath = settingsCtrl.settings.logoPath;
+    final users = AuthController.defaultUsers;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: const Color(0xFFF1F5F9),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
             child: FadeTransition(
               opacity: _fadeAnim,
               child: SlideTransition(
@@ -92,27 +101,29 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Brand Logo with Emerald Gradient Glow or Store Profile Image
+                    // Brand Logo
                     AppLogoWidget(
                       logoPath: logoPath,
-                      size: 84,
-                      borderRadius: 24,
-                      fallbackIcon: Icons.point_of_sale,
+                      size: 76,
+                      borderRadius: 20,
+                      fallbackSvg: AssetTheme.store,
                       boxShadow: [
                         BoxShadow(
-                          color: ColorTheme.buttonPrimary.withValues(alpha: 0.2),
-                          blurRadius: 20,
-                          offset: const Offset(0, 8),
+                          color: ColorTheme.buttonPrimary.withValues(
+                            alpha: 0.2,
+                          ),
+                          blurRadius: 16,
+                          offset: const Offset(0, 6),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 14),
 
                     // App Title & Store Name
                     Text(
                       storeName.toUpperCase(),
                       style: const TextStyle(
-                        fontSize: 26,
+                        fontSize: 24,
                         fontWeight: FontWeight.bold,
                         color: ColorTheme.neutral800,
                         letterSpacing: 0.5,
@@ -120,168 +131,163 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                     ),
                     const SizedBox(height: 4),
                     const Text(
-                      'Enterprise Offline Dual-Screen Point of Sale',
-                      style: TextStyle(fontSize: 14, color: ColorTheme.neutral600, fontWeight: FontWeight.w500),
+                      'OmniPOS Enterprise • Multi-Branch Odoo-Grade Suite',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: ColorTheme.neutral600,
+                        fontWeight: FontWeight.w500,
+                      ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
 
-                    // Offline Ready Badge
+                    // 100% Offline Ready Badge
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 4,
+                      ),
                       decoration: BoxDecoration(
-                        color: ColorTheme.neutral100,
+                        color: Colors.white,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: ColorTheme.neutral300),
+                        border: Border.all(color: const Color(0xFFCBD5E1)),
                       ),
                       child: const Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.cloud_off, size: 14, color: ColorTheme.primary400),
+                          AppSvgIcon(
+                            AssetTheme.flash,
+                            size: 13,
+                            color: Color(0xFF0284C7),
+                          ),
                           SizedBox(width: 6),
                           Text(
-                            '100% OFFLINE READY • DUAL-SCREEN ENABLED',
+                            '100% OFFLINE READY • DUAL-SCREEN & CASH DRAWER ACTIVE',
                             style: TextStyle(
-                              color: ColorTheme.primary400,
-                              fontSize: 11,
+                              color: Color(0xFF0284C7),
+                              fontSize: 10.5,
                               fontWeight: FontWeight.bold,
+                              letterSpacing: 0.4,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const SizedBox(height: 36),
+                    const SizedBox(height: 28),
 
-                    // Select Workspace / Launch Mode Prompt
+                    // Login panel
                     const Text(
-                      'SELECT LAUNCH MODE',
+                      'SIGN IN TO OMNI POS',
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: 12,
                         fontWeight: FontWeight.bold,
-                        color: ColorTheme.neutral500,
+                        color: Color(0xFF64748B),
                         letterSpacing: 1.5,
                       ),
                     ),
-                    const SizedBox(height: 20),
-
-                    // Two Primary Launch Mode Cards
+                    const SizedBox(height: 16),
                     ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 820),
-                      child: Row(
-                        children: [
-                          // 1. POS MODE CARD
-                          Expanded(
-                            child: _buildModeCard(
-                              context: context,
-                              title: 'Point of Sale (POS)',
-                              subtitle: 'Cashier terminal, menu catalog, table assignments, and checkout (No PIN required)',
-                              icon: Icons.storefront,
-                              accentColor: ColorTheme.buttonPrimary,
-                              buttonLabel: 'Launch POS Mode',
-                              onTap: () => _launchPosMode(context),
+                      constraints: const BoxConstraints(maxWidth: 430),
+                      child: Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.05),
+                              blurRadius: 18,
+                              offset: const Offset(0, 8),
                             ),
-                          ),
-                          const SizedBox(width: 20),
-
-                          // 2. DASHBOARD MODE CARD
-                          Expanded(
-                            child: _buildModeCard(
-                              context: context,
-                              title: 'Analytics Dashboard',
-                              subtitle: 'Gross revenue, live sales spreadsheet, KPI charts, and Excel reports (Admin PIN protected)',
-                              icon: Icons.insights,
-                              accentColor: AppConfig.accentCyan,
-                              buttonLabel: 'Launch Dashboard',
-                              onTap: () => _launchDashboardMode(context),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            const Text(
+                              'Role',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: ColorTheme.neutral600,
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 7),
+                            DropdownButtonFormField<UserModel>(
+                              initialValue: _selectedUser,
+                              isExpanded: true,
+                              decoration: InputDecoration(
+                                prefixIcon: const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: AppSvgIcon(
+                                    AssetTheme.user,
+                                    size: 18,
+                                    color: ColorTheme.neutral600,
+                                  ),
+                                ),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 12,
+                                ),
+                              ),
+                              items: users.map((user) {
+                                return DropdownMenuItem<UserModel>(
+                                  value: user,
+                                  child: Text(
+                                    user.displayName,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                );
+                              }).toList(),
+                              onChanged: (user) {
+                                if (user != null) {
+                                  setState(() => _selectedUser = user);
+                                }
+                              },
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              _selectedUser.isMainBoss
+                                  ? 'Full access to POS, Dashboard, Reports & Settings'
+                                  : 'Access to checkout and shared product catalog',
+                              style: const TextStyle(
+                                fontSize: 11.5,
+                                color: ColorTheme.neutral600,
+                              ),
+                            ),
+                            const SizedBox(height: 18),
+                            ElevatedButton.icon(
+                              onPressed: () =>
+                                  _promptPinForUser(context, _selectedUser),
+                              icon: const AppSvgIcon(
+                                AssetTheme.verify,
+                                size: 18,
+                                color: Colors.white,
+                              ),
+                              label: const Text('Continue with PIN'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: ColorTheme.buttonPrimary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                elevation: 0,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
-                    
                   ],
                 ),
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModeCard({
-    required BuildContext context,
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color accentColor,
-    required String buttonLabel,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(20),
-        child: Container(
-          padding: const EdgeInsets.all(28),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: [
-              BoxShadow(
-                color: accentColor.withValues(alpha: 0.08),
-                blurRadius: 16,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(icon, color: accentColor, size: 32),
-              ),
-              const SizedBox(height: 20),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                subtitle,
-                style: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFF64748B),
-                  height: 1.4,
-                ),
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                height: 46,
-                child: ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: accentColor,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    elevation: 0,
-                  ),
-                  onPressed: onTap,
-                  icon: const Icon(Icons.arrow_forward, size: 18),
-                  label: Text(buttonLabel, style: const TextStyle(fontWeight: FontWeight.bold)),
-                ),
-              ),
-            ],
           ),
         ),
       ),

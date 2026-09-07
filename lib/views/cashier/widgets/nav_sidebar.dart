@@ -7,6 +7,7 @@ enum CashierNavTab {
   products,
   categories,
   history,
+  accounting,
   dashboard,
   settings,
 }
@@ -60,19 +61,19 @@ class _NavSidebarState extends State<NavSidebar> {
         children: [
           const SizedBox(height: 18),
           const Text(
-            'POS',
+            'OMNI POS',
             style: TextStyle(
               color: ColorTheme.primary400,
-              fontSize: 16,
+              fontSize: 14,
               fontWeight: FontWeight.w900,
               letterSpacing: 0.5,
             ),
           ),
           const Text(
-            'V1.0',
+            'Enterprise',
             style: TextStyle(
               color: ColorTheme.neutral500,
-              fontSize: 11,
+              fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -118,7 +119,17 @@ class _NavSidebarState extends State<NavSidebar> {
                   onTap: () => widget.onTabChanged(CashierNavTab.history),
                 ),
 
-                // 5. Analytics Dashboard
+                // 5. Odoo Accounting (Profit & Loss)
+                _NavItem(
+                  tab: CashierNavTab.accounting,
+                  icon: Icons.account_balance_outlined,
+                  activeIcon: Icons.account_balance,
+                  label: 'P&L Acct',
+                  isSelected: widget.currentTab == CashierNavTab.accounting,
+                  onTap: () => widget.onTabChanged(CashierNavTab.accounting),
+                ),
+
+                // 6. Analytics Dashboard
                 _NavItem(
                   tab: CashierNavTab.dashboard,
                   icon: Icons.bar_chart_outlined,
@@ -154,7 +165,7 @@ class _NavSidebarState extends State<NavSidebar> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Menu Chip (Horizontal Row with Vibrant Blue Active State) ────
+          // ── Menu Chip ────
           InkWell(
             onTap: () {
               setState(() {
@@ -248,8 +259,6 @@ class _NavSidebarState extends State<NavSidebar> {
   }
 }
 
-// ── Clean Sub-navigation item inside Menu (Horizontal Row Pill) ─────────────
-
 class _SubNavItem extends StatelessWidget {
   final IconData icon;
   final IconData activeIcon;
@@ -290,7 +299,7 @@ class _SubNavItem extends StatelessWidget {
           children: [
             Icon(
               isSelected ? activeIcon : icon,
-              size: 15,
+              size: 16,
               color: isSelected ? Colors.white : const Color(0xFF64748B),
             ),
             const SizedBox(width: 6),
@@ -312,8 +321,6 @@ class _SubNavItem extends StatelessWidget {
     );
   }
 }
-
-// ── Individual nav item ─────────────────────────────────────────────────────
 
 class _NavItem extends StatelessWidget {
   final CashierNavTab tab;
@@ -352,14 +359,14 @@ class _NavItem extends StatelessWidget {
             children: [
               Icon(
                 isSelected ? activeIcon : icon,
-                size: 23,
+                size: 24,
                 color: isSelected ? Colors.white : const Color(0xFF475569),
               ),
               const SizedBox(height: 3),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 12.5,
+                  fontSize: 12,
                   fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
                   color: isSelected ? Colors.white : const Color(0xFF334155),
                 ),

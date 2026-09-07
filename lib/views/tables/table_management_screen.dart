@@ -6,6 +6,8 @@ import '../../controllers/pos_controller.dart';
 import '../../controllers/table_controller.dart';
 import '../../database/order_dao.dart';
 import '../../models/dining_table_model.dart';
+import '../../core/theme/asset_theme.dart';
+import '../../widgets/app_svg_icon.dart';
 
 class TableManagementScreen extends StatefulWidget {
   final VoidCallback? onSwitchToPos;
@@ -50,7 +52,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.table_restaurant_outlined, color: Color(0xFF0F172A), size: 24),
+                    Icon(Icons.table_restaurant, color: Color(0xFF0F172A), size: 24),
                     SizedBox(width: 10),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -91,7 +93,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                     elevation: 0,
                   ),
                   onPressed: () => _showAddTableDialog(context),
-                  icon: const Icon(Icons.add, size: 18),
+                  icon: const AppSvgIcon(AssetTheme.plus, size: 18, color: Colors.white),
                   label: const Text('Add Table / Room', style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ],
@@ -129,7 +131,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                   _buildTypeFilterChip(tableCtrl, 'Patio / Outdoor', TableType.outdoor),
                   const SizedBox(width: 16),
                   IconButton(
-                    icon: const Icon(Icons.refresh, color: ColorTheme.primary400),
+                    icon: const Icon(Icons.refresh, color: ColorTheme.primary400, size: 22),
                     tooltip: 'Refresh Floor',
                     onPressed: () => tableCtrl.loadTables(),
                   ),
@@ -283,7 +285,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (isVip) ...[
-                          const Icon(Icons.star, size: 14, color: AppConfig.accentPurple),
+                          const AppSvgIcon(AssetTheme.starFilled, size: 14, color: AppConfig.accentPurple),
                           const SizedBox(width: 4),
                         ],
                         Flexible(
@@ -322,7 +324,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                   width: 22,
                   height: 22,
                   child: PopupMenuButton<String>(
-                    icon: const Icon(Icons.more_vert, size: 18, color: Color(0xFF94A3B8)),
+                    icon: const AppSvgIcon(AssetTheme.dots, size: 18, color: Color(0xFF94A3B8)),
                     padding: EdgeInsets.zero,
                   onSelected: (val) {
                     if (val == 'free') {
@@ -337,7 +339,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                         value: 'free',
                         child: Row(
                           children: [
-                            Icon(Icons.check, size: 16, color: AppConfig.accentGreen),
+                            AppSvgIcon(AssetTheme.success, size: 16, color: AppConfig.accentGreen),
                             SizedBox(width: 8),
                             Text('Mark Available'),
                           ],
@@ -347,7 +349,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                       value: 'delete',
                       child: Row(
                         children: [
-                          Icon(Icons.delete, size: 16, color: AppConfig.accentRose),
+                          AppSvgIcon(AssetTheme.bin, size: 16, color: AppConfig.accentRose),
                           SizedBox(width: 8),
                           Text('Delete Table'),
                         ],
@@ -375,7 +377,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                 const SizedBox(height: 2),
                 Row(
                   children: [
-                    const Icon(Icons.people_outline, size: 14, color: Color(0xFF64748B)),
+                    const AppSvgIcon(AssetTheme.user, size: 14, color: Color(0xFF64748B)),
                     const SizedBox(width: 4),
                     Text(
                       '${table.capacity} Seats • ${table.type.displayName}',
@@ -435,7 +437,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                       onPressed: () => _handleOpenOccupiedOrder(table, cartCtrl, posCtrl),
-                      icon: const Icon(Icons.receipt_long, size: 16),
+                      icon: const AppSvgIcon(AssetTheme.files, size: 16, color: Colors.white),
                       label: const Text('Open / Pay Order', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                     )
                   : ElevatedButton.icon(
@@ -455,7 +457,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                         );
                         widget.onSwitchToPos?.call();
                       },
-                      icon: const Icon(Icons.add_shopping_cart, size: 16),
+                      icon: const AppSvgIcon(AssetTheme.cart, size: 16, color: Colors.white),
                       label: const Text('Start Order', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                     ),
             ),
@@ -542,12 +544,12 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                     const Text('Capacity (Seats): ', style: TextStyle(fontWeight: FontWeight.bold)),
                     const Spacer(),
                     IconButton(
-                      icon: const Icon(Icons.remove_circle_outline),
+                      icon: const AppSvgIcon(AssetTheme.minus, size: 18, color: Color(0xFF0D9488)),
                       onPressed: capacity > 1 ? () => setDialogState(() => capacity--) : null,
                     ),
                     Text('$capacity Seats', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
                     IconButton(
-                      icon: const Icon(Icons.add_circle_outline),
+                      icon: const AppSvgIcon(AssetTheme.plus, size: 18, color: Color(0xFF0D9488)),
                       onPressed: () => setDialogState(() => capacity++),
                     ),
                   ],

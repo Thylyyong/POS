@@ -39,6 +39,9 @@ class DashboardController extends ChangeNotifier {
   DashboardDateFilter _selectedFilter = DashboardDateFilter.today;
   DashboardDateFilter get selectedFilter => _selectedFilter;
 
+  String _selectedBranch = 'store_a';
+  String get selectedBranch => _selectedBranch;
+
   DateTime? _customStartDate;
   DateTime? get customStartDate => _customStartDate;
 
@@ -113,7 +116,11 @@ class DashboardController extends ChangeNotifier {
     }
   }
 
-  Future<void> loadDashboardData() async {
+  Future<void> loadDashboardData({String? branchId}) async {
+    if (branchId != null) {
+      _selectedBranch = branchId;
+    }
+
     _isLoading = true;
     _error = null;
     notifyListeners();
@@ -122,12 +129,23 @@ class DashboardController extends ChangeNotifier {
     try {
       final (start, end) = _calculateDateRange();
 
-      final metrics =
-          await _orderDao.getSalesMetrics(startDate: start, endDate: end);
+      final metrics = await _orderDao.getSalesMetrics(
+        startDate: start,
+        endDate: end,
+        branchId: _selectedBranch,
+      );
       final topItems = await _orderDao.getTopSellingItems(
-          startDate: start, endDate: end, limit: 8);
-      final recentOrders =
-          await _orderDao.getOrders(startDate: start, endDate: end, limit: 50);
+        startDate: start,
+        endDate: end,
+        branchId: _selectedBranch,
+        limit: 8,
+      );
+      final recentOrders = await _orderDao.getOrders(
+        startDate: start,
+        endDate: end,
+        branchId: _selectedBranch,
+        limit: 50,
+      );
 
       if (_loadGuard.isStale(token)) return;
 
@@ -144,6 +162,11 @@ class DashboardController extends ChangeNotifier {
         notifyListeners();
       }
     }
+  }
+
+  void setBranch(String branchId) {
+    _selectedBranch = branchId;
+    loadDashboardData();
   }
 
   void setFilter(DashboardDateFilter filter) {
@@ -170,18 +193,21 @@ class DashboardController extends ChangeNotifier {
 
     try {
       final (start, end) = _calculateDateRange();
-      var allOrders =
-          await _orderDao.getOrders(startDate: start, endDate: end, limit: 500);
+      var allOrders = await _orderDao.getOrders(
+        startDate: start,
+        endDate: end,
+        branchId: _selectedBranch,
+        limit: 500,
+      );
       var exportMetrics = _metrics;
       var exportTopItems = _topItems;
       DateTime? exportStart = start;
       DateTime? exportEnd = end;
 
-      // If the selected date filter has 0 orders, also fetch all orders so the report contains the complete sales & profit register
       if (allOrders.isEmpty) {
-        allOrders = await _orderDao.getOrders(limit: 500);
-        exportMetrics = await _orderDao.getSalesMetrics();
-        exportTopItems = await _orderDao.getTopSellingItems(limit: 50);
+        allOrders = await _orderDao.getOrders(branchId: _selectedBranch, limit: 500);
+        exportMetrics = await _orderDao.getSalesMetrics(branchId: _selectedBranch);
+        exportTopItems = await _orderDao.getTopSellingItems(branchId: _selectedBranch, limit: 50);
         exportStart = null;
         exportEnd = null;
       }

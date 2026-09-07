@@ -1,8 +1,10 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
+
 import '../database/settings_dao.dart';
 import '../models/store_settings_model.dart';
 import '../services/presentation_service.dart';
@@ -33,7 +35,13 @@ class SettingsController extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _settings = await _settingsDao.getSettings();
+      final loadedSettings = await _settingsDao.getSettings();
+      if (loadedSettings.adminPinHash.isEmpty) {
+        _settings = loadedSettings.withAdminPin(loadedSettings.adminPin);
+        await _settingsDao.saveSettings(_settings);
+      } else {
+        _settings = loadedSettings;
+      }
       if (_settings.cfdEnabled) {
         await _presentationService.refreshDisplays();
       }
@@ -67,8 +75,16 @@ class SettingsController extends ChangeNotifier {
   Future<void> togglePaperSize(bool is80mm) =>
       _save(_settings.copyWith(isPaperSize80mm: is80mm));
 
-  Future<void> updateAdminPin(String pin) =>
-      _save(_settings.copyWith(adminPin: pin));
+  Future<void> setPrinterProfile(String profile) =>
+      _save(_settings.copyWith(printerProfile: profile));
+
+  Future<void> setUsdToKhrRate(double rate) =>
+      _save(_settings.copyWith(usdToKhrRate: rate));
+
+  Future<void> toggleKhrDualCurrency(bool enabled) =>
+      _save(_settings.copyWith(showKhrDualCurrency: enabled));
+
+  Future<void> updateAdminPin(String pin) => _save(_settings.withAdminPin(pin));
 
   Future<void> toggleCfd(bool enabled) async {
     await _save(_settings.copyWith(cfdEnabled: enabled));
@@ -100,8 +116,8 @@ class SettingsController extends ChangeNotifier {
       final appDir = await getApplicationDocumentsDirectory();
       final fileName =
           'store_logo_${DateTime.now().millisecondsSinceEpoch}${p.extension(pickedFile.path)}';
-      final savedFile =
-          await File(pickedFile.path).copy('${appDir.path}/$fileName');
+      final savedFile = await File(pickedFile.path)
+          .copy('${appDir.path}/$fileName');
 
       await _save(_settings.copyWith(logoPath: savedFile.path));
     } catch (e) {

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../app_config.dart';
 import '../../../controllers/cart_controller.dart';
+import '../../../core/theme/asset_theme.dart';
+import '../../../widgets/app_svg_icon.dart';
 
 void showHeldOrdersModal(BuildContext context, CartController cart) {
   showDialog(
@@ -9,7 +11,7 @@ void showHeldOrdersModal(BuildContext context, CartController cart) {
       backgroundColor: Colors.white,
       title: const Row(
         children: [
-          Icon(Icons.pause_circle_outline, color: AppConfig.accentAmber),
+          AppSvgIcon(AssetTheme.snooze, color: AppConfig.accentAmber, size: 20),
           SizedBox(width: 8),
           Text(
             'Held Orders',

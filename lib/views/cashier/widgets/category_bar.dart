@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../app_config.dart';
 import '../../../models/product_model.dart';
+import '../../../core/theme/asset_theme.dart';
+import '../../../widgets/app_svg_icon.dart';
 
 class CategoryBar extends StatefulWidget {
   final List<Category> categories;
@@ -86,7 +88,7 @@ class _CategoryBarState extends State<CategoryBar> {
             Padding(
               padding: const EdgeInsets.only(right: 6),
               child: _ScrollNavButton(
-                icon: Icons.chevron_left,
+                svgAsset: AssetTheme.chevronLeft,
                 tooltip: 'Scroll left',
                 onPressed: () => _scroll(-220),
               ),
@@ -126,7 +128,7 @@ class _CategoryBarState extends State<CategoryBar> {
             Padding(
               padding: const EdgeInsets.only(left: 6),
               child: _ScrollNavButton(
-                icon: Icons.chevron_right,
+                svgAsset: AssetTheme.chevronRight,
                 tooltip: 'Scroll right',
                 onPressed: () => _scroll(220),
               ),
@@ -139,12 +141,12 @@ class _CategoryBarState extends State<CategoryBar> {
 
 // ── Small scroll navigation chevron button ────────────────────────────────────
 class _ScrollNavButton extends StatelessWidget {
-  final IconData icon;
+  final String svgAsset;
   final String tooltip;
   final VoidCallback onPressed;
 
   const _ScrollNavButton({
-    required this.icon,
+    required this.svgAsset,
     required this.tooltip,
     required this.onPressed,
   });
@@ -167,7 +169,7 @@ class _ScrollNavButton extends StatelessWidget {
               border: Border.all(color: ColorTheme.neutral300, width: 1),
             ),
             alignment: Alignment.center,
-            child: Icon(icon, size: 20, color: ColorTheme.primary400),
+            child: AppSvgIcon(svgAsset, size: 20, color: ColorTheme.primary400),
           ),
         ),
       ),
