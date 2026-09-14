@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/device_profile.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/settings_controller.dart';
 import '../../controllers/pos_controller.dart';
@@ -79,17 +80,29 @@ class _CashierMainLayoutState extends State<CashierMainLayout> {
                       children: [
                         TopHeaderBar(onNavigate: _navigateToTab),
                         Expanded(
-                          child: Row(
-                            children: [
-                              const Expanded(flex: 70, child: ItemGrid()),
-                              Expanded(
-                                flex: 30,
-                                child: CartPanel(
-                                  onOpenTablePicker: () =>
-                                      _navigateToTab(CashierNavTab.tables),
-                                ),
-                              ),
-                            ],
+                          child: LayoutBuilder(
+                            builder: (context, constraints) {
+                              final settings = context.watch<SettingsController>().settings;
+                              final isKiosk = DeviceProfile.isKiosk(
+                                context,
+                                deviceProfile: settings.deviceProfile,
+                              );
+                              return Row(
+                                children: [
+                                  Expanded(
+                                    flex: isKiosk ? 58 : 70,
+                                    child: const ItemGrid(),
+                                  ),
+                                  Expanded(
+                                    flex: isKiosk ? 42 : 30,
+                                    child: CartPanel(
+                                      onOpenTablePicker: () =>
+                                          _navigateToTab(CashierNavTab.tables),
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
                           ),
                         ),
                       ],

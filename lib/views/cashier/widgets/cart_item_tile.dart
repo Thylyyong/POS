@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../../../controllers/cart_controller.dart';
 import '../../../controllers/settings_controller.dart';
 import '../../../core/theme/asset_theme.dart';
+import '../../../core/theme/sprite_icons.dart';
 import '../../../widgets/app_svg_icon.dart';
+import '../../../widgets/cart_item_action_dialog.dart';
 
 class CartItemTile extends StatelessWidget {
   final CartItem item;
@@ -28,30 +30,53 @@ class CartItemTile extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              // Product Name & Unit Price
+              // Product Name & Unit Price (Click to open Numpad / Price / Void)
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item.product.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
-                        color: Color(0xFF0F172A),
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                child: InkWell(
+                  onTap: () => CartItemActionDialog.show(
+                    context,
+                    itemIndex: index,
+                    item: item,
+                  ),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                item.product.name,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                  color: Color(0xFF0F172A),
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            const AppSvgIcon.sprite(
+                              SpriteIcons.edit,
+                              size: 15,
+                              color: Color(0xFF94A3B8),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '$currency${item.unitPrice.toStringAsFixed(2)} each',
+                          style: const TextStyle(
+                            color: Color(0xFF64748B),
+                            fontSize: 11,
+                          ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '$currency${item.unitPrice.toStringAsFixed(2)} each',
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 11,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
 

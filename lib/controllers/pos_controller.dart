@@ -53,6 +53,9 @@ class PosController extends ChangeNotifier {
   String _searchQuery = '';
   String get searchQuery => _searchQuery;
 
+  double _scrollOffset = 0.0;
+  double get scrollOffset => _scrollOffset;
+
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
@@ -72,6 +75,7 @@ class PosController extends ChangeNotifier {
   // Tracked timers
   Timer? _noticeTimer;
   Timer? _cfdIdleTimer;
+  Timer? _scrollDebounceTimer;
 
   // ── Init ──────────────────────────────────────────────────────────────────
   PosController() {
@@ -123,6 +127,7 @@ class PosController extends ChangeNotifier {
     _categories = await _productDao.getAllCategories();
     _subcategories = await _productDao.getAllSubcategories();
     notifyListeners();
+    _syncMenuToCfd();
   }
 
   // ── Products ──────────────────────────────────────────────────────────────
@@ -162,29 +167,84 @@ class PosController extends ChangeNotifier {
 
     _products = result;
     notifyListeners();
+    _syncMenuToCfd();
   }
 
-  // ── Selection ─────────────────────────────────────────────────────────────
-  void selectCategory(String categoryId) {
+  void _syncMenuToCfd() {
+    _presentationService.sendMenuToCustomerDisplay(
+      categories: _categories.map((c) => c.toMap()).toList(),
+      subcategories: _subcategories.map((s) => s.toMap()).toList(),
+      products: _products.map((p) => p.toMap()).toList(),
+    );
+    _presentationService.syncPosNavigation(
+      selectedCategoryId: _selectedCategoryId,
+      selectedSubcategoryId: _selectedSubcategoryId,
+      searchQuery: _searchQuery,
+      scrollOffset: _scrollOffset,
+    );
+  }
+
+  // ── Selection & Live CFD Synchronization ──────────────────────────────────
+  void selectCategory(String categoryId, {bool broadcast = true}) {
     _selectedCategoryId = categoryId;
     _selectedSubcategoryId = null;
+    _scrollOffset = 0.0;
     loadProducts();
+    if (broadcast) {
+      _presentationService.syncPosNavigation(
+        selectedCategoryId: categoryId,
+        clearSubcategory: true,
+        scrollOffset: 0.0,
+      );
+    }
   }
 
-  void selectSubcategory(String? subcategoryId) {
+  void selectSubcategory(String? subcategoryId, {bool broadcast = true}) {
     _selectedSubcategoryId = subcategoryId;
+    _scrollOffset = 0.0;
     loadProducts();
+    if (broadcast) {
+      _presentationService.syncPosNavigation(
+        selectedSubcategoryId: subcategoryId,
+        scrollOffset: 0.0,
+      );
+    }
   }
 
-  void setSearchQuery(String query) {
+  void setSearchQuery(String query, {bool broadcast = true}) {
     _searchQuery = query;
     _searchDebouncer.call(loadProducts);
+    if (broadcast) {
+      _presentationService.syncPosNavigation(
+        searchQuery: query,
+        scrollOffset: 0.0,
+      );
+    }
   }
 
-  void clearSearch() {
+  void clearSearch({bool broadcast = true}) {
     _searchQuery = '';
     _searchDebouncer.cancel();
     loadProducts();
+    if (broadcast) {
+      _presentationService.syncPosNavigation(
+        searchQuery: '',
+        scrollOffset: 0.0,
+      );
+    }
+  }
+
+  void setScrollOffset(double offset, {bool broadcast = true}) {
+    if ((_scrollOffset - offset).abs() < 1.0) return;
+    _scrollOffset = offset;
+    notifyListeners();
+
+    if (broadcast) {
+      _scrollDebounceTimer?.cancel();
+      _scrollDebounceTimer = Timer(const Duration(milliseconds: 40), () {
+        _presentationService.syncPosNavigation(scrollOffset: offset);
+      });
+    }
   }
 
   // ── Barcode auto-add ──────────────────────────────────────────────────────
@@ -251,6 +311,8 @@ class PosController extends ChangeNotifier {
     String branchId = 'store_a',
     TableController? tableController,
     bool clearCartAfter = false,
+    bool printBill = false,
+    bool showQr = true,
   }) async {
     if (cart.items.isEmpty) return null;
 
@@ -298,18 +360,22 @@ class PosController extends ChangeNotifier {
 
       _lastCompletedOrder = savedOrder;
 
-      // Auto-save markdown receipt for kitchen / records
+      // Auto-save markdown receipt for records
       final saveResult = await _receiptFileService.saveReceiptMarkdown(
         order: savedOrder,
         settings: settings,
       );
       _lastReceiptSaveResult = saveResult;
 
-      // Print kitchen ticket for chef to prepare items (strictly no prices)
-      await _printerService.printKitchenTicket(
-        order: savedOrder,
-        settings: settings,
-      );
+      // Print unpaid bill with or without KHQR for customer to review & pay
+      if (printBill) {
+        await _printerService.printReceipt(
+          order: savedOrder,
+          settings: settings,
+          isPaid: false,
+          showQr: showQr,
+        );
+      }
 
       // Reload table states across app
       if (tableController != null) {
@@ -335,7 +401,27 @@ class PosController extends ChangeNotifier {
     }
   }
 
-  // ── Confirm Order for Chef (Prints Ticket to Kitchen & Leaves Payment Pending) ──
+  // ── Print Unpaid Bill (Saves Order as Pending & Prints Bill with KHQR) ─────
+  Future<OrderModel?> printUnpaidBill({
+    required CartController cart,
+    required StoreSettingsModel settings,
+    String branchId = 'store_a',
+    TableController? tableController,
+    bool clearCartAfter = false,
+    bool showQr = true,
+  }) async {
+    return await saveOrderAsPending(
+      cart: cart,
+      settings: settings,
+      branchId: branchId,
+      tableController: tableController,
+      clearCartAfter: clearCartAfter,
+      printBill: true,
+      showQr: showQr,
+    );
+  }
+
+  // Backwards-compatible alias for existing code
   Future<OrderModel?> confirmOrderToKitchen({
     required CartController cart,
     required StoreSettingsModel settings,
@@ -343,7 +429,7 @@ class PosController extends ChangeNotifier {
     TableController? tableController,
     bool clearCartAfter = false,
   }) async {
-    return await saveOrderAsPending(
+    return await printUnpaidBill(
       cart: cart,
       settings: settings,
       branchId: branchId,
@@ -452,20 +538,14 @@ class PosController extends ChangeNotifier {
         );
       }
 
-      // 2. Hardware: kick cash drawer / print receipt / kitchen ticket
+      // 2. Hardware: kick cash drawer / print paid receipt
       if (settings.autoPrintOnPayment) {
         await _printerService.printReceipt(
           order: savedOrder,
           settings: settings,
+          isPaid: true,
           isReprint: false,
         );
-        // Print kitchen ticket only if not previously confirmed & sent to chef
-        if (!isExistingPending) {
-          await _printerService.printKitchenTicket(
-            order: savedOrder,
-            settings: settings,
-          );
-        }
       } else if (settings.autoKickCashDrawer &&
           paymentMethod == PaymentMethod.cash) {
         await _printerService.kickCashDrawer();
@@ -525,11 +605,15 @@ class PosController extends ChangeNotifier {
   Future<bool> reprintReceipt({
     required OrderModel order,
     required StoreSettingsModel settings,
+    bool isPaid = true,
+    bool showQr = true,
   }) async {
     try {
       final success = await _printerService.printReceipt(
         order: order,
         settings: settings,
+        isPaid: isPaid,
+        showQr: showQr,
         isReprint: true,
       );
 
@@ -578,6 +662,7 @@ class PosController extends ChangeNotifier {
     _barcodeService.stopListening();
     _noticeTimer?.cancel();
     _cfdIdleTimer?.cancel();
+    _scrollDebounceTimer?.cancel();
     _searchDebouncer.cancel();
     _productGuard.reset();
     super.dispose();

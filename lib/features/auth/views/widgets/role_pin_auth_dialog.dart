@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../models/user_model.dart';
+import '../../../../core/theme/sprite_icons.dart';
+import '../../../../widgets/app_svg_icon.dart';
 
 class RolePinAuthDialog extends StatefulWidget {
   final UserModel user;
@@ -19,6 +21,19 @@ class RolePinAuthDialog extends StatefulWidget {
 class _RolePinAuthDialogState extends State<RolePinAuthDialog> {
   String _pin = '';
   bool _hasError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (!widget.user.isOwner) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          Navigator.of(context).pop();
+          widget.onAuthenticated();
+        }
+      });
+    }
+  }
 
   void _onDigit(String digit) {
     if (_pin.length < 6) {
@@ -79,8 +94,8 @@ class _RolePinAuthDialogState extends State<RolePinAuthDialog> {
                   radius: 20,
                   backgroundColor: const Color(0xFF7C3AED)
                       .withValues(alpha: 0.12),
-                  child: const Icon(
-                    Icons.lock_outline,
+                  child: const AppSvgIcon.sprite(
+                    SpriteIcons.lock,
                     color: Color(0xFF7C3AED),
                     size: 20,
                   ),
@@ -97,9 +112,9 @@ class _RolePinAuthDialogState extends State<RolePinAuthDialog> {
                           fontSize: 16,
                         ),
                       ),
-                      Text(
-                        'Enter Security PIN (Default: ${user.pinCode})',
-                        style: const TextStyle(
+                      const Text(
+                        'Enter Security PIN',
+                        style: TextStyle(
                           fontSize: 12,
                           color: Color(0xFF64748B),
                         ),
@@ -108,7 +123,11 @@ class _RolePinAuthDialogState extends State<RolePinAuthDialog> {
                   ),
                 ),
                 IconButton(
-                  icon: const Icon(Icons.close, size: 20),
+                  icon: const AppSvgIcon.sprite(
+                    SpriteIcons.close,
+                    size: 18,
+                    color: Color(0xFF64748B),
+                  ),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
               ],

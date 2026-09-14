@@ -119,4 +119,47 @@ class AssetTheme {
   static const productMore = 'assets/product/more.svg';
   static const productSaveImage = 'assets/product/save_image.svg';
   static const productEmptyQuery = 'assets/product/empty_query.svg';
+
+  /// Maps legacy asset filepaths to high-resolution icons in `sprite.svg`
+  static const Map<String, String> legacyToSprite = {
+    cart: 'icon-cart',
+    wishlist: 'icon-cart',
+    wishlistActive: 'icon-cart',
+    setting: 'icon-settings',
+    home: 'icon-pos',
+    homeActive: 'icon-pos',
+    homeIcon: 'icon-pos',
+    profile: 'icon-profile',
+    profileActive: 'icon-profile',
+    search: 'icon-search',
+    searchQR: 'icon-qr',
+    box: 'icon-box-v2',
+    bin: 'icon-trash',
+    close: 'icon-x',
+    success: 'icon-check-circle',
+    checked: 'icon-check',
+    checkboxChecked: 'icon-check-circle',
+    clock: 'icon-clock',
+    plus: 'icon-plus',
+    minus: 'icon-arrow-down',
+    dots: 'icon-3-dots',
+    user: 'icon-user',
+    store: 'icon-building',
+    star: 'icon-star',
+    starFilled: 'icon-star',
+    payment: 'icon-cash',
+    wallet: 'icon-wallet',
+    report: 'icon-report',
+    warning: 'icon-warning',
+    clearWarning: 'icon-warning',
+    info: 'icon-info',
+    gallery: 'icon-image',
+    kitchen: 'icon-utensils-crossed',
+    packageIcon: 'icon-box-v2',
+    delivery: 'icon-box-v2',
+    files: 'icon-file-spreadsheet',
+    video: 'icon-pc-mobile',
+    refer: 'icon-share',
+    more: 'icon-more',
+  };
 }

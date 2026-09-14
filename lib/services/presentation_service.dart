@@ -42,6 +42,14 @@ class PresentationPayload {
   final double? changeAmount;
   final String? thankYouNote;
 
+  // Real-time synchronization with Cashier POS Screen
+  final String selectedCategoryId;
+  final String? selectedSubcategoryId;
+  final String searchQuery;
+  final double scrollOffset;
+  final String gridTemplate;
+  final double fontSizeScale;
+
   PresentationPayload({
     required this.state,
     this.items = const [],
@@ -56,7 +64,57 @@ class PresentationPayload {
     this.cashTendered,
     this.changeAmount,
     this.thankYouNote,
+    this.selectedCategoryId = 'ALL',
+    this.selectedSubcategoryId,
+    this.searchQuery = '',
+    this.scrollOffset = 0.0,
+    this.gridTemplate = '4x6',
+    this.fontSizeScale = 1.0,
   });
+
+  PresentationPayload copyWith({
+    CfdScreenState? state,
+    List<Map<String, dynamic>>? items,
+    double? subtotal,
+    double? discountAmount,
+    double? taxAmount,
+    double? totalAmount,
+    String? currencySymbol,
+    String? qrData,
+    String? qrImagePath,
+    String? receiptNo,
+    double? cashTendered,
+    double? changeAmount,
+    String? thankYouNote,
+    String? selectedCategoryId,
+    String? selectedSubcategoryId,
+    String? searchQuery,
+    double? scrollOffset,
+    String? gridTemplate,
+    double? fontSizeScale,
+  }) {
+    return PresentationPayload(
+      state: state ?? this.state,
+      items: items ?? this.items,
+      subtotal: subtotal ?? this.subtotal,
+      discountAmount: discountAmount ?? this.discountAmount,
+      taxAmount: taxAmount ?? this.taxAmount,
+      totalAmount: totalAmount ?? this.totalAmount,
+      currencySymbol: currencySymbol ?? this.currencySymbol,
+      qrData: qrData ?? this.qrData,
+      qrImagePath: qrImagePath ?? this.qrImagePath,
+      receiptNo: receiptNo ?? this.receiptNo,
+      cashTendered: cashTendered ?? this.cashTendered,
+      changeAmount: changeAmount ?? this.changeAmount,
+      thankYouNote: thankYouNote ?? this.thankYouNote,
+      selectedCategoryId: selectedCategoryId ?? this.selectedCategoryId,
+      selectedSubcategoryId: selectedSubcategoryId ?? this.selectedSubcategoryId,
+      searchQuery: searchQuery ?? this.searchQuery,
+      scrollOffset: scrollOffset ?? this.scrollOffset,
+      gridTemplate: gridTemplate ?? this.gridTemplate,
+      fontSizeScale: fontSizeScale ?? this.fontSizeScale,
+    );
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -73,6 +131,12 @@ class PresentationPayload {
       'cashTendered': cashTendered,
       'changeAmount': changeAmount,
       'thankYouNote': thankYouNote,
+      'selectedCategoryId': selectedCategoryId,
+      'selectedSubcategoryId': selectedSubcategoryId,
+      'searchQuery': searchQuery,
+      'scrollOffset': scrollOffset,
+      'gridTemplate': gridTemplate,
+      'fontSizeScale': fontSizeScale,
     };
   }
 
@@ -94,6 +158,12 @@ class PresentationPayload {
       cashTendered: (map['cashTendered'] as num?)?.toDouble(),
       changeAmount: (map['changeAmount'] as num?)?.toDouble(),
       thankYouNote: map['thankYouNote'] as String?,
+      selectedCategoryId: map['selectedCategoryId'] as String? ?? 'ALL',
+      selectedSubcategoryId: map['selectedSubcategoryId'] as String?,
+      searchQuery: map['searchQuery'] as String? ?? '',
+      scrollOffset: (map['scrollOffset'] as num?)?.toDouble() ?? 0.0,
+      gridTemplate: map['gridTemplate'] as String? ?? '4x6',
+      fontSizeScale: (map['fontSizeScale'] as num?)?.toDouble() ?? 1.0,
     );
   }
 
@@ -147,7 +217,12 @@ class PresentationService {
     if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
       try {
         final exe = Platform.resolvedExecutable;
-        await Process.start(exe, ['--cfd'], mode: ProcessStartMode.detached);
+        await Process.start(
+          exe,
+          ['--cfd'],
+          mode: ProcessStartMode.detached,
+          workingDirectory: File(exe).parent.path,
+        );
         _isSecondaryDisplayShowing = true;
         return true;
       } catch (e) {
@@ -238,6 +313,64 @@ class PresentationService {
         debugPrint('Hardware presentation data transfer notice: $e');
       }
     }
+  }
+
+  /// Broadcast POS UI navigation state (category, subcategory, search, scroll offset, grid template)
+  Future<void> syncPosNavigation({
+    String? selectedCategoryId,
+    String? selectedSubcategoryId,
+    bool clearSubcategory = false,
+    String? searchQuery,
+    double? scrollOffset,
+    String? gridTemplate,
+    double? fontSizeScale,
+  }) async {
+    final updated = _latestPayload.copyWith(
+      selectedCategoryId: selectedCategoryId ?? _latestPayload.selectedCategoryId,
+      selectedSubcategoryId: clearSubcategory ? null : (selectedSubcategoryId ?? _latestPayload.selectedSubcategoryId),
+      searchQuery: searchQuery ?? _latestPayload.searchQuery,
+      scrollOffset: scrollOffset ?? _latestPayload.scrollOffset,
+      gridTemplate: gridTemplate ?? _latestPayload.gridTemplate,
+      fontSizeScale: fontSizeScale ?? _latestPayload.fontSizeScale,
+    );
+    await sendToCustomerDisplay(updated);
+  }
+
+  /// Persist latest menu data (categories, subcategories, products) to IPC for standalone CFD window
+  Future<void> sendMenuToCustomerDisplay({
+    required List<Map<String, dynamic>> categories,
+    required List<Map<String, dynamic>> subcategories,
+    required List<Map<String, dynamic>> products,
+  }) async {
+    if (!kIsWeb) {
+      try {
+        final tempDir = Directory.systemTemp;
+        final file = File('${tempDir.path}/omni_pos_cfd_menu.json');
+        final data = {
+          'categories': categories,
+          'subcategories': subcategories,
+          'products': products,
+        };
+        await file.writeAsString(jsonEncode(data), flush: true);
+      } catch (_) {}
+    }
+  }
+
+  /// Read menu data from IPC file (used by standalone CFD when SQLite is isolated)
+  Future<Map<String, dynamic>?> readMenuForCustomerDisplay() async {
+    if (!kIsWeb) {
+      try {
+        final tempDir = Directory.systemTemp;
+        final file = File('${tempDir.path}/omni_pos_cfd_menu.json');
+        if (await file.exists()) {
+          final text = await file.readAsString();
+          if (text.isNotEmpty) {
+            return jsonDecode(text) as Map<String, dynamic>;
+          }
+        }
+      } catch (_) {}
+    }
+    return null;
   }
 
   /// Initialize listener on Secondary Display side

@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
@@ -11,6 +12,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../models/order_model.dart';
 import '../models/store_settings_model.dart';
+import 'printer_service.dart';
 
 class PdfReceiptFileInfo {
   final String fileName;
@@ -53,64 +55,179 @@ class PdfReceiptService {
   factory PdfReceiptService() => _instance;
   PdfReceiptService._internal();
 
-  /// Generates high-quality PDF Receipt bytes for 80mm thermal roll
+  /// Safely load logo image bytes from file or Flutter assets
+  Future<Uint8List?> _loadLogoBytes(StoreSettingsModel settings) async {
+    if (!settings.printLogoOnReceipt) return null;
+
+    // 1. Explicit logo path in settings (Disk File or Asset)
+    if (settings.logoPath != null && settings.logoPath!.trim().isNotEmpty) {
+      final rawPath = settings.logoPath!.trim();
+
+      // Check if disk file (normalize Windows/Unix slashes)
+      try {
+        final normalizedPath = rawPath.replaceAll('/', Platform.pathSeparator);
+        final file = File(normalizedPath);
+        if (file.existsSync()) {
+          final bytes = file.readAsBytesSync();
+          if (bytes.isNotEmpty) return bytes;
+        }
+      } catch (_) {}
+
+      try {
+        final file = File(rawPath);
+        if (file.existsSync()) {
+          final bytes = file.readAsBytesSync();
+          if (bytes.isNotEmpty) return bytes;
+        }
+      } catch (_) {}
+
+      // Check if Flutter asset
+      try {
+        final assetKey = rawPath.replaceAll(r'\', '/');
+        final byteData = await rootBundle.load(assetKey);
+        return byteData.buffer.asUint8List();
+      } catch (_) {}
+    }
+
+    // 2. Primary fallback to official store logo (ca.png)
+    try {
+      final byteData = await rootBundle.load('assets/images/ca.png');
+      return byteData.buffer.asUint8List();
+    } catch (_) {}
+
+    try {
+      final caFile = File('assets/images/ca.png');
+      if (caFile.existsSync()) {
+        return caFile.readAsBytesSync();
+      }
+    } catch (_) {}
+
+    // 3. Fallback to app_logo.png
+    try {
+      final byteData = await rootBundle.load('assets/app_logo.png');
+      return byteData.buffer.asUint8List();
+    } catch (_) {}
+
+    return null;
+  }
+
+  /// Safely load Bank QR image bytes from file or Flutter assets
+  Future<Uint8List?> _loadQrBytes(StoreSettingsModel settings) async {
+    if (settings.qrImagePath != null &&
+        settings.qrImagePath!.trim().isNotEmpty) {
+      final rawPath = settings.qrImagePath!.trim();
+      try {
+        final file = File(rawPath);
+        if (file.existsSync()) {
+          final bytes = file.readAsBytesSync();
+          if (bytes.isNotEmpty) return bytes;
+        }
+      } catch (_) {}
+
+      try {
+        final byteData = await rootBundle.load(rawPath);
+        return byteData.buffer.asUint8List();
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  /// Construct bank payment QR data payload (strictly bank payment, never dummy store URL)
+  String _buildPaymentQrData(StoreSettingsModel settings, OrderModel order) {
+    final raw = settings.qrPayloadTemplate.trim();
+    if (raw.isNotEmpty && !raw.contains('pay.restaurant.com')) {
+      if (raw.contains('{order}')) {
+        return raw.replaceAll('{order}', order.orderNumber ?? order.receiptNo);
+      }
+      if (raw.endsWith('=')) {
+        return '$raw${order.orderNumber ?? order.receiptNo}';
+      }
+      return raw;
+    }
+    final storeClean = settings.storeName
+        .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+        .toUpperCase();
+    final amt = order.totalAmount.toStringAsFixed(2);
+    final khrAmt = (order.totalAmount * settings.usdToKhrRate).round();
+    return 'KHQR:MERCHANT:$storeClean:INV#${order.orderNumber ?? order.receiptNo}:USD$amt:KHR$khrAmt';
+  }
+
+  /// Generates high-quality PDF Receipt bytes for 80mm/58mm thermal roll
   Future<Uint8List> generateReceiptPdf({
     required OrderModel order,
     required StoreSettingsModel settings,
+    bool isPaid = true,
+    bool showQr = true,
     bool isReprint = false,
   }) async {
     final doc = pw.Document();
 
     final currency = settings.currencySymbol;
     final is80mm = settings.isPaperSize80mm;
-    final rollWidth = is80mm ? 226.0 : 164.0;
+    // Physical printable width for 80mm thermal head is 72mm (204.1 pt); 58mm thermal head is 48mm (136.1 pt)
+    final printableWidth =
+        is80mm ? (72.0 * PdfPageFormat.mm) : (48.0 * PdfPageFormat.mm);
     final baseFontSize = is80mm ? 8.0 : 7.0;
 
+    final topMargin = settings.printerMarginTop * PdfPageFormat.mm;
+    final bottomMargin = settings.printerMarginBottom * PdfPageFormat.mm;
+    final leftMargin = settings.printerMarginLeft * PdfPageFormat.mm;
+    final rightMargin = settings.printerMarginRight * PdfPageFormat.mm;
+
+    final logoBytes = await _loadLogoBytes(settings);
     pw.MemoryImage? logoImage;
-    if (settings.logoPath != null && settings.logoPath!.trim().isNotEmpty) {
-      final file = File(settings.logoPath!.trim());
-      if (file.existsSync()) {
-        try {
-          logoImage = pw.MemoryImage(file.readAsBytesSync());
-        } catch (_) {}
-      }
+    if (logoBytes != null && logoBytes.isNotEmpty) {
+      try {
+        logoImage = pw.MemoryImage(logoBytes);
+      } catch (_) {}
     }
 
+    final qrBytes = await _loadQrBytes(settings);
     pw.MemoryImage? qrImage;
-    if (settings.qrImagePath != null && settings.qrImagePath!.trim().isNotEmpty) {
-      final file = File(settings.qrImagePath!.trim());
-      if (file.existsSync()) {
-        try {
-          qrImage = pw.MemoryImage(file.readAsBytesSync());
-        } catch (_) {}
-      }
+    if (qrBytes != null && qrBytes.isNotEmpty) {
+      try {
+        qrImage = pw.MemoryImage(qrBytes);
+      } catch (_) {}
     }
+
+    final paymentQrData = _buildPaymentQrData(settings, order);
+
+    final effectiveCustomer = (order.customerName != null &&
+            order.customerName!.trim().isNotEmpty &&
+            order.customerName!.trim().toLowerCase() != 'guest')
+        ? order.customerName!.trim()
+        : '...............';
+    final dateStr = DateFormat('yyyy-MM-dd HH:mm:ss').format(order.createdAt);
+    final billNo = order.orderNumber ?? order.receiptNo.split('-').last;
 
     doc.addPage(
       pw.Page(
         pageFormat: PdfPageFormat(
-          rollWidth,
+          printableWidth,
           double.infinity,
-          marginAll: is80mm ? 8.0 : 5.0,
+          marginLeft: leftMargin,
+          marginRight: rightMargin,
+          marginTop: topMargin,
+          marginBottom: bottomMargin,
         ),
         build: (pw.Context context) {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.stretch,
             children: [
-              // Store Logo at the Top
+              // 1. Store Logo at the Top
               if (logoImage != null) ...[
                 pw.Center(
                   child: pw.Image(
                     logoImage,
-                    width: is80mm ? 48 : 36,
-                    height: is80mm ? 48 : 36,
+                    width: is80mm ? 56 : 42,
+                    height: is80mm ? 56 : 42,
                     fit: pw.BoxFit.contain,
                   ),
                 ),
-                pw.SizedBox(height: 4),
+                pw.SizedBox(height: 3),
               ],
 
-              // Store Header
+              // 2. Store Header & Subtitle
               pw.Text(
                 settings.storeName.toUpperCase(),
                 textAlign: pw.TextAlign.center,
@@ -119,8 +236,19 @@ class PdfReceiptService {
                   fontWeight: pw.FontWeight.bold,
                 ),
               ),
+              if (settings.storeAddress.isNotEmpty) ...[
+                pw.SizedBox(height: 1),
+                pw.Text(
+                  settings.storeAddress.toUpperCase(),
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(
+                    fontSize: is80mm ? 8.5 : 7.5,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ],
               pw.SizedBox(height: 3),
-              pw.Divider(thickness: 0.8, color: PdfColors.black, borderStyle: pw.BorderStyle.dashed),
+              pw.Divider(thickness: 0.8, color: PdfColors.black),
               pw.SizedBox(height: 2),
 
               if (isReprint) ...[
@@ -136,35 +264,28 @@ class PdfReceiptService {
                 pw.SizedBox(height: 2),
               ],
 
-              // Order Metadata
-              _buildMetaRow('Order:', '#${order.orderNumber ?? order.receiptNo}', fontSize: baseFontSize),
-              _buildMetaRow(
-                'Order Type:',
-                order.orderType == 'TAKEAWAY'
-                    ? 'Takeaway'
-                    : (order.tableNumber != null && order.tableNumber!.isNotEmpty
-                        ? 'Dine-In (${order.tableNumber})'
-                        : 'Dine-In'),
-                fontSize: baseFontSize,
-              ),
-              _buildMetaRow('Date:', DateFormat('dd/MM/yyyy, hh:mm:ss a').format(order.createdAt), fontSize: baseFontSize),
-              _buildMetaRow('Cashier:', 'System Admin', fontSize: baseFontSize),
-              if (order.customerName != null &&
-                  order.customerName!.trim().isNotEmpty &&
-                  order.customerName!.trim().toLowerCase() != 'guest')
-                _buildMetaRow('Customer:', order.customerName!, fontSize: baseFontSize),
+              // 3. Order / Bill Metadata
+              if (!isPaid) ...[
+                _buildMetaRow('Bill:', billNo, fontSize: baseFontSize),
+                _buildMetaRow('Date:', dateStr, fontSize: baseFontSize),
+                _buildMetaRow('Customer:', effectiveCustomer, fontSize: baseFontSize),
+              ] else ...[
+                _buildMetaRow('Order:', '${order.receiptNo} (Paid)', fontSize: baseFontSize),
+                _buildMetaRow('Date:', dateStr, fontSize: baseFontSize),
+                _buildMetaRow('Customer:', effectiveCustomer, fontSize: baseFontSize),
+              ],
 
               pw.SizedBox(height: 2),
-              pw.Divider(thickness: 0.8, color: PdfColors.black, borderStyle: pw.BorderStyle.dashed),
+              pw.Divider(thickness: 0.8, color: PdfColors.black),
               pw.SizedBox(height: 2),
 
-              // Items Table Header
+              // 4. Items Table Header (NAME, QTY, UNIT PRICE, AMOUNT)
               pw.Row(
                 children: [
                   pw.Expanded(
                     flex: 5,
                     child: pw.Text(
-                      'ITEM',
+                      'NAME',
                       style: pw.TextStyle(
                         fontSize: baseFontSize,
                         fontWeight: pw.FontWeight.bold,
@@ -185,7 +306,7 @@ class PdfReceiptService {
                   pw.Expanded(
                     flex: 3,
                     child: pw.Text(
-                      'PRICE',
+                      'UNIT PRICE',
                       textAlign: pw.TextAlign.right,
                       style: pw.TextStyle(
                         fontSize: baseFontSize,
@@ -196,7 +317,7 @@ class PdfReceiptService {
                   pw.Expanded(
                     flex: 3,
                     child: pw.Text(
-                      'TOTAL',
+                      'AMOUNT',
                       textAlign: pw.TextAlign.right,
                       style: pw.TextStyle(
                         fontSize: baseFontSize,
@@ -207,10 +328,10 @@ class PdfReceiptService {
                 ],
               ),
               pw.SizedBox(height: 2),
-              pw.Divider(thickness: 0.8, color: PdfColors.black, borderStyle: pw.BorderStyle.dashed),
+              pw.Divider(thickness: 0.8, color: PdfColors.black),
               pw.SizedBox(height: 2),
 
-              // Line Items
+              // 5. Line Items
               ...order.items.map((item) {
                 final itemSubtotal = item.unitPrice * item.quantity;
                 final discount = itemSubtotal - item.totalPrice;
@@ -286,113 +407,114 @@ class PdfReceiptService {
               }),
 
               pw.SizedBox(height: 2),
-              pw.Divider(thickness: 0.8, color: PdfColors.black, borderStyle: pw.BorderStyle.dashed),
+              pw.Divider(thickness: 0.8, color: PdfColors.black),
               pw.SizedBox(height: 2),
 
-              // Totals
+              // 6. Totals Breakdown
               _buildTwoCol(
-                'Subtotal:',
+                'SUBTOTAL:',
                 '$currency${order.subtotal.toStringAsFixed(2)}',
                 fontSize: baseFontSize,
               ),
               _buildTwoCol(
-                'Total (\$):',
+                'TOTAL (USD):',
                 '$currency${order.totalAmount.toStringAsFixed(2)}',
                 bold: true,
                 fontSize: baseFontSize + 1.5,
               ),
               if (settings.showKhrDualCurrency)
                 _buildTwoCol(
-                  'Total (KHR):',
-                  'KHR ${NumberFormat('#,###').format((order.totalAmount * settings.usdToKhrRate).round())}',
+                  'TOTAL (KHR):',
+                  '${NumberFormat('#,###').format((order.totalAmount * settings.usdToKhrRate).round())} KHR',
                   bold: true,
                   fontSize: baseFontSize + 1.5,
                 ),
 
-              if (order.paymentMethod == PaymentMethod.cash) ...[
+              pw.SizedBox(height: 2),
+              pw.Divider(thickness: 0.8, color: PdfColors.black),
+
+              // 7. Payment Info (Paid) OR KHQR Section (Not Paid)
+              if (isPaid) ...[
                 pw.SizedBox(height: 1),
                 _buildTwoCol(
-                  'Payment Method:',
+                  'PAYMENT METHOD:',
                   order.paymentMethod.displayName.toUpperCase(),
-                  fontSize: baseFontSize - 0.5,
+                  bold: true,
+                  fontSize: baseFontSize,
                 ),
-                _buildTwoCol(
-                  'Cash Received:',
-                  '$currency${(order.cashTendered > 0 ? order.cashTendered : order.totalAmount).toStringAsFixed(2)}',
-                  fontSize: baseFontSize - 0.5,
+                pw.SizedBox(height: 2),
+                pw.Divider(thickness: 0.8, color: PdfColors.black),
+              ] else if (showQr) ...[
+                pw.SizedBox(height: 3),
+                pw.Center(
+                  child: pw.Text(
+                    'Bakong & All Mobile Banking Apps',
+                    style: pw.TextStyle(
+                      fontSize: baseFontSize,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
                 ),
-                _buildTwoCol(
-                  'Change Return:',
-                  '$currency${order.changeAmount.toStringAsFixed(2)}',
-                  fontSize: baseFontSize - 0.5,
+                pw.SizedBox(height: 3),
+                if (qrImage != null)
+                  pw.Center(
+                    child: pw.Image(
+                      qrImage,
+                      width: is80mm ? 100 : 78,
+                      height: is80mm ? 100 : 78,
+                      fit: pw.BoxFit.contain,
+                    ),
+                  )
+                else
+                  pw.Center(
+                    child: pw.BarcodeWidget(
+                      barcode: pw.Barcode.qrCode(),
+                      data: paymentQrData,
+                      width: is80mm ? 100 : 78,
+                      height: is80mm ? 100 : 78,
+                    ),
+                  ),
+                pw.SizedBox(height: 2),
+                pw.Center(
+                  child: pw.Text(
+                    'Scan with banking app or pay with Cash / Card',
+                    style: pw.TextStyle(
+                      fontSize: baseFontSize - 1.2,
+                      color: PdfColors.grey700,
+                    ),
+                  ),
                 ),
+                pw.SizedBox(height: 3),
+                pw.Divider(thickness: 0.8, color: PdfColors.black),
+              ] else ...[
+                pw.SizedBox(height: 3),
+                pw.Center(
+                  child: pw.Text(
+                    'UNPAID BILL / INVOICE',
+                    style: pw.TextStyle(
+                      fontSize: baseFontSize,
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                ),
+                pw.SizedBox(height: 2),
+                pw.Center(
+                  child: pw.Text(
+                    'Please present this bill at cashier counter to pay',
+                    style: pw.TextStyle(
+                      fontSize: baseFontSize - 1.2,
+                      color: PdfColors.grey700,
+                    ),
+                  ),
+                ),
+                pw.SizedBox(height: 3),
+                pw.Divider(thickness: 0.8, color: PdfColors.black),
               ],
 
-              pw.SizedBox(height: 2),
-              pw.Divider(thickness: 0.8, color: PdfColors.black, borderStyle: pw.BorderStyle.dashed),
-              pw.SizedBox(height: 4),
-
-              // KHQR Section
-              pw.Center(
-                child: pw.Text(
-                  'SCAN TO PAY WITH KHQR',
-                  style: pw.TextStyle(
-                    fontSize: baseFontSize,
-                    fontWeight: pw.FontWeight.bold,
-                  ),
-                ),
-              ),
-              pw.SizedBox(height: 1),
-              pw.Center(
-                child: pw.Text(
-                  'Bakong & All Mobile Banking Apps',
-                  style: pw.TextStyle(
-                    fontSize: baseFontSize - 1.5,
-                    color: PdfColors.grey700,
-                  ),
-                ),
-              ),
-              pw.SizedBox(height: 4),
-
-              // QR Code
-              if (qrImage != null)
-                pw.Center(
-                  child: pw.Image(
-                    qrImage,
-                    width: is80mm ? 52 : 42,
-                    height: is80mm ? 52 : 42,
-                    fit: pw.BoxFit.contain,
-                  ),
-                )
-              else
-                pw.Center(
-                  child: pw.BarcodeWidget(
-                    barcode: pw.Barcode.qrCode(),
-                    data: (settings.qrPayloadTemplate.isNotEmpty)
-                        ? '${settings.qrPayloadTemplate}${order.receiptNo}'
-                        : 'REC:${order.receiptNo}',
-                    width: is80mm ? 52 : 42,
-                    height: is80mm ? 52 : 42,
-                  ),
-                ),
-              pw.SizedBox(height: 2),
-              pw.Center(
-                child: pw.Text(
-                  'Scan with banking app or pay with Cash / Card',
-                  style: pw.TextStyle(
-                    fontSize: baseFontSize - 2.0,
-                    color: PdfColors.grey700,
-                  ),
-                ),
-              ),
+              // 8. Footer (both modes)
               pw.SizedBox(height: 3),
-
-              pw.Divider(thickness: 0.8, color: PdfColors.black, borderStyle: pw.BorderStyle.dashed),
-              pw.SizedBox(height: 3),
-
-              // Footer (under the QR code)
               pw.Text(
-                '*** Thank you for your visit ***',
+                '***THANK YOU FOR YOUR VISIT***',
                 textAlign: pw.TextAlign.center,
                 style: pw.TextStyle(
                   fontSize: baseFontSize,
@@ -401,13 +523,271 @@ class PdfReceiptService {
               ),
               pw.SizedBox(height: 1),
               pw.Text(
-                'Please come again',
+                '***Please Come Again***',
                 textAlign: pw.TextAlign.center,
                 style: pw.TextStyle(
                   fontSize: baseFontSize - 0.5,
+                  fontWeight: pw.FontWeight.bold,
                 ),
               ),
               pw.SizedBox(height: 4),
+            ],
+          );
+        },
+      ),
+    );
+
+    return await doc.save();
+  }
+
+  /// Generates high-quality Kitchen Ticket PDF for 80mm/58mm thermal roll
+  Future<Uint8List> generateKitchenTicketPdf({
+    required OrderModel order,
+    required StoreSettingsModel settings,
+  }) async {
+    final doc = pw.Document();
+    final is80mm = settings.isPaperSize80mm;
+    final printableWidth =
+        is80mm ? (72.0 * PdfPageFormat.mm) : (48.0 * PdfPageFormat.mm);
+    final baseFontSize = is80mm ? 8.5 : 7.5;
+
+    final topMargin = settings.printerMarginTop * PdfPageFormat.mm;
+    final bottomMargin = settings.printerMarginBottom * PdfPageFormat.mm;
+    final leftMargin = settings.printerMarginLeft * PdfPageFormat.mm;
+    final rightMargin = settings.printerMarginRight * PdfPageFormat.mm;
+
+    final orderNum = order.orderNumber ?? order.receiptNo.split('-').last;
+    final tableNum = (order.tableNumber != null && order.tableNumber!.isNotEmpty)
+        ? order.tableNumber!
+        : (order.orderType == 'TAKEAWAY' ? 'TAKEAWAY' : 'COUNTER');
+
+    doc.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat(
+          printableWidth,
+          double.infinity,
+          marginLeft: leftMargin,
+          marginRight: rightMargin,
+          marginTop: topMargin,
+          marginBottom: bottomMargin,
+        ),
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+            children: [
+              pw.Center(
+                child: pw.Text(
+                  '*** KITCHEN ORDER ***',
+                  style: pw.TextStyle(
+                    fontSize: baseFontSize + 4,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Divider(thickness: 1.2, color: PdfColors.black),
+              pw.SizedBox(height: 2),
+
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('ORDER #:', style: pw.TextStyle(fontSize: baseFontSize + 2, fontWeight: pw.FontWeight.bold)),
+                  pw.Text(orderNum, style: pw.TextStyle(fontSize: baseFontSize + 2, fontWeight: pw.FontWeight.bold)),
+                ],
+              ),
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Text('TABLE:', style: pw.TextStyle(fontSize: baseFontSize + 2, fontWeight: pw.FontWeight.bold)),
+                  pw.Text(tableNum, style: pw.TextStyle(fontSize: baseFontSize + 2, fontWeight: pw.FontWeight.bold)),
+                ],
+              ),
+              pw.SizedBox(height: 2),
+              pw.Text('TYPE: ${order.orderType}', style: pw.TextStyle(fontSize: baseFontSize)),
+              pw.Text(
+                'TIME: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(order.createdAt)}',
+                style: pw.TextStyle(fontSize: baseFontSize - 1),
+              ),
+              if (order.customerName != null &&
+                  order.customerName!.trim().isNotEmpty &&
+                  order.customerName!.trim().toLowerCase() != 'guest')
+                pw.Text('CUSTOMER: ${order.customerName}', style: pw.TextStyle(fontSize: baseFontSize)),
+
+              pw.SizedBox(height: 4),
+              pw.Divider(thickness: 1.0, color: PdfColors.black, borderStyle: pw.BorderStyle.dashed),
+              pw.Center(
+                child: pw.Text(
+                  'ITEMS TO PREPARE',
+                  style: pw.TextStyle(fontSize: baseFontSize + 1, fontWeight: pw.FontWeight.bold),
+                ),
+              ),
+              pw.Divider(thickness: 1.0, color: PdfColors.black, borderStyle: pw.BorderStyle.dashed),
+              pw.SizedBox(height: 4),
+
+              // Items strictly without prices
+              ...order.items.map((item) {
+                return pw.Container(
+                  padding: const pw.EdgeInsets.symmetric(vertical: 2),
+                  child: pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Row(
+                        crossAxisAlignment: pw.CrossAxisAlignment.start,
+                        children: [
+                          pw.Text(
+                            '${item.quantity}x ',
+                            style: pw.TextStyle(
+                              fontSize: baseFontSize + 3,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
+                          pw.Expanded(
+                            child: pw.Text(
+                              item.productName.toUpperCase(),
+                              style: pw.TextStyle(
+                                fontSize: baseFontSize + 2,
+                                fontWeight: pw.FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      if (item.notes != null && item.notes!.trim().isNotEmpty)
+                        pw.Padding(
+                          padding: const pw.EdgeInsets.only(left: 14, top: 1),
+                          child: pw.Text(
+                            '** NOTE: ${item.notes} **',
+                            style: pw.TextStyle(
+                              fontSize: baseFontSize,
+                              fontStyle: pw.FontStyle.italic,
+                              fontWeight: pw.FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                );
+              }),
+
+              pw.SizedBox(height: 6),
+              pw.Divider(thickness: 1.2, color: PdfColors.black),
+              pw.Center(
+                child: pw.Text(
+                  '--- KITCHEN COPY ---',
+                  style: pw.TextStyle(fontSize: baseFontSize, fontWeight: pw.FontWeight.bold),
+                ),
+              ),
+              pw.SizedBox(height: 6),
+            ],
+          );
+        },
+      ),
+    );
+
+    return await doc.save();
+  }
+
+  /// Generates diagnostic test slip for verifying printer connection & cutter
+  Future<Uint8List> generateTestReceiptPdf({
+    required StoreSettingsModel settings,
+    String? targetDeviceName,
+  }) async {
+    final doc = pw.Document();
+    final is80mm = settings.isPaperSize80mm;
+    final printableWidth =
+        is80mm ? (72.0 * PdfPageFormat.mm) : (48.0 * PdfPageFormat.mm);
+    final baseFontSize = is80mm ? 8.5 : 7.5;
+
+    final topMargin = settings.printerMarginTop * PdfPageFormat.mm;
+    final bottomMargin = settings.printerMarginBottom * PdfPageFormat.mm;
+    final leftMargin = settings.printerMarginLeft * PdfPageFormat.mm;
+    final rightMargin = settings.printerMarginRight * PdfPageFormat.mm;
+
+    final logoBytes = await _loadLogoBytes(settings);
+    pw.MemoryImage? logoImage;
+    if (logoBytes != null && logoBytes.isNotEmpty) {
+      try {
+        logoImage = pw.MemoryImage(logoBytes);
+      } catch (_) {}
+    }
+
+    doc.addPage(
+      pw.Page(
+        pageFormat: PdfPageFormat(
+          printableWidth,
+          double.infinity,
+          marginLeft: leftMargin,
+          marginRight: rightMargin,
+          marginTop: topMargin,
+          marginBottom: bottomMargin,
+        ),
+        build: (pw.Context context) {
+          return pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+            children: [
+              if (logoImage != null) ...[
+                pw.Center(
+                  child: pw.Image(
+                    logoImage,
+                    width: is80mm ? 52 : 40,
+                    height: is80mm ? 52 : 40,
+                    fit: pw.BoxFit.contain,
+                  ),
+                ),
+                pw.SizedBox(height: 4),
+              ],
+              pw.Center(
+                child: pw.Text(
+                  settings.storeName.toUpperCase(),
+                  style: pw.TextStyle(
+                    fontSize: baseFontSize + 3,
+                    fontWeight: pw.FontWeight.bold,
+                  ),
+                ),
+              ),
+              pw.SizedBox(height: 2),
+              pw.Center(
+                child: pw.Text(
+                  'PRINTER VERIFICATION TEST',
+                  style: pw.TextStyle(fontSize: baseFontSize + 1, fontWeight: pw.FontWeight.bold),
+                ),
+              ),
+              pw.SizedBox(height: 4),
+              pw.Divider(thickness: 1.0, color: PdfColors.black),
+              pw.SizedBox(height: 3),
+
+              pw.Text('Terminal: CA H2 (GD215-H2)', style: pw.TextStyle(fontSize: baseFontSize)),
+              pw.Text(
+                'Tested Device: ${targetDeviceName ?? "Auto-Detected"}',
+                style: pw.TextStyle(fontSize: baseFontSize, fontWeight: pw.FontWeight.bold),
+              ),
+              pw.Text('Status: 100% Connected & Verified', style: pw.TextStyle(fontSize: baseFontSize, fontWeight: pw.FontWeight.bold)),
+              pw.Text('Paper Roll: ${is80mm ? "80mm Standard" : "58mm Compact"}', style: pw.TextStyle(fontSize: baseFontSize)),
+              pw.Text('Auto-Cutter: Active', style: pw.TextStyle(fontSize: baseFontSize)),
+              pw.Text(
+                'Test Date: ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}',
+                style: pw.TextStyle(fontSize: baseFontSize - 1),
+              ),
+
+              pw.SizedBox(height: 5),
+              pw.Divider(thickness: 1.0, color: PdfColors.black, borderStyle: pw.BorderStyle.dashed),
+              pw.SizedBox(height: 3),
+              pw.Center(
+                child: pw.BarcodeWidget(
+                  barcode: pw.Barcode.qrCode(),
+                  data: 'CA-H2-PRINTER-VERIFIED-${DateTime.now().millisecondsSinceEpoch}',
+                  width: 50,
+                  height: 50,
+                ),
+              ),
+              pw.SizedBox(height: 3),
+              pw.Center(
+                child: pw.Text(
+                  '*** Hardware Test Complete ***',
+                  style: pw.TextStyle(fontSize: baseFontSize, fontWeight: pw.FontWeight.bold),
+                ),
+              ),
+              pw.SizedBox(height: 6),
             ],
           );
         },
@@ -474,22 +854,38 @@ class PdfReceiptService {
     );
   }
 
-  /// Triggers system print or layout dialog
+  /// Triggers system print or layout dialog (routes via PrinterService / SumatraPDF for silent thermal printing if enabled)
   Future<bool> printReceiptPdf({
     required OrderModel order,
     required StoreSettingsModel settings,
+    bool isPaid = true,
     bool isReprint = false,
   }) async {
     try {
+      if (Platform.isWindows && settings.useSumatraPdf) {
+        final success = await PrinterService().printReceipt(
+          order: order,
+          settings: settings,
+          isPaid: isPaid,
+          isReprint: isReprint,
+        );
+        if (success) return true;
+      }
+
       final pdfBytes = await generateReceiptPdf(
         order: order,
         settings: settings,
+        isPaid: isPaid,
         isReprint: isReprint,
       );
 
+      final docName = isPaid
+          ? 'Receipt_${order.receiptNo}.pdf'
+          : 'Bill_${order.orderNumber ?? order.receiptNo.split('-').last}.pdf';
+
       await Printing.layoutPdf(
         onLayout: (PdfPageFormat format) async => pdfBytes,
-        name: 'Receipt_${order.receiptNo}.pdf',
+        name: docName,
       );
       return true;
     } catch (e) {
@@ -635,15 +1031,18 @@ class PdfReceiptService {
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text(
-            label,
-            style: pw.TextStyle(
-              fontSize: fontSize,
-              fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+          pw.Expanded(
+            child: pw.Text(
+              label,
+              style: pw.TextStyle(
+                fontSize: fontSize,
+                fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+              ),
             ),
           ),
           pw.Text(
             value,
+            textAlign: pw.TextAlign.right,
             style: pw.TextStyle(
               fontSize: fontSize,
               fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,

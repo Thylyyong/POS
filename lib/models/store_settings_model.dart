@@ -29,10 +29,18 @@ class StoreSettingsModel {
   final double usdToKhrRate; // Exchange rate for dual currency (e.g. 4000.0)
   final bool showKhrDualCurrency; // Show KHR total conversion on receipts
   final String printerIpOrAddress;
+  final String selectedPrinterName; // Empty string or 'auto' means Auto-Detect built-in thermal printer
+  final String deviceProfile; // 'auto', 'ca_h2_kiosk', 'ca9_desktop'
   final String qrPayloadTemplate;
   final String adminPin;
   final String adminPinHash;
   final String adminPinSalt;
+  final bool useSumatraPdf; // Enable SumatraPDF silent printing engine on Windows
+  final double printerMarginTop; // Top print margin in mm
+  final double printerMarginBottom; // Bottom print margin in mm
+  final double printerMarginLeft; // Left print margin in mm
+  final double printerMarginRight; // Right print margin in mm
+  final bool printLogoOnReceipt; // Whether to print store brand logo at receipt header
 
   const StoreSettingsModel({
     this.storeName = 'CA SOLUTION POS',
@@ -42,7 +50,7 @@ class StoreSettingsModel {
     this.currencySymbol = '\$',
     this.defaultTaxRate = 10.0,
     this.footerNote = '***THANK YOU FOR YOUR VISIT***\n***Please Come Again***',
-    this.logoPath,
+    this.logoPath = 'assets/images/ca.png',
     this.qrImagePath,
     this.fontSizeScale = 1.0,
     this.gridTemplate = '4x6',
@@ -54,10 +62,18 @@ class StoreSettingsModel {
     this.usdToKhrRate = 4000.0,
     this.showKhrDualCurrency = true,
     this.printerIpOrAddress = '192.168.1.100',
-    this.qrPayloadTemplate = 'https://pay.restaurant.com/pos?order=',
+    this.selectedPrinterName = '',
+    this.deviceProfile = 'auto',
+    this.qrPayloadTemplate = '',
     this.adminPin = '1234',
     this.adminPinHash = '',
     this.adminPinSalt = '',
+    this.useSumatraPdf = true,
+    this.printerMarginTop = 2.0,
+    this.printerMarginBottom = 4.0,
+    this.printerMarginLeft = 2.0,
+    this.printerMarginRight = 2.0,
+    this.printLogoOnReceipt = true,
   });
 
   bool verifyAdminPin(String pin) {
@@ -101,19 +117,29 @@ class StoreSettingsModel {
       'usd_to_khr_rate': usdToKhrRate.toString(),
       'show_khr_dual_currency': showKhrDualCurrency ? '1' : '0',
       'printer_ip_or_address': printerIpOrAddress,
+      'selected_printer_name': selectedPrinterName,
+      'device_profile': deviceProfile,
       'qr_payload_template': qrPayloadTemplate,
       'admin_pin': adminPinHash.isEmpty ? adminPin : '',
       'admin_pin_hash': adminPinHash,
       'admin_pin_salt': adminPinSalt,
+      'use_sumatra_pdf': useSumatraPdf ? '1' : '0',
+      'printer_margin_top': printerMarginTop.toString(),
+      'printer_margin_bottom': printerMarginBottom.toString(),
+      'printer_margin_left': printerMarginLeft.toString(),
+      'printer_margin_right': printerMarginRight.toString(),
+      'print_logo_on_receipt': printLogoOnReceipt ? '1' : '0',
     };
   }
 
   factory StoreSettingsModel.fromMap(Map<String, String> map) {
+    final rawQr = map['qr_payload_template'] ?? '';
+    final sanitizedQr = (rawQr.contains('pay.restaurant.com')) ? '' : rawQr;
     return StoreSettingsModel(
       storeName: map['store_name'] ?? 'CA SOLUTION POS',
-      storeAddress: map['store_address'] ?? '123 Boulevard St, Suite 100',
-      storePhone: map['store_phone'] ?? '+1 (555) 019-2834',
-      storeEmail: map['store_email'] ?? 'contact@casolution.com',
+      storeAddress: map['store_address'] ?? 'Phnom Penh, Cambodia',
+      storePhone: map['store_phone'] ?? '+855 12 345 678',
+      storeEmail: map['store_email'] ?? 'info@restaurant.com',
       currencySymbol: map['currency_symbol'] ?? '\$',
       defaultTaxRate:
           double.tryParse(map['default_tax_rate'] ?? '10.0') ?? 10.0,
@@ -137,13 +163,24 @@ class StoreSettingsModel {
           double.tryParse(map['usd_to_khr_rate'] ?? '4000.0') ?? 4000.0,
       showKhrDualCurrency: (map['show_khr_dual_currency'] ?? '1') == '1',
       printerIpOrAddress: map['printer_ip_or_address'] ?? '192.168.1.100',
-      qrPayloadTemplate:
-          map['qr_payload_template'] ?? 'https://pay.restaurant.com/pos?order=',
+      selectedPrinterName: map['selected_printer_name'] ?? '',
+      deviceProfile: map['device_profile'] ?? 'auto',
+      qrPayloadTemplate: sanitizedQr,
       adminPin: (map['admin_pin'] != null && map['admin_pin']!.isNotEmpty)
           ? map['admin_pin']!
           : '1234',
       adminPinHash: map['admin_pin_hash'] ?? '',
       adminPinSalt: map['admin_pin_salt'] ?? '',
+      useSumatraPdf: (map['use_sumatra_pdf'] ?? '1') == '1',
+      printerMarginTop:
+          double.tryParse(map['printer_margin_top'] ?? '2.0') ?? 2.0,
+      printerMarginBottom:
+          double.tryParse(map['printer_margin_bottom'] ?? '4.0') ?? 4.0,
+      printerMarginLeft:
+          double.tryParse(map['printer_margin_left'] ?? '2.0') ?? 2.0,
+      printerMarginRight:
+          double.tryParse(map['printer_margin_right'] ?? '2.0') ?? 2.0,
+      printLogoOnReceipt: (map['print_logo_on_receipt'] ?? '1') == '1',
     );
   }
 
@@ -169,10 +206,18 @@ class StoreSettingsModel {
     double? usdToKhrRate,
     bool? showKhrDualCurrency,
     String? printerIpOrAddress,
+    String? selectedPrinterName,
+    String? deviceProfile,
     String? qrPayloadTemplate,
     String? adminPin,
     String? adminPinHash,
     String? adminPinSalt,
+    bool? useSumatraPdf,
+    double? printerMarginTop,
+    double? printerMarginBottom,
+    double? printerMarginLeft,
+    double? printerMarginRight,
+    bool? printLogoOnReceipt,
   }) {
     return StoreSettingsModel(
       storeName: storeName ?? this.storeName,
@@ -194,10 +239,18 @@ class StoreSettingsModel {
       usdToKhrRate: usdToKhrRate ?? this.usdToKhrRate,
       showKhrDualCurrency: showKhrDualCurrency ?? this.showKhrDualCurrency,
       printerIpOrAddress: printerIpOrAddress ?? this.printerIpOrAddress,
+      selectedPrinterName: selectedPrinterName ?? this.selectedPrinterName,
+      deviceProfile: deviceProfile ?? this.deviceProfile,
       qrPayloadTemplate: qrPayloadTemplate ?? this.qrPayloadTemplate,
       adminPin: adminPin ?? this.adminPin,
       adminPinHash: adminPinHash ?? this.adminPinHash,
       adminPinSalt: adminPinSalt ?? this.adminPinSalt,
+      useSumatraPdf: useSumatraPdf ?? this.useSumatraPdf,
+      printerMarginTop: printerMarginTop ?? this.printerMarginTop,
+      printerMarginBottom: printerMarginBottom ?? this.printerMarginBottom,
+      printerMarginLeft: printerMarginLeft ?? this.printerMarginLeft,
+      printerMarginRight: printerMarginRight ?? this.printerMarginRight,
+      printLogoOnReceipt: printLogoOnReceipt ?? this.printLogoOnReceipt,
     );
   }
 }

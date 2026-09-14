@@ -36,9 +36,12 @@ class AppLogoWidget extends StatelessWidget {
       return AssetImage(logoPath!.trim());
     }
     if (_hasFileLogo) {
-      return FileImage(File(logoPath!.trim()));
+      final file = File(logoPath!.trim());
+      if (file.existsSync()) {
+        return FileImage(file);
+      }
     }
-    return null;
+    return const AssetImage('assets/images/ca.png');
   }
 
   Widget _buildFallback() {

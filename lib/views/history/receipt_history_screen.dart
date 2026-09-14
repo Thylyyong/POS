@@ -12,6 +12,7 @@ import '../../models/store_settings_model.dart';
 import '../../services/pdf_receipt_service.dart';
 import '../../widgets/receipt_preview_dialog.dart';
 import '../../core/theme/asset_theme.dart';
+import '../../core/theme/sprite_icons.dart';
 import '../../widgets/app_svg_icon.dart';
 
 enum HistoryTab { orders, folder }
@@ -121,7 +122,7 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
 
                 // Refresh Button
                 IconButton(
-                  icon: const Icon(Icons.refresh, color: Color(0xFF64748B), size: 22),
+                  icon: const AppSvgIcon.sprite(SpriteIcons.refresh, color: Color(0xFF64748B), size: 20),
                   tooltip: 'Refresh',
                   onPressed: _loadData,
                 ),

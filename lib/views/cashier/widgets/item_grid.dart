@@ -12,7 +12,16 @@ export 'product_grid.dart';
 export 'subcategory_bar.dart';
 
 class ItemGrid extends StatelessWidget {
-  const ItemGrid({super.key});
+  final bool isCustomerDisplay;
+  final String? gridTemplateOverride;
+  final ScrollController? scrollController;
+
+  const ItemGrid({
+    super.key,
+    this.isCustomerDisplay = false,
+    this.gridTemplateOverride,
+    this.scrollController,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -41,7 +50,12 @@ class ItemGrid extends StatelessWidget {
 
           // Product cards grid
           Expanded(
-            child: ProductGrid(posCtrl: posCtrl),
+            child: ProductGrid(
+              posCtrl: posCtrl,
+              isCustomerDisplay: isCustomerDisplay,
+              gridTemplateOverride: gridTemplateOverride,
+              scrollController: scrollController,
+            ),
           ),
         ],
       ),

@@ -5,6 +5,8 @@ import '../../controllers/auth_controller.dart';
 import '../../controllers/dashboard_controller.dart';
 import '../../controllers/settings_controller.dart';
 import '../../core/theme/asset_theme.dart';
+import '../../core/theme/sprite_icons.dart';
+import '../../services/excel_export_service.dart';
 import '../../widgets/app_svg_icon.dart';
 import 'widgets/dashboard_charts_view.dart';
 import 'widgets/dashboard_header_bar.dart';
@@ -41,34 +43,48 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             AppSvgIcon(AssetTheme.success, color: Color(0xFF059669), size: 22),
             SizedBox(width: 8),
-            Text('Export Successful'),
+            Text('Exported & Opened in Excel'),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('The sales & performance report has been saved to:'),
-            const SizedBox(height: 8),
+            const Text(
+              'The report has been opened in Microsoft Excel and saved to:',
+              style: TextStyle(fontSize: 13, color: Color(0xFF334155)),
+            ),
+            const SizedBox(height: 10),
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
                 color: const Color(0xFFF1F5F9),
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
               ),
               child: SelectableText(
                 path,
-                style: const TextStyle(fontSize: 12, fontFamily: 'monospace', color: Color(0xFF334155)),
+                style: const TextStyle(fontSize: 12, fontFamily: 'monospace', color: Color(0xFF0F172A)),
               ),
             ),
           ],
         ),
         actions: [
-          ElevatedButton(
+          OutlinedButton.icon(
+            icon: const AppSvgIcon.sprite(SpriteIcons.products, size: 16),
+            label: const Text('Show in Folder'),
+            onPressed: () => ExcelExportService().showInExplorer(path),
+          ),
+          ElevatedButton.icon(
+            icon: const AppSvgIcon.sprite(SpriteIcons.spreadsheet, size: 16, color: Colors.white),
+            label: const Text('Open in Excel'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF0F172A),
+              backgroundColor: const Color(0xFF0F766E),
               foregroundColor: Colors.white,
             ),
+            onPressed: () => ExcelExportService().openExcelFile(path),
+          ),
+          TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('Done'),
           ),
@@ -91,8 +107,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
           DashboardHeaderBar(
             onExportExcel: () async {
               final path = await dashCtrl.exportToExcel(settingsCtrl.settings);
-              if (context.mounted && path != null) {
-                _showExportSuccessDialog(context, path);
+              if (path != null) {
+                await ExcelExportService().openExcelFile(path);
+                if (context.mounted) {
+                  _showExportSuccessDialog(context, path);
+                }
               }
             },
           ),
@@ -119,7 +138,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 const Spacer(),
                 IconButton(
-                  icon: const Icon(Icons.refresh, color: Color(0xFF64748B), size: 22),
+                  icon: const AppSvgIcon.sprite(SpriteIcons.refresh, color: Color(0xFF64748B), size: 20),
                   tooltip: 'Refresh',
                   onPressed: () => dashCtrl.loadDashboardData(),
                 ),

@@ -1,3 +1,4 @@
+import 'dart:ffi';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -12,7 +13,9 @@ import 'app/custom_scroll_behavior.dart';
 import 'controllers/controllers.dart';
 import 'database/database.dart';
 import 'models/store_settings_model.dart';
+import 'services/svg_sprite_service.dart';
 import 'views/views.dart';
+import 'widgets/inactivity_auto_lock_wrapper.dart';
 
 // ============================================================================
 // 1. PRIMARY CASHIER DISPLAY ENTRY POINT
@@ -20,10 +23,35 @@ import 'views/views.dart';
 void main(List<String> args) async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize Sprite Icons from sprite.svg for unified iconography
+  try {
+    await SvgSpriteService.instance.initialize();
+  } catch (e) {
+    debugPrint('SvgSpriteService init notice: $e');
+  }
+
   // Initialize SQLite FFI for Windows & Linux desktop support
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) {
-    sqfliteFfiInit();
-    databaseFactory = databaseFactoryFfi;
+    try {
+      if (Platform.isWindows) {
+        final exeDir = File(Platform.resolvedExecutable).parent.path;
+        final dllPath = '$exeDir\\sqlite3.dll';
+        if (File(dllPath).existsSync()) {
+          DynamicLibrary.open(dllPath);
+        }
+      }
+      sqfliteFfiInit();
+      databaseFactory = databaseFactoryFfi;
+    } catch (e) {
+      debugPrint('SQLite FFI initialization notice: $e');
+    }
+  }
+
+  // Initialize SQLite Database schema & initial seeding
+  try {
+    await DbHelper().database;
+  } catch (e) {
+    debugPrint('Database connection notice: $e');
   }
 
   // Check if launched as Secondary Customer-Facing Display (CFD) Window
@@ -31,11 +59,14 @@ void main(List<String> args) async {
       args.contains('--customer-display') ||
       args.contains('--secondary')) {
     runApp(
-      const MaterialApp(
-        title: 'POS Customer Display (CFD)',
-        debugShowCheckedModeBanner: false,
-        scrollBehavior: PosCustomScrollBehavior(),
-        home: CustomerPresentationView(),
+      MultiProvider(
+        providers: AppProviders.providers,
+        child: const MaterialApp(
+          title: 'POS Customer Display (CFD)',
+          debugShowCheckedModeBanner: false,
+          scrollBehavior: PosCustomScrollBehavior(),
+          home: CustomerPresentationView(),
+        ),
       ),
     );
     return;
@@ -48,9 +79,6 @@ void main(List<String> args) async {
       DeviceOrientation.landscapeRight,
     ]);
   }
-
-  // Initialize SQLite Database schema & initial seeding
-  await DbHelper().database;
 
   runApp(
     MultiProvider(providers: AppProviders.providers, child: const CashierApp()),
@@ -112,10 +140,12 @@ class CashierApp extends StatelessWidget {
         theme: AppConfig.lightTheme,
         scrollBehavior: const PosCustomScrollBehavior(),
         builder: (context, child) {
-          return MediaQuery(
-            data: MediaQuery.of(context)
-                .copyWith(textScaler: TextScaler.linear(fontScale)),
-            child: child ?? const SizedBox.shrink(),
+          return InactivityAutoLockWrapper(
+            child: MediaQuery(
+              data: MediaQuery.of(context)
+                  .copyWith(textScaler: TextScaler.linear(fontScale)),
+              child: child ?? const SizedBox.shrink(),
+            ),
           );
         },
         home: const SplashScreen(),
@@ -131,10 +161,13 @@ class CashierApp extends StatelessWidget {
 void secondaryDisplayMain() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(
-    const MaterialApp(
-      debugShowCheckedModeBanner: false,
-      scrollBehavior: PosCustomScrollBehavior(),
-      home: CustomerMainView(),
+    MultiProvider(
+      providers: AppProviders.providers,
+      child: const MaterialApp(
+        debugShowCheckedModeBanner: false,
+        scrollBehavior: PosCustomScrollBehavior(),
+        home: CustomerMainView(),
+      ),
     ),
   );
 }

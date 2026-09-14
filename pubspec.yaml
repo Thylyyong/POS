@@ -81,6 +81,8 @@ flutter:
   assets:
     - assets/
     - assets/images/
+    - assets/images/sprite.svg
+    - lib/assets/images/
     - assets/icons/
     - assets/bottom_nav/
     - assets/auth/

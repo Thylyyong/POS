@@ -7,10 +7,13 @@ import '../../../controllers/pos_controller.dart';
 import '../../../controllers/register_controller.dart';
 import '../../../controllers/settings_controller.dart';
 import '../../../core/debouncer.dart';
+import '../../../core/device_profile.dart';
 import '../../../core/theme/asset_theme.dart';
+import '../../../core/theme/sprite_icons.dart';
 import '../../../services/presentation_service.dart';
 import '../../../widgets/app_logo_widget.dart';
 import '../../../widgets/app_svg_icon.dart';
+import '../../../widgets/floating_customer_display_modal.dart';
 import '../../register/cash_in_out_dialog.dart';
 import '../../register/close_register_dialog.dart';
 import '../../register/open_register_dialog.dart';
@@ -63,6 +66,13 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
     final autoPrint = context.select<SettingsController, bool>(
       (c) => c.settings.autoPrintOnPayment,
     );
+    final cfdEnabled = context.select<SettingsController, bool>(
+      (c) => c.settings.cfdEnabled,
+    );
+    final deviceProfile = context.select<SettingsController, String>(
+      (c) => c.settings.deviceProfile,
+    );
+    final isKiosk = DeviceProfile.isKiosk(context, deviceProfile: deviceProfile);
     final isSessionOpen = register.isSessionOpen;
 
     return Container(
@@ -284,45 +294,47 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
               ),
             ),
           ),
-          const SizedBox(width: 10),
+          const Spacer(),
 
           // ── Cash In / Out Button ──────────────────────────────────────
           if (isSessionOpen) ...[
-            OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                backgroundColor: const Color(0xFFF8FAFC),
-                foregroundColor: const Color(0xFF334155),
-                side: const BorderSide(color: Color(0xFFCBD5E1)),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 6,
-                ),
-                shape: RoundedRectangleBorder(
+            InkWell(
+              onTap: () => CashInOutDialog.show(context),
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                height: 32,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFCBD5E1)),
                 ),
-                minimumSize: Size.zero,
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              onPressed: () => CashInOutDialog.show(context),
-              icon: const AppSvgIcon(
-                AssetTheme.wallet,
-                size: 16,
-                color: Color(0xFF475569),
-              ),
-              label: const Text(
-                'Cash In/Out',
-                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.bold),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AppSvgIcon(
+                      AssetTheme.wallet,
+                      size: 16,
+                      color: Color(0xFF475569),
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'Cash In/Out',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF334155),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 8),
           ],
 
           // ── Kick Cash Drawer Direct Button ────────────────────────────
-          _HeaderIcon(
-            icon: Icons.point_of_sale_outlined,
-            tooltip: 'Kick Cash Drawer Open (ESC/POS)',
-            active: true,
-            activeColor: const Color(0xFF64748B),
+          InkWell(
             onTap: () async {
               await register.kickDrawerDirectly();
               if (context.mounted) {
@@ -334,90 +346,165 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
                 );
               }
             },
+            borderRadius: BorderRadius.circular(8),
+            child: Tooltip(
+              message: 'Kick Cash Drawer Open (ESC/POS)',
+              child: Container(
+                height: 32,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFCBD5E1)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.point_of_sale_rounded,
+                      size: 16,
+                      color: Color(0xFF475569),
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'Kick Drawer',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF334155),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-          const SizedBox(width: 4),
+          const SizedBox(width: 8),
 
-          // ── Auto-Print Toggle ─────────────────────────────────────────
-          _HeaderIcon(
-            icon: autoPrint ? Icons.print : Icons.print_disabled_outlined,
-            tooltip: autoPrint
-                ? 'Receipt Auto-Print: ON'
-                : 'Receipt Auto-Print: OFF',
-            active: autoPrint,
-            activeColor: const Color(0xFF10B981),
+          // ── Auto-Print Toggle Chip ────────────────────────────────────
+          InkWell(
             onTap: () {
               final newAutoPrint = !autoPrint;
               context.read<SettingsController>().toggleAutoPrint(newAutoPrint);
             },
-          ),
-          const SizedBox(width: 4),
-
-          // ── CFD Dual-Screen Button ────────────────────────────────────
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              backgroundColor: const Color(0xFFF8FAFC),
-              foregroundColor: const Color(0xFF0F172A),
-              side: const BorderSide(color: Color(0xFFCBD5E1)),
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+            child: Container(
+              height: 32,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              decoration: BoxDecoration(
+                color: autoPrint
+                    ? const Color(0xFFECFDF5)
+                    : const Color(0xFFF8FAFC),
                 borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: autoPrint
+                      ? const Color(0xFFA7F3D0)
+                      : const Color(0xFFCBD5E1),
+                ),
               ),
-              minimumSize: Size.zero,
-              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
-            onPressed: () async {
-              await PresentationService().launchSecondaryWindow();
-            },
-            icon: const Icon(
-              Icons.screen_share_outlined,
-              size: 16,
-              color: Color(0xFF0F172A),
-            ),
-            label: const Text(
-              'Dual Screen',
-              style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.print_outlined,
+                    size: 16,
+                    color: autoPrint
+                        ? const Color(0xFF059669)
+                        : const Color(0xFF64748B),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    autoPrint ? 'PRINT: ON' : 'PRINT: OFF',
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.bold,
+                      color: autoPrint
+                          ? const Color(0xFF059669)
+                          : const Color(0xFF64748B),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
+
+          // ── Model POS CA9 Dual-Screen / Duplicate Screen Button ───────
+          if (!isKiosk && cfdEnabled) ...[
+            const SizedBox(width: 8),
+            InkWell(
+              onTap: () async {
+                final launched =
+                    await PresentationService().launchSecondaryWindow();
+                if (context.mounted) {
+                  if (!launched) {
+                    FloatingCustomerDisplayModal.show(context);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: const Row(
+                          children: [
+                            Icon(
+                              Icons.devices_rounded,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            SizedBox(width: 8),
+                            Text(
+                              'Customer Display window opened on 2nd monitor!',
+                            ),
+                          ],
+                        ),
+                        action: SnackBarAction(
+                          label: 'Preview Here',
+                          textColor: AppConfig.accentCyan,
+                          onPressed: () =>
+                              FloatingCustomerDisplayModal.show(context),
+                        ),
+                        backgroundColor: const Color(0xFF0F172A),
+                        duration: const Duration(seconds: 4),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                }
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                height: 32,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: const Color(0xFFCBD5E1)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.devices_rounded,
+                      size: 16,
+                      color: Color(0xFF0D9488),
+                    ),
+                    SizedBox(width: 6),
+                    Text(
+                      'Duplicate Screen',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F172A),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
 }
 
-class _HeaderIcon extends StatelessWidget {
-  final IconData icon;
-  final String tooltip;
-  final bool active;
-  final Color activeColor;
-  final VoidCallback? onTap;
-
-  const _HeaderIcon({
-    required this.icon,
-    required this.tooltip,
-    this.active = false,
-    this.activeColor = AppConfig.accentGreen,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Icon(
-            icon,
-            size: 20,
-            color: active ? activeColor : const Color(0xFF64748B),
-          ),
-        ),
-      ),
-    );
-  }
-}
 
 class _NavMenuButton extends StatelessWidget {
   final ValueChanged<CashierNavTab> onNavigate;
@@ -425,18 +512,18 @@ class _NavMenuButton extends StatelessWidget {
   const _NavMenuButton({required this.onNavigate});
 
   static const _items = [
-    (CashierNavTab.pos, Icons.point_of_sale_outlined, 'POS Register'),
-    (CashierNavTab.tables, Icons.table_restaurant_outlined, 'Tables'),
-    (CashierNavTab.products, Icons.inventory_2_outlined, 'Products Catalog'),
-    (CashierNavTab.categories, Icons.menu_book_outlined, 'Menu Categories'),
-    (CashierNavTab.history, Icons.receipt_long_outlined, 'Receipts History'),
+    (CashierNavTab.pos, SpriteIcons.pos, 'POS Register'),
+    (CashierNavTab.tables, SpriteIcons.table, 'Tables'),
+    (CashierNavTab.products, SpriteIcons.products, 'Products Catalog'),
+    (CashierNavTab.categories, SpriteIcons.categories, 'Menu Categories'),
+    (CashierNavTab.history, SpriteIcons.history, 'Receipts History'),
     (
       CashierNavTab.accounting,
-      Icons.account_balance_outlined,
-      'Odoo P&L Accounting',
+      SpriteIcons.accounting,
+      'P&L Accounting',
     ),
-    (CashierNavTab.dashboard, Icons.analytics_outlined, 'Analytics Dashboard'),
-    (CashierNavTab.settings, Icons.settings_outlined, 'Hardware & Settings'),
+    (CashierNavTab.dashboard, SpriteIcons.dashboard, 'Analytics Dashboard'),
+    (CashierNavTab.settings, SpriteIcons.settings, 'Hardware & Settings'),
   ];
 
   @override
@@ -455,7 +542,7 @@ class _NavMenuButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
           child: Row(
             children: [
-              Icon(item.$2, size: 20, color: const Color(0xFF64748B)),
+              AppSvgIcon.sprite(item.$2, size: 18, color: const Color(0xFF64748B)),
               const SizedBox(width: 12),
               Text(
                 item.$3,
@@ -475,9 +562,9 @@ class _NavMenuButton extends StatelessWidget {
           color: const Color(0xFFF1F5F9),
           borderRadius: BorderRadius.circular(8),
         ),
-        child: const Icon(
-          Icons.apps_rounded,
-          size: 22,
+        child: const AppSvgIcon.sprite(
+          SpriteIcons.categories,
+          size: 18,
           color: Color(0xFF64748B),
         ),
       ),

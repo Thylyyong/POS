@@ -1,4 +1,5 @@
 import 'dart:async';
+
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
@@ -32,6 +33,22 @@ class DbHelper {
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
+  }
+
+  /// Completely resets the SQLite database by closing the active connection,
+  /// deleting the database file, and resetting the cached instance.
+  /// When database is accessed again, SQLite re-runs _onCreate to create all
+  /// tables and re-seeds fresh factory data (default users, categories, settings, etc.).
+  Future<void> resetDatabase() async {
+    final dbPath = await getDatabasesPath();
+    final path = join(dbPath, _dbName);
+
+    if (_database != null) {
+      await _database!.close();
+      _database = null;
+    }
+
+    await deleteDatabase(path);
   }
 
   FutureOr<void> _onCreate(Database db, int version) async {
@@ -252,18 +269,36 @@ class DbHelper {
     ''');
 
     // Indexes
-    await db.execute('CREATE INDEX idx_products_category ON products (category_id)');
+    await db.execute(
+      'CREATE INDEX idx_products_category ON products (category_id)',
+    );
     await db.execute('CREATE INDEX idx_products_barcode ON products (barcode)');
     await db.execute('CREATE INDEX idx_orders_created ON orders (created_at)');
     await db.execute('CREATE INDEX idx_orders_status ON orders (status)');
-    await db.execute('CREATE INDEX idx_orders_kitchen_status ON orders (kitchen_status)');
-    await db.execute('CREATE INDEX idx_order_items_order ON order_items (order_id)');
-    await db.execute('CREATE INDEX idx_receipt_logs_order ON receipt_logs (order_id)');
-    await db.execute('CREATE INDEX idx_tables_status ON dining_tables (status)');
-    await db.execute('CREATE INDEX idx_daily_reports_date ON daily_reports (report_date)');
-    await db.execute('CREATE INDEX idx_register_status ON register_sessions (status)');
-    await db.execute('CREATE INDEX idx_cash_movements_session ON cash_movements (session_id)');
-    await db.execute('CREATE INDEX idx_expenses_branch ON expenses (branch_id)');
+    await db.execute(
+      'CREATE INDEX idx_orders_kitchen_status ON orders (kitchen_status)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_order_items_order ON order_items (order_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_receipt_logs_order ON receipt_logs (order_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_tables_status ON dining_tables (status)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_daily_reports_date ON daily_reports (report_date)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_register_status ON register_sessions (status)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_cash_movements_session ON cash_movements (session_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_expenses_branch ON expenses (branch_id)',
+    );
 
     // Seed Initial Data
     await _seedInitialData(db);
@@ -272,7 +307,9 @@ class DbHelper {
   FutureOr<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 2) {
       try {
-        await db.execute('ALTER TABLE receipt_logs ADD COLUMN receipt_file_path TEXT');
+        await db.execute(
+          'ALTER TABLE receipt_logs ADD COLUMN receipt_file_path TEXT',
+        );
       } catch (_) {}
     }
     if (oldVersion < 3) {
@@ -304,7 +341,9 @@ class DbHelper {
         await db.execute('ALTER TABLE orders ADD COLUMN customer_name TEXT');
       } catch (_) {}
       try {
-        await db.execute('ALTER TABLE orders ADD COLUMN order_type TEXT DEFAULT "DINE_IN"');
+        await db.execute(
+          'ALTER TABLE orders ADD COLUMN order_type TEXT DEFAULT "DINE_IN"',
+        );
       } catch (_) {}
 
       await db.execute('''
@@ -331,7 +370,9 @@ class DbHelper {
     if (oldVersion < 5) {
       // Add branch_id to orders
       try {
-        await db.execute('ALTER TABLE orders ADD COLUMN branch_id TEXT DEFAULT "store_a"');
+        await db.execute(
+          'ALTER TABLE orders ADD COLUMN branch_id TEXT DEFAULT "store_a"',
+        );
       } catch (_) {}
 
       // Create register sessions table
@@ -415,30 +456,62 @@ class DbHelper {
       ''');
 
       try {
-        await db.execute("ALTER TABLE orders ADD COLUMN kitchen_status TEXT NOT NULL DEFAULT 'PENDING'");
+        await db.execute(
+          "ALTER TABLE orders ADD COLUMN kitchen_status TEXT NOT NULL DEFAULT 'PENDING'",
+        );
       } catch (_) {}
 
       try {
-        await db.execute('CREATE INDEX IF NOT EXISTS idx_orders_kitchen_status ON orders (kitchen_status)');
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_orders_kitchen_status ON orders (kitchen_status)',
+        );
       } catch (_) {}
 
       final defaultUsers = [
-        {'id': 'usr_owner', 'name': 'Owner (Boss)', 'pin_code': '9999', 'role': 'OWNER'},
-        {'id': 'usr_cashier', 'name': 'Staff Cashier', 'pin_code': '1234', 'role': 'CASHIER'},
-        {'id': 'usr_chef', 'name': 'Kitchen Chef', 'pin_code': '5555', 'role': 'CHEF'},
+        {
+          'id': 'usr_owner',
+          'name': 'Owner (Boss)',
+          'pin_code': '9999',
+          'role': 'OWNER',
+        },
+        {
+          'id': 'usr_cashier',
+          'name': 'Staff Cashier',
+          'pin_code': '1234',
+          'role': 'CASHIER',
+        },
+        {
+          'id': 'usr_chef',
+          'name': 'Kitchen Chef',
+          'pin_code': '5555',
+          'role': 'CHEF',
+        },
       ];
       for (var u in defaultUsers) {
-        await db.insert('users', u, conflictAlgorithm: ConflictAlgorithm.ignore);
+        await db.insert(
+          'users',
+          u,
+          conflictAlgorithm: ConflictAlgorithm.ignore,
+        );
       }
     }
   }
 
   Future<void> _seedInitialData(Database db) async {
-    // 0. Seed Users (v6)
+    // 0. Seed Users (v6) - strictly 1 Boss and 1 Staff Cashier
     final defaultUsers = [
-      {'id': 'usr_owner', 'name': 'Owner (Boss)', 'pin_code': '9999', 'role': 'OWNER'},
-      {'id': 'usr_cashier', 'name': 'Staff Cashier', 'pin_code': '1234', 'role': 'CASHIER'},
-      {'id': 'usr_chef', 'name': 'Kitchen Chef', 'pin_code': '5555', 'role': 'CHEF'},
+      {
+        'id': 'usr_owner',
+        'name': 'Owner (Boss)',
+        'pin_code': '9999',
+        'role': 'OWNER',
+      },
+      {
+        'id': 'usr_cashier',
+        'name': 'Staff Cashier',
+        'pin_code': '1234',
+        'role': 'CASHIER',
+      },
     ];
     for (var u in defaultUsers) {
       await db.insert('users', u, conflictAlgorithm: ConflictAlgorithm.ignore);
@@ -446,63 +519,365 @@ class DbHelper {
 
     // 1. Categories
     final categories = [
-      {'id': 'cat_coffee', 'name': 'Coffee & Tea', 'icon': 'local_cafe', 'color_hex': '0xFF0D9488', 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'cat_burgers', 'name': 'Burgers & Sandwiches', 'icon': 'lunch_dining', 'color_hex': '0xFF10B981', 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'cat_mains', 'name': 'Asian & Western Mains', 'icon': 'restaurant', 'color_hex': '0xFFF59E0B', 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'cat_desserts', 'name': 'Pastries & Desserts', 'icon': 'cake', 'color_hex': '0xFF8B5CF6', 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'cat_drinks', 'name': 'Beverages & Frappes', 'icon': 'local_bar', 'color_hex': '0xFFEC4899', 'created_at': DateTime.now().toIso8601String()},
+      {
+        'id': 'cat_coffee',
+        'name': 'Coffee & Tea',
+        'icon': 'local_cafe',
+        'color_hex': '0xFF0D9488',
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'cat_burgers',
+        'name': 'Burgers & Sandwiches',
+        'icon': 'lunch_dining',
+        'color_hex': '0xFF10B981',
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'cat_mains',
+        'name': 'Asian & Western Mains',
+        'icon': 'restaurant',
+        'color_hex': '0xFFF59E0B',
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'cat_desserts',
+        'name': 'Pastries & Desserts',
+        'icon': 'cake',
+        'color_hex': '0xFF8B5CF6',
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'cat_drinks',
+        'name': 'Beverages & Frappes',
+        'icon': 'local_bar',
+        'color_hex': '0xFFEC4899',
+        'created_at': DateTime.now().toIso8601String(),
+      },
     ];
 
     for (var c in categories) {
-      await db.insert('categories', c, conflictAlgorithm: ConflictAlgorithm.ignore);
+      await db.insert(
+        'categories',
+        c,
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
     }
 
     // 2. Subcategories
     final subcategories = [
-      {'id': 'sub_hot_coffee', 'category_id': 'cat_coffee', 'name': 'Hot Espresso', 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'sub_iced_coffee', 'category_id': 'cat_coffee', 'name': 'Iced Coffee', 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'sub_burgers', 'category_id': 'cat_burgers', 'name': 'Gourmet Burgers', 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'sub_fries', 'category_id': 'cat_burgers', 'name': 'Sides & Snacks', 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'sub_rice', 'category_id': 'cat_mains', 'name': 'Signature Bowls', 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'sub_pasta', 'category_id': 'cat_mains', 'name': 'Handmade Pasta', 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'sub_cakes', 'category_id': 'cat_desserts', 'name': 'Artisan Cakes', 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'sub_smoothies', 'category_id': 'cat_drinks', 'name': 'Fresh Smoothies', 'created_at': DateTime.now().toIso8601String()},
+      {
+        'id': 'sub_hot_coffee',
+        'category_id': 'cat_coffee',
+        'name': 'Hot Espresso',
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'sub_iced_coffee',
+        'category_id': 'cat_coffee',
+        'name': 'Iced Coffee',
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'sub_burgers',
+        'category_id': 'cat_burgers',
+        'name': 'Gourmet Burgers',
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'sub_fries',
+        'category_id': 'cat_burgers',
+        'name': 'Sides & Snacks',
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'sub_rice',
+        'category_id': 'cat_mains',
+        'name': 'Signature Bowls',
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'sub_pasta',
+        'category_id': 'cat_mains',
+        'name': 'Handmade Pasta',
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'sub_cakes',
+        'category_id': 'cat_desserts',
+        'name': 'Artisan Cakes',
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'sub_smoothies',
+        'category_id': 'cat_drinks',
+        'name': 'Fresh Smoothies',
+        'created_at': DateTime.now().toIso8601String(),
+      },
     ];
 
     for (var s in subcategories) {
-      await db.insert('subcategories', s, conflictAlgorithm: ConflictAlgorithm.ignore);
+      await db.insert(
+        'subcategories',
+        s,
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
     }
 
     // 3. Products
     final products = [
-      {'id': 'prod_espresso', 'category_id': 'cat_coffee', 'subcategory_id': 'sub_hot_coffee', 'name': 'Double Espresso', 'price': 2.75, 'cost': 0.80, 'barcode': '100001', 'color_hex': '0xFF0D9488', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'prod_americano', 'category_id': 'cat_coffee', 'subcategory_id': 'sub_hot_coffee', 'name': 'Caffe Americano', 'price': 3.25, 'cost': 0.90, 'barcode': '100002', 'color_hex': '0xFF0D9488', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'prod_latte', 'category_id': 'cat_coffee', 'subcategory_id': 'sub_hot_coffee', 'name': 'Vanilla Caffe Latte', 'price': 4.50, 'cost': 1.20, 'barcode': '100003', 'color_hex': '0xFF0D9488', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'prod_cappuccino', 'category_id': 'cat_coffee', 'subcategory_id': 'sub_hot_coffee', 'name': 'Caramel Cappuccino', 'price': 4.75, 'cost': 1.30, 'barcode': '100004', 'color_hex': '0xFF0D9488', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'prod_iced_latte', 'category_id': 'cat_coffee', 'subcategory_id': 'sub_iced_coffee', 'name': 'Iced Spanish Latte', 'price': 5.00, 'cost': 1.50, 'barcode': '100005', 'color_hex': '0xFF0D9488', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'prod_matcha', 'category_id': 'cat_coffee', 'subcategory_id': 'sub_iced_coffee', 'name': 'Iced Uji Matcha Latte', 'price': 5.50, 'cost': 1.80, 'barcode': '100006', 'color_hex': '0xFF0D9488', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
+      {
+        'id': 'prod_espresso',
+        'category_id': 'cat_coffee',
+        'subcategory_id': 'sub_hot_coffee',
+        'name': 'Double Espresso',
+        'price': 2.75,
+        'cost': 0.80,
+        'barcode': '100001',
+        'color_hex': '0xFF0D9488',
+        'in_stock': 1,
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'prod_americano',
+        'category_id': 'cat_coffee',
+        'subcategory_id': 'sub_hot_coffee',
+        'name': 'Caffe Americano',
+        'price': 3.25,
+        'cost': 0.90,
+        'barcode': '100002',
+        'color_hex': '0xFF0D9488',
+        'in_stock': 1,
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'prod_latte',
+        'category_id': 'cat_coffee',
+        'subcategory_id': 'sub_hot_coffee',
+        'name': 'Vanilla Caffe Latte',
+        'price': 4.50,
+        'cost': 1.20,
+        'barcode': '100003',
+        'color_hex': '0xFF0D9488',
+        'in_stock': 1,
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'prod_cappuccino',
+        'category_id': 'cat_coffee',
+        'subcategory_id': 'sub_hot_coffee',
+        'name': 'Caramel Cappuccino',
+        'price': 4.75,
+        'cost': 1.30,
+        'barcode': '100004',
+        'color_hex': '0xFF0D9488',
+        'in_stock': 1,
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'prod_iced_latte',
+        'category_id': 'cat_coffee',
+        'subcategory_id': 'sub_iced_coffee',
+        'name': 'Iced Spanish Latte',
+        'price': 5.00,
+        'cost': 1.50,
+        'barcode': '100005',
+        'color_hex': '0xFF0D9488',
+        'in_stock': 1,
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'prod_matcha',
+        'category_id': 'cat_coffee',
+        'subcategory_id': 'sub_iced_coffee',
+        'name': 'Iced Uji Matcha Latte',
+        'price': 5.50,
+        'cost': 1.80,
+        'barcode': '100006',
+        'color_hex': '0xFF0D9488',
+        'in_stock': 1,
+        'created_at': DateTime.now().toIso8601String(),
+      },
 
-      {'id': 'prod_wagyu_burger', 'category_id': 'cat_burgers', 'subcategory_id': 'sub_burgers', 'name': 'Truffle Wagyu Burger', 'price': 12.50, 'cost': 4.80, 'barcode': '200001', 'color_hex': '0xFF10B981', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'prod_crispy_chicken', 'category_id': 'cat_burgers', 'subcategory_id': 'sub_burgers', 'name': 'Spicy Crispy Chicken Burger', 'price': 9.75, 'cost': 3.20, 'barcode': '200002', 'color_hex': '0xFF10B981', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'prod_club_sandwich', 'category_id': 'cat_burgers', 'subcategory_id': 'sub_burgers', 'name': 'Smoked Turkey Club', 'price': 8.50, 'cost': 2.80, 'barcode': '200003', 'color_hex': '0xFF10B981', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'prod_truffle_fries', 'category_id': 'cat_burgers', 'subcategory_id': 'sub_fries', 'name': 'Parmesan Truffle Fries', 'price': 4.95, 'cost': 1.40, 'barcode': '200004', 'color_hex': '0xFF10B981', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'prod_onion_rings', 'category_id': 'cat_burgers', 'subcategory_id': 'sub_fries', 'name': 'Crispy Beer Onion Rings', 'price': 4.25, 'cost': 1.10, 'barcode': '200005', 'color_hex': '0xFF10B981', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
+      {
+        'id': 'prod_wagyu_burger',
+        'category_id': 'cat_burgers',
+        'subcategory_id': 'sub_burgers',
+        'name': 'Truffle Wagyu Burger',
+        'price': 12.50,
+        'cost': 4.80,
+        'barcode': '200001',
+        'color_hex': '0xFF10B981',
+        'in_stock': 1,
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'prod_crispy_chicken',
+        'category_id': 'cat_burgers',
+        'subcategory_id': 'sub_burgers',
+        'name': 'Spicy Crispy Chicken Burger',
+        'price': 9.75,
+        'cost': 3.20,
+        'barcode': '200002',
+        'color_hex': '0xFF10B981',
+        'in_stock': 1,
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'prod_club_sandwich',
+        'category_id': 'cat_burgers',
+        'subcategory_id': 'sub_burgers',
+        'name': 'Smoked Turkey Club',
+        'price': 8.50,
+        'cost': 2.80,
+        'barcode': '200003',
+        'color_hex': '0xFF10B981',
+        'in_stock': 1,
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'prod_truffle_fries',
+        'category_id': 'cat_burgers',
+        'subcategory_id': 'sub_fries',
+        'name': 'Parmesan Truffle Fries',
+        'price': 4.95,
+        'cost': 1.40,
+        'barcode': '200004',
+        'color_hex': '0xFF10B981',
+        'in_stock': 1,
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'prod_onion_rings',
+        'category_id': 'cat_burgers',
+        'subcategory_id': 'sub_fries',
+        'name': 'Crispy Beer Onion Rings',
+        'price': 4.25,
+        'cost': 1.10,
+        'barcode': '200005',
+        'color_hex': '0xFF10B981',
+        'in_stock': 1,
+        'created_at': DateTime.now().toIso8601String(),
+      },
 
-      {'id': 'prod_pad_thai', 'category_id': 'cat_mains', 'subcategory_id': 'sub_rice', 'name': 'Royal Prawn Pad Thai', 'price': 11.00, 'cost': 3.90, 'barcode': '300001', 'color_hex': '0xFFF59E0B', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'prod_teriyaki_bowl', 'category_id': 'cat_mains', 'subcategory_id': 'sub_rice', 'name': 'Salmon Teriyaki Bowl', 'price': 13.50, 'cost': 5.10, 'barcode': '300002', 'color_hex': '0xFFF59E0B', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'prod_carbonara', 'category_id': 'cat_mains', 'subcategory_id': 'sub_pasta', 'name': 'Classic Guanciale Carbonara', 'price': 12.00, 'cost': 4.00, 'barcode': '300003', 'color_hex': '0xFFF59E0B', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
+      {
+        'id': 'prod_pad_thai',
+        'category_id': 'cat_mains',
+        'subcategory_id': 'sub_rice',
+        'name': 'Royal Prawn Pad Thai',
+        'price': 11.00,
+        'cost': 3.90,
+        'barcode': '300001',
+        'color_hex': '0xFFF59E0B',
+        'in_stock': 1,
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'prod_teriyaki_bowl',
+        'category_id': 'cat_mains',
+        'subcategory_id': 'sub_rice',
+        'name': 'Salmon Teriyaki Bowl',
+        'price': 13.50,
+        'cost': 5.10,
+        'barcode': '300002',
+        'color_hex': '0xFFF59E0B',
+        'in_stock': 1,
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'prod_carbonara',
+        'category_id': 'cat_mains',
+        'subcategory_id': 'sub_pasta',
+        'name': 'Classic Guanciale Carbonara',
+        'price': 12.00,
+        'cost': 4.00,
+        'barcode': '300003',
+        'color_hex': '0xFFF59E0B',
+        'in_stock': 1,
+        'created_at': DateTime.now().toIso8601String(),
+      },
 
-      {'id': 'prod_cheesecake', 'category_id': 'cat_desserts', 'subcategory_id': 'sub_cakes', 'name': 'Basque Burnt Cheesecake', 'price': 6.25, 'cost': 2.00, 'barcode': '400001', 'color_hex': '0xFF8B5CF6', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'prod_tiramisu', 'category_id': 'cat_desserts', 'subcategory_id': 'sub_cakes', 'name': 'Classic Italian Tiramisu', 'price': 6.75, 'cost': 2.20, 'barcode': '400002', 'color_hex': '0xFF8B5CF6', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'prod_croissant', 'category_id': 'cat_desserts', 'subcategory_id': 'sub_cakes', 'name': 'Almond Butter Croissant', 'price': 3.95, 'cost': 1.10, 'barcode': '400003', 'color_hex': '0xFF8B5CF6', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
+      {
+        'id': 'prod_cheesecake',
+        'category_id': 'cat_desserts',
+        'subcategory_id': 'sub_cakes',
+        'name': 'Basque Burnt Cheesecake',
+        'price': 6.25,
+        'cost': 2.00,
+        'barcode': '400001',
+        'color_hex': '0xFF8B5CF6',
+        'in_stock': 1,
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'prod_tiramisu',
+        'category_id': 'cat_desserts',
+        'subcategory_id': 'sub_cakes',
+        'name': 'Classic Italian Tiramisu',
+        'price': 6.75,
+        'cost': 2.20,
+        'barcode': '400002',
+        'color_hex': '0xFF8B5CF6',
+        'in_stock': 1,
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'prod_croissant',
+        'category_id': 'cat_desserts',
+        'subcategory_id': 'sub_cakes',
+        'name': 'Almond Butter Croissant',
+        'price': 3.95,
+        'cost': 1.10,
+        'barcode': '400003',
+        'color_hex': '0xFF8B5CF6',
+        'in_stock': 1,
+        'created_at': DateTime.now().toIso8601String(),
+      },
 
-      {'id': 'prod_mango_smoothie', 'category_id': 'cat_drinks', 'subcategory_id': 'sub_smoothies', 'name': 'Tropical Mango Passion Smoothie', 'price': 5.25, 'cost': 1.60, 'barcode': '500001', 'color_hex': '0xFFEC4899', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'prod_berry_blast', 'category_id': 'cat_drinks', 'subcategory_id': 'sub_smoothies', 'name': 'Wild Berry Acai Frappe', 'price': 5.75, 'cost': 1.75, 'barcode': '500002', 'color_hex': '0xFFEC4899', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
-      {'id': 'prod_sparkling_lemonade', 'category_id': 'cat_drinks', 'subcategory_id': 'sub_smoothies', 'name': 'Sparkling Mint Lemonade', 'price': 4.25, 'cost': 0.95, 'barcode': '500003', 'color_hex': '0xFFEC4899', 'in_stock': 1, 'created_at': DateTime.now().toIso8601String()},
+      {
+        'id': 'prod_mango_smoothie',
+        'category_id': 'cat_drinks',
+        'subcategory_id': 'sub_smoothies',
+        'name': 'Tropical Mango Passion Smoothie',
+        'price': 5.25,
+        'cost': 1.60,
+        'barcode': '500001',
+        'color_hex': '0xFFEC4899',
+        'in_stock': 1,
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'prod_berry_blast',
+        'category_id': 'cat_drinks',
+        'subcategory_id': 'sub_smoothies',
+        'name': 'Wild Berry Acai Frappe',
+        'price': 5.75,
+        'cost': 1.75,
+        'barcode': '500002',
+        'color_hex': '0xFFEC4899',
+        'in_stock': 1,
+        'created_at': DateTime.now().toIso8601String(),
+      },
+      {
+        'id': 'prod_sparkling_lemonade',
+        'category_id': 'cat_drinks',
+        'subcategory_id': 'sub_smoothies',
+        'name': 'Sparkling Mint Lemonade',
+        'price': 4.25,
+        'cost': 0.95,
+        'barcode': '500003',
+        'color_hex': '0xFFEC4899',
+        'in_stock': 1,
+        'created_at': DateTime.now().toIso8601String(),
+      },
     ];
 
     for (var p in products) {
-      await db.insert('products', p, conflictAlgorithm: ConflictAlgorithm.ignore);
+      await db.insert(
+        'products',
+        p,
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
     }
 
     // 4. Default Store Settings
@@ -524,7 +899,10 @@ class DbHelper {
     };
 
     for (var entry in defaultSettings.entries) {
-      await db.insert('settings', {'key': entry.key, 'value': entry.value}, conflictAlgorithm: ConflictAlgorithm.ignore);
+      await db.insert('settings', {
+        'key': entry.key,
+        'value': entry.value,
+      }, conflictAlgorithm: ConflictAlgorithm.ignore);
     }
 
     // 5. Seed Tables
@@ -540,22 +918,122 @@ class DbHelper {
   Future<void> _seedDefaultTables(Database db) async {
     final now = DateTime.now().toIso8601String();
     final defaultTables = [
-      {'id': 'tbl_01', 'table_number': 'T01', 'name': 'Window Table 1', 'capacity': 4, 'status': 'AVAILABLE', 'type': 'STANDARD', 'created_at': now},
-      {'id': 'tbl_02', 'table_number': 'T02', 'name': 'Window Table 2', 'capacity': 4, 'status': 'AVAILABLE', 'type': 'STANDARD', 'created_at': now},
-      {'id': 'tbl_03', 'table_number': 'T03', 'name': 'Cozy Corner', 'capacity': 2, 'status': 'AVAILABLE', 'type': 'STANDARD', 'created_at': now},
-      {'id': 'tbl_04', 'table_number': 'T04', 'name': 'Bistro Table 4', 'capacity': 2, 'status': 'AVAILABLE', 'type': 'STANDARD', 'created_at': now},
-      {'id': 'tbl_05', 'table_number': 'T05', 'name': 'Central Booth', 'capacity': 6, 'status': 'AVAILABLE', 'type': 'STANDARD', 'created_at': now},
-      {'id': 'tbl_06', 'table_number': 'T06', 'name': 'Family Table 6', 'capacity': 6, 'status': 'AVAILABLE', 'type': 'STANDARD', 'created_at': now},
-      {'id': 'tbl_07', 'table_number': 'T07', 'name': 'High Top 7', 'capacity': 4, 'status': 'AVAILABLE', 'type': 'STANDARD', 'created_at': now},
-      {'id': 'tbl_08', 'table_number': 'T08', 'name': 'Large Group Table', 'capacity': 8, 'status': 'AVAILABLE', 'type': 'STANDARD', 'created_at': now},
-      {'id': 'tbl_vip1', 'table_number': 'VIP-1', 'name': 'Royal Executive Room', 'capacity': 10, 'status': 'AVAILABLE', 'type': 'VIP_ROOM', 'created_at': now},
-      {'id': 'tbl_vip2', 'table_number': 'VIP-2', 'name': 'Emerald Private Suite', 'capacity': 8, 'status': 'AVAILABLE', 'type': 'VIP_ROOM', 'created_at': now},
-      {'id': 'tbl_patio1', 'table_number': 'Patio-1', 'name': 'Outdoor Garden 1', 'capacity': 4, 'status': 'AVAILABLE', 'type': 'OUTDOOR', 'created_at': now},
-      {'id': 'tbl_patio2', 'table_number': 'Patio-2', 'name': 'Outdoor Garden 2', 'capacity': 4, 'status': 'AVAILABLE', 'type': 'OUTDOOR', 'created_at': now},
+      {
+        'id': 'tbl_01',
+        'table_number': 'T01',
+        'name': 'Window Table 1',
+        'capacity': 4,
+        'status': 'AVAILABLE',
+        'type': 'STANDARD',
+        'created_at': now,
+      },
+      {
+        'id': 'tbl_02',
+        'table_number': 'T02',
+        'name': 'Window Table 2',
+        'capacity': 4,
+        'status': 'AVAILABLE',
+        'type': 'STANDARD',
+        'created_at': now,
+      },
+      {
+        'id': 'tbl_03',
+        'table_number': 'T03',
+        'name': 'Cozy Corner',
+        'capacity': 2,
+        'status': 'AVAILABLE',
+        'type': 'STANDARD',
+        'created_at': now,
+      },
+      {
+        'id': 'tbl_04',
+        'table_number': 'T04',
+        'name': 'Bistro Table 4',
+        'capacity': 2,
+        'status': 'AVAILABLE',
+        'type': 'STANDARD',
+        'created_at': now,
+      },
+      {
+        'id': 'tbl_05',
+        'table_number': 'T05',
+        'name': 'Central Booth',
+        'capacity': 6,
+        'status': 'AVAILABLE',
+        'type': 'STANDARD',
+        'created_at': now,
+      },
+      {
+        'id': 'tbl_06',
+        'table_number': 'T06',
+        'name': 'Family Table 6',
+        'capacity': 6,
+        'status': 'AVAILABLE',
+        'type': 'STANDARD',
+        'created_at': now,
+      },
+      {
+        'id': 'tbl_07',
+        'table_number': 'T07',
+        'name': 'High Top 7',
+        'capacity': 4,
+        'status': 'AVAILABLE',
+        'type': 'STANDARD',
+        'created_at': now,
+      },
+      {
+        'id': 'tbl_08',
+        'table_number': 'T08',
+        'name': 'Large Group Table',
+        'capacity': 8,
+        'status': 'AVAILABLE',
+        'type': 'STANDARD',
+        'created_at': now,
+      },
+      {
+        'id': 'tbl_vip1',
+        'table_number': 'VIP-1',
+        'name': 'Royal Executive Room',
+        'capacity': 10,
+        'status': 'AVAILABLE',
+        'type': 'VIP_ROOM',
+        'created_at': now,
+      },
+      {
+        'id': 'tbl_vip2',
+        'table_number': 'VIP-2',
+        'name': 'Emerald Private Suite',
+        'capacity': 8,
+        'status': 'AVAILABLE',
+        'type': 'VIP_ROOM',
+        'created_at': now,
+      },
+      {
+        'id': 'tbl_patio1',
+        'table_number': 'Patio-1',
+        'name': 'Outdoor Garden 1',
+        'capacity': 4,
+        'status': 'AVAILABLE',
+        'type': 'OUTDOOR',
+        'created_at': now,
+      },
+      {
+        'id': 'tbl_patio2',
+        'table_number': 'Patio-2',
+        'name': 'Outdoor Garden 2',
+        'capacity': 4,
+        'status': 'AVAILABLE',
+        'type': 'OUTDOOR',
+        'created_at': now,
+      },
     ];
 
     for (var tbl in defaultTables) {
-      await db.insert('dining_tables', tbl, conflictAlgorithm: ConflictAlgorithm.ignore);
+      await db.insert(
+        'dining_tables',
+        tbl,
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
     }
   }
 
@@ -583,9 +1061,30 @@ class DbHelper {
         'status': 'COMPLETED',
         'created_at': now.subtract(const Duration(hours: 3)).toIso8601String(),
         'items': [
-          {'id': 'item_01_1', 'product_id': 'prod_wagyu_burger', 'product_name': 'Truffle Wagyu Burger', 'quantity': 1, 'unit_price': 12.50, 'total_price': 12.50},
-          {'id': 'item_01_2', 'product_id': 'prod_truffle_fries', 'product_name': 'Parmesan Truffle Fries', 'quantity': 1, 'unit_price': 4.95, 'total_price': 4.95},
-          {'id': 'item_01_3', 'product_id': 'prod_latte', 'product_name': 'Vanilla Caffe Latte', 'quantity': 1, 'unit_price': 4.50, 'total_price': 4.50},
+          {
+            'id': 'item_01_1',
+            'product_id': 'prod_wagyu_burger',
+            'product_name': 'Truffle Wagyu Burger',
+            'quantity': 1,
+            'unit_price': 12.50,
+            'total_price': 12.50,
+          },
+          {
+            'id': 'item_01_2',
+            'product_id': 'prod_truffle_fries',
+            'product_name': 'Parmesan Truffle Fries',
+            'quantity': 1,
+            'unit_price': 4.95,
+            'total_price': 4.95,
+          },
+          {
+            'id': 'item_01_3',
+            'product_id': 'prod_latte',
+            'product_name': 'Vanilla Caffe Latte',
+            'quantity': 1,
+            'unit_price': 4.50,
+            'total_price': 4.50,
+          },
         ],
       },
       {
@@ -606,11 +1105,34 @@ class DbHelper {
         'cash_tendered': 34.10,
         'change_amount': 0.0,
         'status': 'COMPLETED',
-        'created_at': now.subtract(const Duration(hours: 1, minutes: 20)).toIso8601String(),
+        'created_at': now
+            .subtract(const Duration(hours: 1, minutes: 20))
+            .toIso8601String(),
         'items': [
-          {'id': 'item_02_1', 'product_id': 'prod_pad_thai', 'product_name': 'Royal Prawn Pad Thai', 'quantity': 2, 'unit_price': 11.00, 'total_price': 22.00},
-          {'id': 'item_02_2', 'product_id': 'prod_matcha', 'product_name': 'Iced Uji Matcha Latte', 'quantity': 1, 'unit_price': 5.50, 'total_price': 5.50},
-          {'id': 'item_02_3', 'product_id': 'prod_sparkling_lemonade', 'product_name': 'Sparkling Mint Lemonade', 'quantity': 1, 'unit_price': 4.25, 'total_price': 4.25},
+          {
+            'id': 'item_02_1',
+            'product_id': 'prod_pad_thai',
+            'product_name': 'Royal Prawn Pad Thai',
+            'quantity': 2,
+            'unit_price': 11.00,
+            'total_price': 22.00,
+          },
+          {
+            'id': 'item_02_2',
+            'product_id': 'prod_matcha',
+            'product_name': 'Iced Uji Matcha Latte',
+            'quantity': 1,
+            'unit_price': 5.50,
+            'total_price': 5.50,
+          },
+          {
+            'id': 'item_02_3',
+            'product_id': 'prod_sparkling_lemonade',
+            'product_name': 'Sparkling Mint Lemonade',
+            'quantity': 1,
+            'unit_price': 4.25,
+            'total_price': 4.25,
+          },
         ],
       },
       {
@@ -631,10 +1153,26 @@ class DbHelper {
         'cash_tendered': 20.00,
         'change_amount': 2.18,
         'status': 'COMPLETED',
-        'created_at': now.subtract(const Duration(days: 1, hours: 2)).toIso8601String(),
+        'created_at': now
+            .subtract(const Duration(days: 1, hours: 2))
+            .toIso8601String(),
         'items': [
-          {'id': 'item_03_1', 'product_id': 'prod_cheesecake', 'product_name': 'Basque Burnt Cheesecake', 'quantity': 2, 'unit_price': 6.25, 'total_price': 12.50},
-          {'id': 'item_03_2', 'product_id': 'prod_matcha', 'product_name': 'Iced Uji Matcha Latte', 'quantity': 1, 'unit_price': 5.50, 'total_price': 5.50},
+          {
+            'id': 'item_03_1',
+            'product_id': 'prod_cheesecake',
+            'product_name': 'Basque Burnt Cheesecake',
+            'quantity': 2,
+            'unit_price': 6.25,
+            'total_price': 12.50,
+          },
+          {
+            'id': 'item_03_2',
+            'product_id': 'prod_matcha',
+            'product_name': 'Iced Uji Matcha Latte',
+            'quantity': 1,
+            'unit_price': 5.50,
+            'total_price': 5.50,
+          },
         ],
       },
     ];
@@ -642,11 +1180,20 @@ class DbHelper {
     for (var ord in sampleOrders) {
       final items = ord['items'] as List<Map<String, dynamic>>;
       final orderMap = Map<String, dynamic>.from(ord)..remove('items');
-      await db.insert('orders', orderMap, conflictAlgorithm: ConflictAlgorithm.ignore);
+      await db.insert(
+        'orders',
+        orderMap,
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
 
       for (var item in items) {
-        final itemMap = Map<String, dynamic>.from(item)..['order_id'] = ord['id'];
-        await db.insert('order_items', itemMap, conflictAlgorithm: ConflictAlgorithm.ignore);
+        final itemMap = Map<String, dynamic>.from(item)
+          ..['order_id'] = ord['id'];
+        await db.insert(
+          'order_items',
+          itemMap,
+          conflictAlgorithm: ConflictAlgorithm.ignore,
+        );
       }
 
       await db.insert('receipt_logs', {
@@ -730,7 +1277,11 @@ class DbHelper {
     ];
 
     for (var exp in expenses) {
-      await db.insert('expenses', exp, conflictAlgorithm: ConflictAlgorithm.ignore);
+      await db.insert(
+        'expenses',
+        exp,
+        conflictAlgorithm: ConflictAlgorithm.ignore,
+      );
     }
 
     // 3. Seed an active or recent register session for Store A

@@ -9,9 +9,10 @@ import '../../../controllers/table_controller.dart';
 import '../../../models/order_model.dart';
 import '../../../models/store_settings_model.dart';
 import '../../../widgets/custom_dialogs.dart';
-import '../../../widgets/receipt_preview_dialog.dart';
 import '../../../core/theme/asset_theme.dart';
+import '../../../core/theme/sprite_icons.dart';
 import '../../../widgets/app_svg_icon.dart';
+import '../../../widgets/receipt_preview_dialog.dart';
 import '../../../services/printer_service.dart';
 
 class CartTotalsPanel extends StatefulWidget {
@@ -26,7 +27,7 @@ class CartTotalsPanel extends StatefulWidget {
 class _CartTotalsPanelState extends State<CartTotalsPanel> {
   bool _isProcessing = false;
 
-  Future<void> _handleConfirmOrderToChef() async {
+  Future<void> _handlePrintBill({bool showQr = true}) async {
     if (_isProcessing) return;
     final cart = context.read<CartController>();
     if (cart.isEmpty) return;
@@ -36,13 +37,17 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.soup_kitchen_rounded, color: Color(0xFFD97706), size: 24),
-            SizedBox(width: 8),
+            AppSvgIcon.sprite(
+              showQr ? SpriteIcons.khqr : SpriteIcons.receipt,
+              color: const Color(0xFF0F766E),
+              size: 24,
+            ),
+            const SizedBox(width: 8),
             Text(
-              'Confirm Print for Chef',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              showQr ? 'Print Bill (With QR)' : 'Print Bill (No QR)',
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
           ],
         ),
@@ -50,9 +55,11 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Send this order to the kitchen now? A kitchen ticket will be printed for the Chef.',
-              style: TextStyle(fontSize: 13, color: Color(0xFF334155)),
+            Text(
+              showQr
+                  ? 'Print a bill receipt with Bakong KHQR for customer review and mobile banking payment?'
+                  : 'Print a bill receipt without QR code for customer review and payment?',
+              style: const TextStyle(fontSize: 13, color: Color(0xFF334155)),
             ),
             const SizedBox(height: 12),
             Container(
@@ -86,17 +93,19 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Order Subtotal:', style: TextStyle(color: Color(0xFF64748B), fontSize: 12)),
-                      Text('${widget.currency}${cart.subtotal.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                      const Text('Order Total:', style: TextStyle(color: Color(0xFF64748B), fontSize: 12)),
+                      Text('${widget.currency}${cart.totalAmount.toStringAsFixed(2)}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                     ],
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
-              '* Chef receipt will print without prices. Payment remains pending until cashier taps to pay.',
-              style: TextStyle(fontSize: 11, color: Color(0xFF64748B), fontStyle: FontStyle.italic),
+            Text(
+              showQr
+                  ? '* Prints Bill with Bakong KHQR. Order is kept pending until customer pays.'
+                  : '* Prints Bill without QR code. Order is kept pending until customer pays.',
+              style: const TextStyle(fontSize: 11, color: Color(0xFF64748B), fontStyle: FontStyle.italic),
             ),
           ],
         ),
@@ -107,13 +116,13 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
           ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFD97706),
+              backgroundColor: const Color(0xFF0F766E),
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
             icon: const Icon(Icons.print, size: 16),
-            label: const Text('Confirm & Print to Chef', style: TextStyle(fontWeight: FontWeight.bold)),
+            label: Text(showQr ? 'Print Bill (QR)' : 'Print Bill (No QR)', style: const TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -128,33 +137,22 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
 
     setState(() => _isProcessing = true);
     try {
-      final order = await posCtrl.confirmOrderToKitchen(
+      final order = await posCtrl.printUnpaidBill(
         cart: cart,
         settings: settings,
         branchId: branchId,
         tableController: tableCtrl,
         clearCartAfter: false,
+        showQr: showQr,
       );
 
       if (order != null && mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.soup_kitchen_rounded, color: Colors.white, size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Order #${order.orderNumber ?? order.receiptNo} confirmed & sent to Chef! Tap below to pay when ready.',
-                    style: const TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
-            backgroundColor: const Color(0xFF0F766E),
-            duration: const Duration(seconds: 4),
-            behavior: SnackBarBehavior.floating,
-          ),
+        _showReceiptPreview(
+          order,
+          settings,
+          posCtrl,
+          initialIsPaid: false,
+          initialMode: showQr ? ReceiptMode.unpaidQr : ReceiptMode.unpaidNoQr,
         );
       }
     } finally {
@@ -162,7 +160,7 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
     }
   }
 
-  Future<void> _handleReprintChefTicket() async {
+  Future<void> _handleReprintBill() async {
     if (_isProcessing) return;
     final posCtrl = context.read<PosController>();
     final settings = context.read<SettingsController>().settings;
@@ -179,10 +177,10 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
           children: [
             Icon(Icons.print_outlined, color: Color(0xFF0F766E), size: 22),
             SizedBox(width: 8),
-            Text('Confirm Print for Chef', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+            Text('Reprint Bill (Unpaid / QR)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
           ],
         ),
-        content: Text('Print a duplicate kitchen ticket for Order #${order.orderNumber ?? order.receiptNo} to the Chef printer?'),
+        content: Text('Print another copy of Bill #${order.orderNumber ?? order.receiptNo} with Bakong KHQR?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
@@ -205,11 +203,11 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
     if (confirmed != true || !mounted) return;
 
     final printerService = PrinterService();
-    await printerService.printKitchenTicket(order: order, settings: settings);
+    await printerService.printReceipt(order: order, settings: settings, isPaid: false);
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Kitchen ticket reprinted for Chef!'),
+          content: Text('Unpaid bill reprinted!'),
           backgroundColor: Color(0xFF0F766E),
           duration: Duration(seconds: 2),
         ),
@@ -323,16 +321,20 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
   void _showReceiptPreview(
     OrderModel order,
     StoreSettingsModel settings,
-    PosController posCtrl,
-  ) {
+    PosController posCtrl, {
+    bool initialIsPaid = true,
+    ReceiptMode? initialMode,
+  }) {
     showDialog(
       context: context,
       builder: (_) => ReceiptPreviewDialog(
         order: order,
         settings: settings,
+        initialIsPaid: initialIsPaid,
+        initialMode: initialMode,
         existingSaveResult: posCtrl.lastReceiptSaveResult,
         onReprint: () =>
-            posCtrl.reprintReceipt(order: order, settings: settings),
+            posCtrl.reprintReceipt(order: order, settings: settings, isPaid: initialIsPaid),
       ),
     );
   }
@@ -725,7 +727,7 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
 
           // ── Checkout Action Buttons ──────────────────────────────────────────
           if (cart.isConfirmedPending) ...[
-            // Status banner for confirmed order
+            // Status banner for confirmed unpaid bill
             Container(
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -737,11 +739,11 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.soup_kitchen_rounded, size: 18, color: Color(0xFF92400E)),
+                  const AppSvgIcon.sprite(SpriteIcons.receipt, size: 18, color: Color(0xFF92400E)),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      'Order #${cart.orderNumber ?? ""} Sent to Chef • Unpaid',
+                      'Bill #${cart.orderNumber ?? ""} Printed • Unpaid',
                       style: const TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
@@ -750,11 +752,11 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                     ),
                   ),
                   InkWell(
-                    onTap: _handleReprintChefTicket,
+                    onTap: _handleReprintBill,
                     child: const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                       child: Text(
-                        'Reprint Ticket',
+                        'Reprint Bill',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -768,7 +770,7 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
               ),
             ),
 
-            // Row 1: Payment buttons: "TAP TO PAY"
+            // Row 1: Payment buttons: "CASH PAY" and "QR CODE"
             Row(
               children: [
                 Expanded(
@@ -786,7 +788,7 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                         elevation: 0,
                       ),
                       onPressed: !_isProcessing ? _handleCashCheckout : null,
-                      icon: const AppSvgIcon(AssetTheme.wallet, size: 21, color: Colors.white),
+                      icon: const AppSvgIcon.sprite(SpriteIcons.cash, size: 21, color: Colors.white),
                       label: const Text(
                         'CASH PAY',
                         style: TextStyle(
@@ -813,7 +815,7 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                         elevation: 0,
                       ),
                       onPressed: !_isProcessing ? _handleQrCheckout : null,
-                      icon: const AppSvgIcon(AssetTheme.searchQR, size: 21, color: Colors.white),
+                      icon: const AppSvgIcon.sprite(SpriteIcons.khqr, size: 21, color: Colors.white),
                       label: const Text(
                         'QR CODE',
                         style: TextStyle(
@@ -842,7 +844,7 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                   ),
                 ),
                 onPressed: _handleNewOrder,
-                icon: const Icon(Icons.add_shopping_cart, size: 17),
+                icon: const AppSvgIcon.sprite(SpriteIcons.cart, size: 17, color: Color(0xFF475569)),
                 label: const Text(
                   'Start New Order (Keep Table Active)',
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
@@ -850,34 +852,71 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
               ),
             ),
           ] else ...[
-            // Row 1: CONFIRM ORDER (PRINT FOR CHEF)
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFD97706),
-                  foregroundColor: Colors.white,
-                  disabledBackgroundColor: const Color(0xFFD97706)
-                      .withValues(alpha: 0.35),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+            // Row 1: PRINT BILL OPTIONS (NO QR vs WITH QR)
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: 46,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFD97706),
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: const Color(0xFFD97706)
+                            .withValues(alpha: 0.35),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                      ),
+                      onPressed: !isEmpty && !_isProcessing
+                          ? () => _handlePrintBill(showQr: false)
+                          : null,
+                      icon: const AppSvgIcon.sprite(SpriteIcons.receipt, size: 18, color: Colors.white),
+                      label: const Text(
+                        'BILL (NO QR)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11.5,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ),
                   ),
-                  elevation: 0,
                 ),
-                onPressed: !isEmpty && !_isProcessing
-                    ? _handleConfirmOrderToChef
-                    : null,
-                icon: const Icon(Icons.soup_kitchen_rounded, size: 21, color: Colors.white),
-                label: const Text(
-                  'CONFIRM ORDER (PRINT TO CHEF)',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    letterSpacing: 0.3,
+                const SizedBox(width: 8),
+                Expanded(
+                  child: SizedBox(
+                    height: 46,
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFB45309),
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: const Color(0xFFB45309)
+                            .withValues(alpha: 0.35),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(horizontal: 4),
+                      ),
+                      onPressed: !isEmpty && !_isProcessing
+                          ? () => _handlePrintBill(showQr: true)
+                          : null,
+                      icon: const AppSvgIcon.sprite(SpriteIcons.khqr, size: 18, color: Colors.white),
+                      label: const Text(
+                        'BILL (WITH QR)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 11.5,
+                          letterSpacing: 0.2,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
             const SizedBox(height: 8),
 
@@ -899,7 +938,7 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                       onPressed: !isEmpty && !_isProcessing
                           ? _handleCashCheckout
                           : null,
-                      icon: const AppSvgIcon(AssetTheme.wallet, size: 19, color: Color(0xFF0F766E)),
+                      icon: const AppSvgIcon.sprite(SpriteIcons.cash, size: 19, color: Color(0xFF0F766E)),
                       label: const Text(
                         'CASH PAY',
                         style: TextStyle(
@@ -926,7 +965,7 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
                       onPressed: !isEmpty && !_isProcessing
                           ? _handleQrCheckout
                           : null,
-                      icon: const AppSvgIcon(AssetTheme.searchQR, size: 19, color: Color(0xFF0D9488)),
+                      icon: const AppSvgIcon.sprite(SpriteIcons.khqr, size: 19, color: Color(0xFF0D9488)),
                       label: const Text(
                         'QR CODE',
                         style: TextStyle(

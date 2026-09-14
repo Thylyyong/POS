@@ -47,20 +47,20 @@ class TopSellingItem {
 class OrderDao {
   final DbHelper _dbHelper = DbHelper();
 
-  // Generate Unique Receipt Number: REC-YYYYMMDD-XXXX
+  // Generate Unique Receipt Number: SAL-YYYYMMDD-XXXX
   Future<String> generateNextReceiptNumber() async {
     final db = await _dbHelper.database;
     final todayStr = DateFormat('yyyyMMdd').format(DateTime.now());
-    final prefix = 'REC-$todayStr-';
+    final prefix = 'SAL-$todayStr-';
 
     final result = await db.rawQuery(
-      'SELECT receipt_no FROM orders WHERE receipt_no LIKE ? ORDER BY receipt_no DESC LIMIT 1',
-      ['$prefix%'],
+      'SELECT receipt_no FROM orders WHERE receipt_no LIKE ? OR receipt_no LIKE ? ORDER BY receipt_no DESC LIMIT 1',
+      ['$prefix%', 'REC-$todayStr-%'],
     );
 
     if (result.isNotEmpty) {
       final lastNo = result.first['receipt_no'] as String;
-      final seqStr = lastNo.replaceFirst(prefix, '');
+      final seqStr = lastNo.split('-').last;
       final seq = int.tryParse(seqStr) ?? 0;
       final nextSeq = (seq + 1).toString().padLeft(4, '0');
       return '$prefix$nextSeq';

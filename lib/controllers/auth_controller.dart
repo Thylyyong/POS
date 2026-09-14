@@ -6,60 +6,30 @@ import '../models/user_model.dart';
 class AuthController extends ChangeNotifier {
   final UserDao _userDao = UserDao();
 
-  // Preset default users for the enterprise
+  // Preset default users for the business: strictly 1 Boss (Owner) and 1 Staff (Cashier)
   static final List<UserModel> defaultUsers = [
     const UserModel(
       id: 'usr_owner',
       username: 'owner',
       displayName: 'Owner (Boss)',
       role: UserRole.owner,
-      branchId: 'all',
+      branchId: 'main',
       branchName: 'Main Store',
       pinCode: '9999',
     ),
     const UserModel(
-      id: 'usr_sub_boss_1',
-      username: 'sub_boss_1',
-      displayName: 'Sub Boss 1 (Store A)',
-      role: UserRole.subBoss,
-      branchId: 'store_a',
-      branchName: 'Store A',
-      pinCode: '1111',
-    ),
-    const UserModel(
-      id: 'usr_sub_boss_2',
-      username: 'sub_boss_2',
-      displayName: 'Sub Boss 2 (Store B)',
-      role: UserRole.subBoss,
-      branchId: 'store_b',
-      branchName: 'Store B',
-      pinCode: '2222',
-    ),
-    const UserModel(
       id: 'usr_cashier',
       username: 'cashier',
-      displayName: 'Staff Cashier (Frontline POS)',
+      displayName: 'Staff Cashier',
       role: UserRole.cashier,
-      branchId: 'store_a',
+      branchId: 'main',
       branchName: 'Main Store',
       pinCode: '1234',
-    ),
-    const UserModel(
-      id: 'usr_chef',
-      username: 'chef',
-      displayName: 'Kitchen Chef (KDS)',
-      role: UserRole.chef,
-      branchId: 'store_a',
-      branchName: 'Main Store',
-      pinCode: '5555',
     ),
   ];
 
   /// Only Boss and Staff Cashier for UI screen display and selection
-  static List<UserModel> get screenUsers => [
-    defaultUsers[0], // Owner (Boss)
-    defaultUsers[3], // Staff Cashier
-  ];
+  static List<UserModel> get screenUsers => defaultUsers;
 
   AuthController() {
     loadUsersFromDb();
@@ -72,7 +42,9 @@ class AuthController extends ChangeNotifier {
         for (final dbUser in dbUsers) {
           final idx = defaultUsers.indexWhere((u) => u.id == dbUser.id);
           if (idx >= 0) {
-            defaultUsers[idx] = defaultUsers[idx].copyWith(pinCode: dbUser.pinCode);
+            defaultUsers[idx] = defaultUsers[idx].copyWith(
+              pinCode: dbUser.pinCode,
+            );
           }
         }
         notifyListeners();
@@ -80,10 +52,10 @@ class AuthController extends ChangeNotifier {
     } catch (_) {}
   }
 
-  UserModel _currentUser = defaultUsers[3]; // Default to Staff Cashier
+  UserModel _currentUser = defaultUsers[1]; // Default to Staff Cashier
   UserModel get currentUser => _currentUser;
 
-  String _currentBranchId = 'store_a';
+  String _currentBranchId = 'main';
   String get currentBranchId => _currentBranchId;
 
   String _currentBranchName = 'Main Store';
@@ -102,7 +74,8 @@ class AuthController extends ChangeNotifier {
       dbUser = await _userDao.getUserById(userId);
     } catch (_) {}
 
-    final user = dbUser ??
+    final user =
+        dbUser ??
         defaultUsers.firstWhere(
           (u) => u.id == userId,
           orElse: () => _currentUser,
@@ -133,7 +106,9 @@ class AuthController extends ChangeNotifier {
     return true;
   }
 
-  bool get isAdminAuthenticated => _currentUser.role != UserRole.cashier && _currentUser.role != UserRole.chef;
+  bool get isAdminAuthenticated =>
+      _currentUser.role != UserRole.cashier &&
+      _currentUser.role != UserRole.chef;
   bool get isOwner => _currentUser.isOwner;
   bool get isMainBoss => _currentUser.isMainBoss;
   bool get isSubBoss => _currentUser.isSubBoss;
@@ -229,6 +204,10 @@ class AuthController extends ChangeNotifier {
       (u) => u.isCashier,
       orElse: () => defaultUsers[3],
     );
+    if (_currentUser.branchId != null && _currentUser.branchId != 'all') {
+      _currentBranchId = _currentUser.branchId!;
+      _currentBranchName = _currentUser.branchName ?? 'Main Store';
+    }
     notifyListeners();
   }
 

@@ -59,7 +59,7 @@ class ProductCard extends StatelessWidget {
                 // ── Framed Image / Placeholder (with neutral200 frame) ───
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(4,4 , 4, 0),
+                    padding: const EdgeInsets.fromLTRB(4, 4, 4, 0),
                     child: Container(
                       decoration: BoxDecoration(
                         color: ColorTheme.neutral50,

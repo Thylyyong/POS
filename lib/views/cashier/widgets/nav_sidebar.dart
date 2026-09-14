@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../app_config.dart';
+import '../../../core/theme/sprite_icons.dart';
+import '../../../widgets/app_svg_icon.dart';
 
 enum CashierNavTab {
   pos,
@@ -89,8 +91,7 @@ class _NavSidebarState extends State<NavSidebar> {
                 // 1. Register / POS
                 _NavItem(
                   tab: CashierNavTab.pos,
-                  icon: Icons.point_of_sale_outlined,
-                  activeIcon: Icons.point_of_sale,
+                  spriteIcon: SpriteIcons.pos,
                   label: 'Register',
                   isSelected: widget.currentTab == CashierNavTab.pos,
                   onTap: () => widget.onTabChanged(CashierNavTab.pos),
@@ -99,8 +100,7 @@ class _NavSidebarState extends State<NavSidebar> {
                 // 2. Tables
                 _NavItem(
                   tab: CashierNavTab.tables,
-                  icon: Icons.table_restaurant_outlined,
-                  activeIcon: Icons.table_restaurant,
+                  spriteIcon: SpriteIcons.table,
                   label: 'Tables',
                   isSelected: widget.currentTab == CashierNavTab.tables,
                   onTap: () => widget.onTabChanged(CashierNavTab.tables),
@@ -112,8 +112,7 @@ class _NavSidebarState extends State<NavSidebar> {
                 // 4. Receipts History
                 _NavItem(
                   tab: CashierNavTab.history,
-                  icon: Icons.receipt_long_outlined,
-                  activeIcon: Icons.receipt_long,
+                  spriteIcon: SpriteIcons.history,
                   label: 'History',
                   isSelected: widget.currentTab == CashierNavTab.history,
                   onTap: () => widget.onTabChanged(CashierNavTab.history),
@@ -122,8 +121,7 @@ class _NavSidebarState extends State<NavSidebar> {
                 // 5. Odoo Accounting (Profit & Loss)
                 _NavItem(
                   tab: CashierNavTab.accounting,
-                  icon: Icons.account_balance_outlined,
-                  activeIcon: Icons.account_balance,
+                  spriteIcon: SpriteIcons.accounting,
                   label: 'P&L Acct',
                   isSelected: widget.currentTab == CashierNavTab.accounting,
                   onTap: () => widget.onTabChanged(CashierNavTab.accounting),
@@ -132,8 +130,7 @@ class _NavSidebarState extends State<NavSidebar> {
                 // 6. Analytics Dashboard
                 _NavItem(
                   tab: CashierNavTab.dashboard,
-                  icon: Icons.bar_chart_outlined,
-                  activeIcon: Icons.bar_chart,
+                  spriteIcon: SpriteIcons.dashboard,
                   label: 'Analytics',
                   isSelected: widget.currentTab == CashierNavTab.dashboard,
                   onTap: () => widget.onTabChanged(CashierNavTab.dashboard),
@@ -147,9 +144,8 @@ class _NavSidebarState extends State<NavSidebar> {
           const SizedBox(height: 6),
           _NavItem(
             tab: CashierNavTab.settings,
-            icon: Icons.settings_outlined,
-            activeIcon: Icons.settings,
-            label: 'Setting',
+            spriteIcon: SpriteIcons.settings,
+            label: 'Settings',
             isSelected: widget.currentTab == CashierNavTab.settings,
             onTap: () => widget.onTabChanged(CashierNavTab.settings),
           ),
@@ -205,13 +201,13 @@ class _NavSidebarState extends State<NavSidebar> {
                           : (_isMenuExpanded ? const Color(0xFF0D9488) : const Color(0xFF334155)),
                     ),
                   ),
-                  const SizedBox(width: 3),
+                  const SizedBox(width: 4),
                   AnimatedRotation(
                     duration: const Duration(milliseconds: 200),
                     turns: _isMenuExpanded ? 0.5 : 0.0,
-                    child: Icon(
-                      Icons.keyboard_arrow_down,
-                      size: 16,
+                    child: AppSvgIcon.sprite(
+                      SpriteIcons.arrowDown,
+                      size: 13,
                       color: isMenuCatalogActive
                           ? Colors.white
                           : (_isMenuExpanded ? const Color(0xFF0D9488) : const Color(0xFF64748B)),
@@ -234,8 +230,7 @@ class _NavSidebarState extends State<NavSidebar> {
                 children: [
                   // Sub-item 1: Products
                   _SubNavItem(
-                    icon: Icons.inventory_2_outlined,
-                    activeIcon: Icons.inventory_2,
+                    spriteIcon: SpriteIcons.products,
                     label: 'Products',
                     isSelected: widget.currentTab == CashierNavTab.products,
                     onTap: () => widget.onTabChanged(CashierNavTab.products),
@@ -243,8 +238,7 @@ class _NavSidebarState extends State<NavSidebar> {
                   const SizedBox(height: 4),
                   // Sub-item 2: Category
                   _SubNavItem(
-                    icon: Icons.category_outlined,
-                    activeIcon: Icons.category,
+                    spriteIcon: SpriteIcons.categories,
                     label: 'Category',
                     isSelected: widget.currentTab == CashierNavTab.categories,
                     onTap: () => widget.onTabChanged(CashierNavTab.categories),
@@ -260,15 +254,13 @@ class _NavSidebarState extends State<NavSidebar> {
 }
 
 class _SubNavItem extends StatelessWidget {
-  final IconData icon;
-  final IconData activeIcon;
+  final String spriteIcon;
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _SubNavItem({
-    required this.icon,
-    required this.activeIcon,
+    required this.spriteIcon,
     required this.label,
     required this.isSelected,
     required this.onTap,
@@ -297,9 +289,9 @@ class _SubNavItem extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              isSelected ? activeIcon : icon,
-              size: 16,
+            AppSvgIcon.sprite(
+              spriteIcon,
+              size: 15,
               color: isSelected ? Colors.white : const Color(0xFF64748B),
             ),
             const SizedBox(width: 6),
@@ -324,16 +316,14 @@ class _SubNavItem extends StatelessWidget {
 
 class _NavItem extends StatelessWidget {
   final CashierNavTab tab;
-  final IconData icon;
-  final IconData activeIcon;
+  final String spriteIcon;
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _NavItem({
     required this.tab,
-    required this.icon,
-    required this.activeIcon,
+    required this.spriteIcon,
     required this.label,
     required this.isSelected,
     required this.onTap,
@@ -349,27 +339,33 @@ class _NavItem extends StatelessWidget {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 140),
           curve: Curves.easeInOut,
-          padding: const EdgeInsets.symmetric(vertical: 9),
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
           decoration: BoxDecoration(
             color: isSelected ? const Color(0xFF0D9488) : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
           ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(
-                isSelected ? activeIcon : icon,
-                size: 24,
+              AppSvgIcon.sprite(
+                spriteIcon,
+                size: 20,
                 color: isSelected ? Colors.white : const Color(0xFF475569),
               ),
-              const SizedBox(height: 3),
+              const SizedBox(height: 5),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                  fontSize: 11.5,
+                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                   color: isSelected ? Colors.white : const Color(0xFF334155),
+                  letterSpacing: 0.2,
+                  height: 1.15,
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
               ),
             ],
           ),

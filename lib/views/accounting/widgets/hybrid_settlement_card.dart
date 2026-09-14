@@ -18,67 +18,67 @@ class HybridSettlementCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (report.isConsolidated) {
+      final totalInflow =
+          report.totalRentCollected + report.totalRoyaltiesCollected;
       return Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFFAF5FF),
+          color: const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE9D5FF)),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
-                color: const Color(0xFF7C3AED).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
+                color: const Color(0xFF0F172A).withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: const AppSvgIcon(
                 AssetTheme.store,
-                color: Color(0xFF7C3AED),
-                size: 24,
+                color: Color(0xFF0F172A),
+                size: 20,
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
-                    children: [
-                      AppSvgIcon(
-                        AssetTheme.verify,
-                        color: Color(0xFF581C87),
-                        size: 16,
-                      ),
-                      SizedBox(width: 6),
-                      Text(
-                        'Main Boss Executive Franchise Inflow',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: Color(0xFF581C87),
-                        ),
-                      ),
-                    ],
+                  const Text(
+                    'Franchise Inflow from Store Branches',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13.5,
+                      color: Color(0xFF0F172A),
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Total Base Rent Collected: \$ ${report.totalRentCollected.toStringAsFixed(2)}  •  Product Sales Royalties: \$ ${report.totalRoyaltiesCollected.toStringAsFixed(2)}',
+                    'Base Rent Collected: \$ ${report.totalRentCollected.toStringAsFixed(2)}  •  Sales Royalties (3%): \$ ${report.totalRoyaltiesCollected.toStringAsFixed(2)}',
                     style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF6B21A8),
+                      fontSize: 11.5,
+                      color: Color(0xFF64748B),
                     ),
                   ),
                 ],
               ),
             ),
-            Text(
-              '+ \$ ${(report.totalRentCollected + report.totalRoyaltiesCollected).toStringAsFixed(2)}',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: Color(0xFF7C3AED),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFECFDF5),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFA7F3D0)),
+              ),
+              child: Text(
+                '+ \$ ${totalInflow.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: Color(0xFF059669),
+                ),
               ),
             ),
           ],
@@ -86,66 +86,64 @@ class HybridSettlementCard extends StatelessWidget {
       );
     } else {
       return Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
         decoration: BoxDecoration(
-          color: const Color(0xFFF0FDF4),
+          color: const Color(0xFFF8FAFC),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFBBF7D0)),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
         ),
         child: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(9),
               decoration: BoxDecoration(
-                color: const Color(0xFF059669).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(10),
+                color: const Color(0xFF0F172A).withValues(alpha: 0.06),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: const AppSvgIcon(
-                AssetTheme.payment,
-                color: Color(0xFF059669),
-                size: 24,
+                AssetTheme.wallet,
+                color: Color(0xFF0F172A),
+                size: 20,
               ),
             ),
-            const SizedBox(width: 14),
+            const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      const AppSvgIcon(
-                        AssetTheme.wallet,
-                        color: Color(0xFF14532D),
-                        size: 16,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'Hybrid Settlement to Main Boss (${report.branchName})',
-                        style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: Color(0xFF14532D),
-                        ),
-                      ),
-                    ],
+                  Text(
+                    'Franchise Settlement to Main Boss (${report.branchName})',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13.5,
+                      color: Color(0xFF0F172A),
+                    ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Fixed Low Rent (\$ ${report.baseRentPaidToMainBoss.toStringAsFixed(2)}) + 3.0% Product Royalty (\$ ${report.salesRoyaltyPaidToMainBoss.toStringAsFixed(2)})',
+                    'Fixed Rent: \$ ${report.baseRentPaidToMainBoss.toStringAsFixed(2)}  •  3.0% Sales Royalty: \$ ${report.salesRoyaltyPaidToMainBoss.toStringAsFixed(2)}',
                     style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF166534),
+                      fontSize: 11.5,
+                      color: Color(0xFF64748B),
                     ),
                   ),
                 ],
               ),
             ),
-            Text(
-              '- \$ ${report.totalHybridSettlementToMainBoss.toStringAsFixed(2)}',
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 16,
-                color: Color(0xFFDC2626),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFCBD5E1)),
+              ),
+              child: Text(
+                '- \$ ${report.totalHybridSettlementToMainBoss.toStringAsFixed(2)}',
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                  color: Color(0xFF334155),
+                ),
               ),
             ),
           ],

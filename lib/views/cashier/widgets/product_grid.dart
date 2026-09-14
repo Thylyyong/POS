@@ -8,10 +8,19 @@ import 'product_card.dart';
 import '../../../core/theme/asset_theme.dart';
 import '../../../widgets/app_svg_icon.dart';
 
-class ProductGrid extends StatelessWidget {
+class ProductGrid extends StatefulWidget {
   final PosController posCtrl;
+  final bool isCustomerDisplay;
+  final String? gridTemplateOverride;
+  final ScrollController? scrollController;
 
-  const ProductGrid({super.key, required this.posCtrl});
+  const ProductGrid({
+    super.key,
+    required this.posCtrl,
+    this.isCustomerDisplay = false,
+    this.gridTemplateOverride,
+    this.scrollController,
+  });
 
   static ({int crossAxisCount, double childAspectRatio}) resolveGridLayout({
     required double maxWidth,
@@ -51,24 +60,88 @@ class ProductGrid extends StatelessWidget {
   }
 
   @override
+  State<ProductGrid> createState() => _ProductGridState();
+}
+
+class _ProductGridState extends State<ProductGrid> {
+  late ScrollController _scrollController;
+  bool _isInternalScrollController = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.scrollController != null) {
+      _scrollController = widget.scrollController!;
+      _isInternalScrollController = false;
+    } else {
+      _scrollController = ScrollController();
+      _isInternalScrollController = true;
+    }
+
+    if (!widget.isCustomerDisplay) {
+      _scrollController.addListener(_onCashierScroll);
+    }
+  }
+
+  void _onCashierScroll() {
+    if (_scrollController.hasClients) {
+      widget.posCtrl.setScrollOffset(_scrollController.offset);
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant ProductGrid oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isCustomerDisplay) {
+      // Synchronize customer duplicate screen scroll offset from POS
+      final targetOffset = widget.posCtrl.scrollOffset;
+      if (_scrollController.hasClients) {
+        if ((_scrollController.offset - targetOffset).abs() > 4.0) {
+          final maxExtent = _scrollController.position.maxScrollExtent;
+          _scrollController.jumpTo(targetOffset.clamp(0.0, maxExtent));
+        }
+      }
+    } else {
+      // If category changed and reset to 0, jump cashier to 0
+      if (widget.posCtrl.scrollOffset == 0.0 &&
+          _scrollController.hasClients &&
+          _scrollController.offset > 0.0) {
+        _scrollController.jumpTo(0.0);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    if (!widget.isCustomerDisplay) {
+      _scrollController.removeListener(_onCashierScroll);
+    }
+    if (_isInternalScrollController) {
+      _scrollController.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final currency = context.select<SettingsController, String>(
       (c) => c.settings.currencySymbol,
     );
     final cart = context.read<CartController>();
-    final gridTemplate = context.select<SettingsController, String>(
+    final settingsGridTemplate = context.select<SettingsController, String>(
       (c) => c.settings.gridTemplate,
     );
+    final gridTemplate = widget.gridTemplateOverride ?? settingsGridTemplate;
 
     return RepaintBoundary(
       child: AnimatedSwitcher(
         duration: const Duration(milliseconds: 200),
-        child: posCtrl.isLoading
+        child: widget.posCtrl.isLoading
             ? const Center(
                 key: ValueKey('loading'),
                 child: CircularProgressIndicator(color: ColorTheme.buttonPrimary),
               )
-            : posCtrl.products.isEmpty
+            : widget.posCtrl.products.isEmpty
                 ? Center(
                     key: const ValueKey('empty'),
                     child: Column(
@@ -90,12 +163,13 @@ class ProductGrid extends StatelessWidget {
                 : LayoutBuilder(
                     key: const ValueKey('grid'),
                     builder: (context, constraints) {
-                      final layout = resolveGridLayout(
+                      final layout = ProductGrid.resolveGridLayout(
                         maxWidth: constraints.maxWidth,
                         gridTemplate: gridTemplate,
                       );
 
                       return GridView.builder(
+                        controller: _scrollController,
                         padding: const EdgeInsets.all(12),
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: layout.crossAxisCount,
@@ -103,13 +177,15 @@ class ProductGrid extends StatelessWidget {
                           crossAxisSpacing: 10,
                           mainAxisSpacing: 10,
                         ),
-                        itemCount: posCtrl.products.length,
+                        itemCount: widget.posCtrl.products.length,
                         itemBuilder: (_, index) {
-                          final product = posCtrl.products[index];
+                          final product = widget.posCtrl.products[index];
                           return ProductCard(
                             product: product,
                             currency: currency,
-                            onTap: () => cart.addProduct(product),
+                            onTap: widget.isCustomerDisplay
+                                ? () {}
+                                : () => cart.addProduct(product),
                           );
                         },
                       );

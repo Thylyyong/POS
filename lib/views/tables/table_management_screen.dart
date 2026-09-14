@@ -7,6 +7,7 @@ import '../../controllers/table_controller.dart';
 import '../../database/order_dao.dart';
 import '../../models/dining_table_model.dart';
 import '../../core/theme/asset_theme.dart';
+import '../../core/theme/sprite_icons.dart';
 import '../../widgets/app_svg_icon.dart';
 
 class TableManagementScreen extends StatefulWidget {
@@ -52,7 +53,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.table_restaurant, color: Color(0xFF0F172A), size: 24),
+                    AppSvgIcon.sprite(SpriteIcons.table, color: Color(0xFF0F172A), size: 24),
                     SizedBox(width: 10),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -131,7 +132,7 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                   _buildTypeFilterChip(tableCtrl, 'Patio / Outdoor', TableType.outdoor),
                   const SizedBox(width: 16),
                   IconButton(
-                    icon: const Icon(Icons.refresh, color: ColorTheme.primary400, size: 22),
+                    icon: const AppSvgIcon.sprite(SpriteIcons.refresh, color: ColorTheme.primary400, size: 20),
                     tooltip: 'Refresh Floor',
                     onPressed: () => tableCtrl.loadTables(),
                   ),

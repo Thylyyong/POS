@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../controllers/auth_controller.dart';
 import '../../controllers/settings_controller.dart';
 import '../../core/theme/asset_theme.dart';
+import '../../core/device_profile.dart';
 import '../../models/user_model.dart';
 import '../../widgets/app_logo_widget.dart';
 import '../../widgets/app_svg_icon.dart';
@@ -96,6 +97,12 @@ class _PinLoginScreenState extends State<PinLoginScreen> with SingleTickerProvid
     }
   }
 
+  void _loginAsCashierDirectly() {
+    final auth = context.read<AuthController>();
+    auth.loginAsCashier();
+    _routeUserToDashboard(auth.currentUser);
+  }
+
   void _routeUserToDashboard(UserModel user) {
     if (user.isOwner) {
       // OWNER / BOSS -> routes to full analytics dashboard with all tabs
@@ -120,220 +127,279 @@ class _PinLoginScreenState extends State<PinLoginScreen> with SingleTickerProvid
     final storeName = settings.storeName;
     final logoPath = settings.logoPath;
 
+    final isKiosk = DeviceProfile.isKiosk(
+      context,
+      deviceProfile: settings.deviceProfile,
+    );
+
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A), // Dark slate enterprise theme
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // ── Left Side: Brand & Role Hints ──────────────────────────
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 420),
-                  child: Column(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            child: isKiosk
+                ? Column(
                     mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      // Brand Logo
-                      AppLogoWidget(
-                        logoPath: logoPath,
-                        size: 72,
-                        borderRadius: 18,
-                        fallbackSvg: AssetTheme.store,
-                      ),
-                      const SizedBox(height: 16),
-
-                      Text(
-                        storeName.toUpperCase(),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 26,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      const Text(
-                        'OmniPOS Enterprise System • Role-Based Access',
-                        style: TextStyle(
-                          color: Color(0xFF94A3B8),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Offline Badge
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1E293B),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFF334155)),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            AppSvgIcon(AssetTheme.flash, size: 14, color: Color(0xFF38BDF8)),
-                            SizedBox(width: 6),
-                            Text(
-                              '100% OFFLINE-READY • LOCAL SQLITE ACTIVE',
-                              style: TextStyle(
-                                color: Color(0xFF38BDF8),
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.4,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
-
-                      // Employee Quick Guide Card
-                      Container(
-                        padding: const EdgeInsets.all(16),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF1E293B),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: const Color(0xFF334155)),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'AVAILABLE ACCESS PROFILES',
-                              style: TextStyle(
-                                color: Color(0xFF64748B),
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.0,
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            _buildRoleItem(
-                              roleTitle: 'OWNER / ADMIN',
-                              subtitle: 'Full Access (Dashboard, Settings, Reports)',
-                              tag: 'PIN: 9999',
-                              tagColor: const Color(0xFF0D9488),
-                            ),
-                            const Divider(color: Color(0xFF334155), height: 16),
-                            _buildRoleItem(
-                              roleTitle: 'STAFF CASHIER',
-                              subtitle: 'Frontline POS, Cart, Tables & Receipts',
-                              tag: 'PIN: 1234',
-                              tagColor: const Color(0xFF0284C7),
-                            ),
-                          ],
-                        ),
-                      ),
+                      _buildBrandSection(storeName, logoPath, isKiosk),
+                      const SizedBox(height: 28),
+                      _buildNumpadSection(isKiosk),
+                    ],
+                  )
+                : Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      _buildBrandSection(storeName, logoPath, isKiosk),
+                      const SizedBox(width: 56),
+                      _buildNumpadSection(isKiosk),
                     ],
                   ),
-                ),
+          ),
+        ),
+      ),
+    );
+  }
 
-                const SizedBox(width: 56),
+  Widget _buildBrandSection(String storeName, String? logoPath, bool isKiosk) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: isKiosk ? 580 : 420),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment:
+            isKiosk ? CrossAxisAlignment.center : CrossAxisAlignment.start,
+        children: [
+          // Brand Logo
+          AppLogoWidget(
+            logoPath: logoPath,
+            size: isKiosk ? 96 : 72,
+            borderRadius: 20,
+            fallbackSvg: AssetTheme.store,
+          ),
+          const SizedBox(height: 16),
 
-                // ── Right Side: PIN Numpad Pad ────────────────────────────
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 380),
-                  child: Container(
-                    padding: const EdgeInsets.all(28),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1E293B),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFF334155)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.3),
-                          blurRadius: 20,
-                          offset: const Offset(0, 10),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Text(
-                          'ENTER SECURITY PIN',
-                          style: TextStyle(
-                            color: Color(0xFF94A3B8),
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1.5,
-                          ),
-                        ),
-                        const SizedBox(height: 18),
+          Text(
+            storeName.toUpperCase(),
+            textAlign: isKiosk ? TextAlign.center : TextAlign.start,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: isKiosk ? 30 : 26,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.5,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'OmniPOS Enterprise System • Role-Based Access',
+            textAlign: isKiosk ? TextAlign.center : TextAlign.start,
+            style: const TextStyle(
+              color: Color(0xFF94A3B8),
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 14),
 
-                        // PIN Dot Indicators with Shake Animation
-                        AnimatedBuilder(
-                          animation: _shakeAnim,
-                          builder: (context, child) {
-                            return Transform.translate(
-                              offset: Offset(_shakeAnim.value, 0),
-                              child: child,
-                            );
-                          },
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: List.generate(4, (idx) {
-                              final isFilled = idx < _enteredPin.length;
-                              return Container(
-                                margin: const EdgeInsets.symmetric(horizontal: 10),
-                                width: 18,
-                                height: 18,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: isFilled
-                                      ? const Color(0xFF14B8A6)
-                                      : const Color(0xFF0F172A),
-                                  border: Border.all(
-                                    color: isFilled
-                                        ? const Color(0xFF14B8A6)
-                                        : const Color(0xFF475569),
-                                    width: 2,
-                                  ),
-                                  boxShadow: [
-                                    if (isFilled)
-                                      BoxShadow(
-                                        color: const Color(0xFF14B8A6).withValues(alpha: 0.5),
-                                        blurRadius: 8,
-                                        spreadRadius: 1,
-                                      ),
-                                  ],
-                                ),
-                              );
-                            }),
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-
-                        // Error Message
-                        if (_errorMessage != null)
-                          Text(
-                            _errorMessage!,
-                            style: const TextStyle(
-                              color: Color(0xFFF87171),
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          )
-                        else
-                          const SizedBox(height: 16),
-
-                        const SizedBox(height: 8),
-
-                        // On-Screen Numeric Keypad (4x3)
-                        _buildNumpadGrid(),
-                      ],
-                    ),
+          // Offline Badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E293B),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: const Color(0xFF334155)),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                AppSvgIcon(AssetTheme.flash, size: 14, color: Color(0xFF38BDF8)),
+                SizedBox(width: 6),
+                Text(
+                  '100% OFFLINE-READY • LOCAL SQLITE ACTIVE',
+                  style: TextStyle(
+                    color: Color(0xFF38BDF8),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.4,
                   ),
                 ),
               ],
             ),
           ),
+          const SizedBox(height: 24),
+
+          // Employee Quick Guide Card
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1E293B),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFF334155)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'AVAILABLE ACCESS PROFILES',
+                  style: TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                _buildRoleItem(
+                  roleTitle: 'STAFF CASHIER',
+                  subtitle: 'Frontline POS, Cart, Tables & Receipts',
+                  tag: 'NO PIN NEEDED',
+                  tagColor: const Color(0xFF10B981),
+                ),
+                const Divider(color: Color(0xFF334155), height: 16),
+                _buildRoleItem(
+                  roleTitle: 'OWNER / ADMIN (BOSS)',
+                  subtitle: 'Full Access (Reports, P&L, Settings)',
+                  tag: 'PIN: ****',
+                  tagColor: const Color(0xFF0D9488),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNumpadSection(bool isKiosk) {
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: isKiosk ? 500 : 400),
+      child: Container(
+        padding: EdgeInsets.all(isKiosk ? 30 : 24),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1E293B),
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(color: const Color(0xFF334155)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.3),
+              blurRadius: 24,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Instant 1-Tap Cashier Login
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _loginAsCashierDirectly,
+                icon: const Icon(Icons.point_of_sale, size: 20, color: Colors.white),
+                label: const Text(
+                  'Login as Staff Cashier (No PIN Required)',
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0D9488),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  elevation: 2,
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Divider
+            Row(
+              children: [
+                const Expanded(child: Divider(color: Color(0xFF334155))),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Text(
+                    'OR OWNER / ADMIN PIN',
+                    style: TextStyle(
+                      color: const Color(0xFF94A3B8),
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.0,
+                    ),
+                  ),
+                ),
+                const Expanded(child: Divider(color: Color(0xFF334155))),
+              ],
+            ),
+            const SizedBox(height: 14),
+
+            // PIN Dot Indicators with Shake Animation
+            AnimatedBuilder(
+              animation: _shakeAnim,
+              builder: (context, child) {
+                return Transform.translate(
+                  offset: Offset(_shakeAnim.value, 0),
+                  child: child,
+                );
+              },
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(4, (idx) {
+                  final isFilled = idx < _enteredPin.length;
+                  return Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 10),
+                    width: 20,
+                    height: 20,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: isFilled
+                          ? const Color(0xFF14B8A6)
+                          : const Color(0xFF0F172A),
+                      border: Border.all(
+                        color: isFilled
+                            ? const Color(0xFF14B8A6)
+                            : const Color(0xFF475569),
+                        width: 2,
+                      ),
+                      boxShadow: [
+                        if (isFilled)
+                          BoxShadow(
+                            color: const Color(0xFF14B8A6).withValues(alpha: 0.5),
+                            blurRadius: 8,
+                            spreadRadius: 1,
+                          ),
+                      ],
+                    ),
+                  );
+                }),
+              ),
+            ),
+            const SizedBox(height: 14),
+
+            // Error Message
+            if (_errorMessage != null)
+              Text(
+                _errorMessage!,
+                style: const TextStyle(
+                  color: Color(0xFFF87171),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              )
+            else
+              const SizedBox(height: 16),
+
+            const SizedBox(height: 8),
+
+            // On-Screen Numeric Keypad (4x3)
+            _buildNumpadGrid(isKiosk),
+          ],
         ),
       ),
     );
@@ -384,7 +450,6 @@ class _PinLoginScreenState extends State<PinLoginScreen> with SingleTickerProvid
               color: tagColor,
               fontWeight: FontWeight.bold,
               fontSize: 11,
-              fontFamily: 'monospace',
             ),
           ),
         ),
@@ -392,7 +457,7 @@ class _PinLoginScreenState extends State<PinLoginScreen> with SingleTickerProvid
     );
   }
 
-  Widget _buildNumpadGrid() {
+  Widget _buildNumpadGrid(bool isKiosk) {
     final buttons = [
       ['1', '2', '3'],
       ['4', '5', '6'],
@@ -403,13 +468,13 @@ class _PinLoginScreenState extends State<PinLoginScreen> with SingleTickerProvid
     return Column(
       children: buttons.map((row) {
         return Padding(
-          padding: const EdgeInsets.only(bottom: 10),
+          padding: EdgeInsets.only(bottom: isKiosk ? 12 : 10),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: row.map((btn) {
               return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: _buildNumpadButton(btn),
+                padding: EdgeInsets.symmetric(horizontal: isKiosk ? 8 : 6),
+                child: _buildNumpadButton(btn, isKiosk),
               );
             }).toList(),
           ),
@@ -418,7 +483,7 @@ class _PinLoginScreenState extends State<PinLoginScreen> with SingleTickerProvid
     );
   }
 
-  Widget _buildNumpadButton(String val) {
+  Widget _buildNumpadButton(String val, bool isKiosk) {
     final isClear = val == 'C';
     final isBackspace = val == '⌫';
     final isAction = isClear || isBackspace;
@@ -435,15 +500,17 @@ class _PinLoginScreenState extends State<PinLoginScreen> with SingleTickerProvid
             _onDigitPressed(val);
           }
         },
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(16),
         child: Container(
-          width: 78,
-          height: 60,
+          width: isKiosk ? 96 : 78,
+          height: isKiosk ? 76 : 60,
           decoration: BoxDecoration(
             color: isAction ? const Color(0xFF0F172A) : const Color(0xFF334155),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: BorderRadius.circular(16),
             border: Border.all(
-              color: isAction ? const Color(0xFF475569) : const Color(0xFF475569).withValues(alpha: 0.5),
+              color: isAction
+                  ? const Color(0xFF475569)
+                  : const Color(0xFF475569).withValues(alpha: 0.5),
             ),
           ),
           child: Center(
@@ -453,7 +520,7 @@ class _PinLoginScreenState extends State<PinLoginScreen> with SingleTickerProvid
                 color: isClear
                     ? const Color(0xFFF87171)
                     : (isBackspace ? const Color(0xFF38BDF8) : Colors.white),
-                fontSize: 22,
+                fontSize: isKiosk ? 26 : 22,
                 fontWeight: FontWeight.bold,
               ),
             ),

@@ -66,6 +66,9 @@ class SettingsController extends ChangeNotifier {
   Future<void> toggleAutoKickDrawer(bool value) =>
       _save(_settings.copyWith(autoKickCashDrawer: value));
 
+  Future<void> setDeviceProfile(String profile) =>
+      _save(_settings.copyWith(deviceProfile: profile));
+
   Future<void> setFontSizeScale(double scale) =>
       _save(_settings.copyWith(fontSizeScale: scale));
 
@@ -151,6 +154,10 @@ class SettingsController extends ChangeNotifier {
     try {
       _settings = s;
       await _settingsDao.saveSettings(_settings);
+      _presentationService.syncPosNavigation(
+        gridTemplate: s.gridTemplate,
+        fontSizeScale: s.fontSizeScale,
+      );
     } catch (e) {
       _error = 'Failed to save settings: $e';
       debugPrint('[SettingsController] $_error');

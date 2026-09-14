@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 import '../../controllers/register_controller.dart';
 import 'cash_in_out_dialog.dart';
 import '../../core/theme/asset_theme.dart';
+import '../../core/theme/sprite_icons.dart';
 import '../../widgets/app_svg_icon.dart';
+import 'widgets/dual_currency_piece_counter_dialog.dart';
 
 class CloseRegisterDialog extends StatefulWidget {
   const CloseRegisterDialog({super.key});
@@ -204,13 +206,58 @@ class _CloseRegisterDialogState extends State<CloseRegisterDialog> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Cash Count',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF475569),
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Cash Count',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF475569),
+                              ),
+                            ),
+                            InkWell(
+                              onTap: () async {
+                                final result =
+                                    await DualCurrencyPieceCounterDialog.show(
+                                      context,
+                                      title: 'Closing Cash Piece Counter (USD & KHR)',
+                                    );
+                                if (result != null) {
+                                  setState(() {
+                                    _cashCountCtrl.text = result.combinedUsd
+                                        .toStringAsFixed(2);
+                                    if (_closingNoteCtrl.text.isEmpty) {
+                                      _closingNoteCtrl.text =
+                                          result.summaryText;
+                                    } else {
+                                      _closingNoteCtrl.text +=
+                                          '\n\n${result.summaryText}';
+                                    }
+                                  });
+                                }
+                              },
+                              child: const Row(
+                                children: [
+                                  AppSvgIcon.sprite(
+                                    SpriteIcons.calculator,
+                                    size: 14,
+                                    color: Color(0xFF7C3AED),
+                                  ),
+                                  SizedBox(width: 3),
+                                  Text(
+                                    'Piece Counter',
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF7C3AED),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 6),
                         TextField(
@@ -226,7 +273,11 @@ class _CloseRegisterDialogState extends State<CloseRegisterDialog> {
                           decoration: InputDecoration(
                             prefixText: '\$ ',
                             suffixIcon: IconButton(
-                              icon: const AppSvgIcon(AssetTheme.close, size: 16, color: Color(0xFF64748B)),
+                              icon: const AppSvgIcon(
+                                AssetTheme.close,
+                                size: 16,
+                                color: Color(0xFF64748B),
+                              ),
                               onPressed: () =>
                                   setState(() => _cashCountCtrl.clear()),
                             ),
@@ -269,7 +320,11 @@ class _CloseRegisterDialogState extends State<CloseRegisterDialog> {
                           decoration: InputDecoration(
                             prefixText: '\$ ',
                             suffixIcon: IconButton(
-                              icon: const AppSvgIcon(AssetTheme.close, size: 16, color: Color(0xFF64748B)),
+                              icon: const AppSvgIcon(
+                                AssetTheme.close,
+                                size: 16,
+                                color: Color(0xFF64748B),
+                              ),
                               onPressed: () =>
                                   setState(() => _cardCountCtrl.clear()),
                             ),
@@ -470,7 +525,11 @@ class _CloseRegisterDialogState extends State<CloseRegisterDialog> {
                             ),
                           );
                         },
-                        icon: const AppSvgIcon(AssetTheme.files, size: 16, color: Colors.white),
+                        icon: const AppSvgIcon(
+                          AssetTheme.files,
+                          size: 16,
+                          color: Colors.white,
+                        ),
                         label: const Text(
                           'Daily Sale',
                           style: TextStyle(fontWeight: FontWeight.bold),

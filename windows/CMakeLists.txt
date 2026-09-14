@@ -108,3 +108,10 @@ install(DIRECTORY "${PROJECT_BUILD_DIR}/${FLUTTER_ASSET_DIR_NAME}"
 install(FILES "${AOT_LIBRARY}" DESTINATION "${INSTALL_BUNDLE_DATA_DIR}"
   CONFIGURATIONS Profile;Release
   COMPONENT Runtime)
+
+# Install SumatraPDF executable next to pos_flutter.exe if bundled in windows/bin
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/bin/SumatraPDF.exe")
+  install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/bin/SumatraPDF.exe"
+    DESTINATION "${INSTALL_BUNDLE_LIB_DIR}"
+    COMPONENT Runtime)
+endif()

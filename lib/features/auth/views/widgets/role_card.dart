@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../../../models/user_model.dart';
+import '../../../../core/theme/sprite_icons.dart';
+import '../../../../widgets/app_svg_icon.dart';
 
 class RoleCard extends StatelessWidget {
   final UserModel user;
@@ -13,7 +15,7 @@ class RoleCard extends StatelessWidget {
     Color cardBorderColor;
     Color iconBgColor;
     Color iconColor;
-    IconData icon;
+    String spriteIcon;
     String description;
     String badgeText;
 
@@ -23,7 +25,7 @@ class RoleCard extends StatelessWidget {
         cardBorderColor = const Color(0xFFD8B4FE);
         iconBgColor = const Color(0xFFFAF5FF);
         iconColor = const Color(0xFF7C3AED);
-        icon = Icons.shield;
+        spriteIcon = SpriteIcons.shieldLock;
         description =
             'Boss (Admin / Owner): Full System Control, P&L, Inventory & Settings';
         badgeText = 'OWNER';
@@ -32,7 +34,7 @@ class RoleCard extends StatelessWidget {
         cardBorderColor = const Color(0xFFBAE6FD);
         iconBgColor = const Color(0xFFF0F9FF);
         iconColor = const Color(0xFF0284C7);
-        icon = Icons.store;
+        spriteIcon = SpriteIcons.building;
         description = 'Store Manager: Local Branch P&L, Inventory & Petty Cash';
         badgeText = (user.branchName ?? '').toUpperCase();
         break;
@@ -40,7 +42,7 @@ class RoleCard extends StatelessWidget {
         cardBorderColor = const Color(0xFFFDE68A);
         iconBgColor = const Color(0xFFFFFBEB);
         iconColor = const Color(0xFFD97706);
-        icon = Icons.soup_kitchen;
+        spriteIcon = SpriteIcons.utensils;
         description = 'Kitchen Chef: Kitchen Display System (KDS) & Cooking Status';
         badgeText = 'CHEF';
         break;
@@ -48,7 +50,7 @@ class RoleCard extends StatelessWidget {
         cardBorderColor = const Color(0xFFBBF7D0);
         iconBgColor = const Color(0xFFF0FDF4);
         iconColor = const Color(0xFF16A34A);
-        icon = Icons.point_of_sale;
+        spriteIcon = SpriteIcons.cashRegister;
         description =
             'Frontline Staff: High-Speed Checkout, POS Cart & Cash Drawer';
         badgeText = 'CASHIER';
@@ -80,7 +82,13 @@ class RoleCard extends StatelessWidget {
                     color: cardBorderColor.withValues(alpha: 0.5),
                   ),
                 ),
-                child: Icon(icon, color: iconColor, size: 24),
+                child: Center(
+                  child: AppSvgIcon.sprite(
+                    spriteIcon,
+                    color: iconColor,
+                    size: 24,
+                  ),
+                ),
               ),
               const SizedBox(width: 14),
               Expanded(
@@ -131,8 +139,8 @@ class RoleCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.arrow_forward_ios,
+              const AppSvgIcon.sprite(
+                SpriteIcons.arrowRight,
                 size: 14,
                 color: Color(0xFF94A3B8),
               ),

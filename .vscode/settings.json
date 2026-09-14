@@ -1,5 +1,5 @@
 {
-    "cmake.sourceDirectory": "C:/Projects/pos_flutter/windows",
+    "cmake.sourceDirectory": "C:/Users/asus/POS/windows/runner",
     "files.exclude": {
         "**/.dart_tool": false
     }

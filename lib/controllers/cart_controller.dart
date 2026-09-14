@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../models/order_model.dart';
 import '../models/product_model.dart';
 import '../services/presentation_service.dart';
@@ -10,22 +11,25 @@ class CartItem {
   final Product product;
   final int quantity;
   final String? notes;
+  final double? customUnitPrice;
 
   const CartItem({
     required this.product,
     this.quantity = 1,
     this.notes,
+    this.customUnitPrice,
   });
 
-  CartItem copyWith({int? quantity, String? notes}) {
+  CartItem copyWith({int? quantity, String? notes, double? customUnitPrice}) {
     return CartItem(
       product: product,
       quantity: quantity ?? this.quantity,
       notes: notes ?? this.notes,
+      customUnitPrice: customUnitPrice ?? this.customUnitPrice,
     );
   }
 
-  double get unitPrice => product.price;
+  double get unitPrice => customUnitPrice ?? product.price;
   double get totalPrice => unitPrice * quantity;
 
   OrderItemModel toOrderItem(String orderId) {
@@ -42,14 +46,14 @@ class CartItem {
   }
 
   Map<String, dynamic> toPresentationMap() => {
-        'productId': product.id,
-        'productName': product.name,
-        'imagePath': product.imagePath,
-        'quantity': quantity,
-        'unitPrice': unitPrice,
-        'totalPrice': totalPrice,
-        'notes': notes,
-      };
+    'productId': product.id,
+    'productName': product.name,
+    'imagePath': product.imagePath,
+    'quantity': quantity,
+    'unitPrice': unitPrice,
+    'totalPrice': totalPrice,
+    'notes': notes,
+  };
 }
 
 // ============================================================================
@@ -193,7 +197,9 @@ class CartController extends ChangeNotifier {
     _orderNumber = order.orderNumber;
     _currentReceiptNo = order.receiptNo;
     _discountPercent = order.discountPercent;
-    _discountFixed = order.discountAmount > 0 && order.discountPercent == 0 ? order.discountAmount : 0.0;
+    _discountFixed = order.discountAmount > 0 && order.discountPercent == 0
+        ? order.discountAmount
+        : 0.0;
 
     for (var item in order.items) {
       final matchedProduct = allProducts.firstWhere(
@@ -205,11 +211,13 @@ class CartController extends ChangeNotifier {
           price: item.unitPrice,
         ),
       );
-      _items.add(CartItem(
-        product: matchedProduct,
-        quantity: item.quantity,
-        notes: item.notes,
-      ));
+      _items.add(
+        CartItem(
+          product: matchedProduct,
+          quantity: item.quantity,
+          notes: item.notes,
+        ),
+      );
     }
     _commit();
   }
@@ -227,8 +235,13 @@ class CartController extends ChangeNotifier {
     }
     _orderType = order.orderType;
     _orderNumber = order.orderNumber;
-    if (order.discountPercent > 0) _discountPercent = order.discountPercent;
-    if (order.discountAmount > 0 && order.discountPercent == 0) _discountFixed = order.discountAmount;
+    _currentReceiptNo = order.receiptNo;
+    if (order.discountPercent > 0) {
+      _discountPercent = order.discountPercent;
+    }
+    if (order.discountAmount > 0 && order.discountPercent == 0) {
+      _discountFixed = order.discountAmount;
+    }
 
     // Merge existing items from DB into cart (combining quantities if same item)
     for (var item in order.items) {
@@ -241,7 +254,7 @@ class CartController extends ChangeNotifier {
           price: item.unitPrice,
         ),
       );
-      
+
       final existingIndex = _items.indexWhere(
         (i) => i.product.id == matchedProduct.id && i.notes == item.notes,
       );
@@ -273,21 +286,41 @@ class CartController extends ChangeNotifier {
 
   // ── Cart mutations ───────────────────────────────────────────────────────
 
-  void addProduct(Product product, {int quantity = 1, String? notes}) {
+  void addProduct(
+    Product product, {
+    int quantity = 1,
+    double? customUnitPrice,
+    String? notes,
+  }) {
     final idx = _items.indexWhere(
-      (i) => i.product.id == product.id && i.notes == notes,
+      (i) =>
+          i.product.id == product.id &&
+          i.notes == notes &&
+          i.customUnitPrice == customUnitPrice,
     );
     if (idx >= 0) {
-      _items[idx] = _items[idx].copyWith(quantity: _items[idx].quantity + quantity);
+      _items[idx] = _items[idx].copyWith(
+        quantity: _items[idx].quantity + quantity,
+      );
     } else {
-      _items.add(CartItem(product: product, quantity: quantity, notes: notes));
+      _items.insert(
+        0,
+        CartItem(
+          product: product,
+          quantity: quantity,
+          customUnitPrice: customUnitPrice,
+          notes: notes,
+        ),
+      );
     }
     _commit();
   }
 
   void incrementQuantity(int index) {
     if (_validIndex(index)) {
-      _items[index] = _items[index].copyWith(quantity: _items[index].quantity + 1);
+      _items[index] = _items[index].copyWith(
+        quantity: _items[index].quantity + 1,
+      );
       _commit();
     }
   }
@@ -295,7 +328,9 @@ class CartController extends ChangeNotifier {
   void decrementQuantity(int index) {
     if (_validIndex(index)) {
       if (_items[index].quantity > 1) {
-        _items[index] = _items[index].copyWith(quantity: _items[index].quantity - 1);
+        _items[index] = _items[index].copyWith(
+          quantity: _items[index].quantity - 1,
+        );
       } else {
         _items.removeAt(index);
       }
@@ -314,6 +349,14 @@ class CartController extends ChangeNotifier {
     if (_validIndex(index)) {
       _items[index] = _items[index].copyWith(notes: notes);
       notifyListeners();
+      _commit();
+    }
+  }
+
+  void updateItemPrice(int index, double customPrice) {
+    if (_validIndex(index)) {
+      _items[index] = _items[index].copyWith(customUnitPrice: customPrice);
+      _commit();
     }
   }
 

@@ -7,11 +7,18 @@ import 'package:qr_flutter/qr_flutter.dart';
 import '../app_config.dart';
 import '../models/order_model.dart';
 import '../models/store_settings_model.dart';
-import '../services/pdf_receipt_service.dart';
+import '../services/printer_service.dart';
 import '../services/receipt_file_service.dart';
 import '../core/theme/asset_theme.dart';
+import '../core/theme/sprite_icons.dart';
 import 'app_logo_widget.dart';
 import 'app_svg_icon.dart';
+
+enum ReceiptMode {
+  unpaidNoQr,
+  unpaidQr,
+  paid,
+}
 
 class ReceiptPreviewDialog extends StatefulWidget {
   final OrderModel order;
@@ -19,6 +26,8 @@ class ReceiptPreviewDialog extends StatefulWidget {
   final Future<bool> Function()? onReprint;
   final ReceiptSaveResult? existingSaveResult;
   final VoidCallback? onCompletedReturnHome;
+  final bool? initialIsPaid;
+  final ReceiptMode? initialMode;
 
   const ReceiptPreviewDialog({
     super.key,
@@ -27,6 +36,8 @@ class ReceiptPreviewDialog extends StatefulWidget {
     this.onReprint,
     this.existingSaveResult,
     this.onCompletedReturnHome,
+    this.initialIsPaid,
+    this.initialMode,
   });
 
   @override
@@ -34,16 +45,27 @@ class ReceiptPreviewDialog extends StatefulWidget {
 }
 
 class _ReceiptPreviewDialogState extends State<ReceiptPreviewDialog> {
-  final _pdfReceiptService = PdfReceiptService();
   final ScrollController _scrollController = ScrollController();
 
   ReceiptSaveResult? _saveResult;
   bool _isPrintingPdf = false;
+  late ReceiptMode _mode;
+
+  bool get _isPaid => _mode == ReceiptMode.paid;
+  bool get _showQr => _mode == ReceiptMode.unpaidQr;
 
   @override
   void initState() {
     super.initState();
     _saveResult = widget.existingSaveResult;
+    if (widget.initialMode != null) {
+      _mode = widget.initialMode!;
+    } else if (widget.initialIsPaid == true ||
+        (widget.initialIsPaid == null && widget.order.status == OrderStatus.completed)) {
+      _mode = ReceiptMode.paid;
+    } else {
+      _mode = ReceiptMode.unpaidQr;
+    }
   }
 
   @override
@@ -56,27 +78,39 @@ class _ReceiptPreviewDialogState extends State<ReceiptPreviewDialog> {
     if (_isPrintingPdf) return;
     setState(() => _isPrintingPdf = true);
 
-    // Call hardware reprint if provided
-    widget.onReprint?.call();
-
-    // Trigger PDF printing dialog
-    _pdfReceiptService.printReceiptPdf(
-      order: widget.order,
-      settings: widget.settings,
-    );
+    try {
+      if (widget.onReprint != null && _isPaid) {
+        await widget.onReprint!.call();
+      } else {
+        await PrinterService().printReceipt(
+          order: widget.order,
+          settings: widget.settings,
+          isPaid: _isPaid,
+          showQr: _showQr,
+          isReprint: true,
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPrintingPdf = false);
+    }
 
     // Prompt user & smoothly auto-close dialog back to POS screen
     if (mounted) {
+      final docName = _isPaid
+          ? 'Paid Receipt #${widget.order.receiptNo}'
+          : (_showQr
+              ? 'Bill (QR) #${widget.order.orderNumber ?? widget.order.receiptNo.split('-').last}'
+              : 'Bill #${widget.order.orderNumber ?? widget.order.receiptNo.split('-').last}');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Row(
             children: [
               const Icon(Icons.print_outlined, color: Colors.white, size: 18),
               const SizedBox(width: 8),
-              Text('Printing Receipt #${widget.order.receiptNo}...'),
+              Text('Printing $docName...'),
             ],
           ),
-          backgroundColor: ColorTheme.buttonPrimary,
+          backgroundColor: const Color(0xFF0D9488),
           duration: const Duration(seconds: 2),
           behavior: SnackBarBehavior.floating,
         ),
@@ -106,7 +140,7 @@ class _ReceiptPreviewDialogState extends State<ReceiptPreviewDialog> {
       backgroundColor: Colors.transparent,
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Container(
-        width: settings.isPaperSize80mm ? 330 : 285,
+        width: settings.isPaperSize80mm ? 345 : 300,
         constraints: BoxConstraints(
           maxHeight: MediaQuery.of(context).size.height * 0.95,
         ),
@@ -142,36 +176,109 @@ class _ReceiptPreviewDialogState extends State<ReceiptPreviewDialog> {
                           color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(5),
                         ),
-                        child: const Icon(
-                          Icons.receipt_long_outlined,
+                        child: const AppSvgIcon.sprite(
+                          SpriteIcons.receipt,
                           color: Colors.white,
                           size: 15,
                         ),
                       ),
                       const SizedBox(width: 7),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Receipt Preview',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                          ),
-                          if (order.orderNumber != null)
-                            Text(
-                              'Order #${order.orderNumber}',
-                              style: const TextStyle(
-                                color: Color(0xFF94A3B8),
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                        ],
+                      const Text(
+                        'Preview',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
                       ),
                     ],
+                  ),
+                  // Mode Toggle Tabs: Bill (No QR) vs Bill (QR) vs Paid Receipt
+                  Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        InkWell(
+                          onTap: () => setState(() => _mode = ReceiptMode.unpaidNoQr),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 3.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _mode == ReceiptMode.unpaidNoQr
+                                  ? const Color(0xFF0D9488)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'No QR',
+                              style: TextStyle(
+                                color: _mode == ReceiptMode.unpaidNoQr ? Colors.white : Colors.white70,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        InkWell(
+                          onTap: () => setState(() => _mode = ReceiptMode.unpaidQr),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 3.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _mode == ReceiptMode.unpaidQr
+                                  ? const Color(0xFF0D9488)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'Bill (QR)',
+                              style: TextStyle(
+                                color: _mode == ReceiptMode.unpaidQr ? Colors.white : Colors.white70,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 2),
+                        InkWell(
+                          onTap: () => setState(() => _mode = ReceiptMode.paid),
+                          borderRadius: BorderRadius.circular(6),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 3.5,
+                            ),
+                            decoration: BoxDecoration(
+                              color: _mode == ReceiptMode.paid
+                                  ? const Color(0xFF0D9488)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              'Paid',
+                              style: TextStyle(
+                                color: _mode == ReceiptMode.paid ? Colors.white : Colors.white70,
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                   IconButton(
                     icon: const AppSvgIcon(
@@ -272,34 +379,43 @@ class _ReceiptPreviewDialogState extends State<ReceiptPreviewDialog> {
                         ),
                       ],
                       const SizedBox(height: 2),
-                      _dashedDivider(),
+                      const SizedBox(height: 3),
+                      _solidDivider(),
 
-                      // 3. Order Metadata (Order #, Order Type, Date, Cashier)
-                      _rowMeta('Order:', '#${order.orderNumber ?? order.receiptNo}'),
-                      _rowMeta(
-                        'Order Type:',
-                        order.orderType == 'TAKEAWAY'
-                            ? 'Takeaway'
-                            : (order.tableNumber != null && order.tableNumber!.isNotEmpty
-                                ? 'Dine-In (${order.tableNumber})'
-                                : 'Dine-In'),
-                      ),
-                      _rowMeta('Date:', DateFormat('dd/MM/yyyy, hh:mm:ss a').format(order.createdAt)),
-                      _rowMeta('Cashier:', 'System Admin'),
-                      if (order.customerName != null &&
-                          order.customerName!.trim().isNotEmpty &&
-                          order.customerName!.trim().toLowerCase() != 'guest')
-                        _rowMeta('Customer:', order.customerName!),
+                      // 3. Metadata
+                      if (!_isPaid) ...[
+                        _rowMeta('Bill:', order.orderNumber ?? order.receiptNo.split('-').last),
+                        _rowMeta('Date:', DateFormat('yyyy-MM-dd HH:mm:ss').format(order.createdAt)),
+                        _rowMeta(
+                          'Customer:',
+                          (order.customerName != null &&
+                                  order.customerName!.trim().isNotEmpty &&
+                                  order.customerName!.trim().toLowerCase() != 'guest')
+                              ? order.customerName!.trim()
+                              : '...............',
+                        ),
+                      ] else ...[
+                        _rowMeta('Order:', '${order.receiptNo} (Paid)'),
+                        _rowMeta('Date:', DateFormat('yyyy-MM-dd HH:mm:ss').format(order.createdAt)),
+                        _rowMeta(
+                          'Customer:',
+                          (order.customerName != null &&
+                                  order.customerName!.trim().isNotEmpty &&
+                                  order.customerName!.trim().toLowerCase() != 'guest')
+                              ? order.customerName!.trim()
+                              : '...............',
+                        ),
+                      ],
 
-                      _dashedDivider(),
+                      _solidDivider(),
 
-                      // 4. Column Headers: ITEM, QTY, PRICE, TOTAL
+                      // 4. Column Headers: NAME, QTY, UNIT PRICE, AMOUNT
                       const Row(
                         children: [
                           Expanded(
                             flex: 5,
                             child: Text(
-                              'ITEM',
+                              'NAME',
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
                                 fontSize: 9.5,
@@ -322,7 +438,7 @@ class _ReceiptPreviewDialogState extends State<ReceiptPreviewDialog> {
                           Expanded(
                             flex: 3,
                             child: Text(
-                              'PRICE',
+                              'UNIT PRICE',
                               textAlign: TextAlign.right,
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
@@ -334,7 +450,7 @@ class _ReceiptPreviewDialogState extends State<ReceiptPreviewDialog> {
                           Expanded(
                             flex: 3,
                             child: Text(
-                              'TOTAL',
+                              'AMOUNT',
                               textAlign: TextAlign.right,
                               style: TextStyle(
                                 fontWeight: FontWeight.bold,
@@ -345,7 +461,7 @@ class _ReceiptPreviewDialogState extends State<ReceiptPreviewDialog> {
                           ),
                         ],
                       ),
-                      _dashedDivider(),
+                      _solidDivider(),
 
                       // 5. Line Items
                       ...order.items.map((item) {
@@ -436,113 +552,126 @@ class _ReceiptPreviewDialogState extends State<ReceiptPreviewDialog> {
                         );
                       }),
 
-                      _dashedDivider(),
+                      _solidDivider(),
 
                       // 6. Totals Breakdown
                       _rowTotal(
-                        'Subtotal:',
+                        'SUBTOTAL:',
                         '$currency${order.subtotal.toStringAsFixed(2)}',
                         fontSize: 9.5,
                       ),
                       _rowTotal(
-                        'Total (\$):',
+                        'TOTAL (USD):',
                         '$currency${order.totalAmount.toStringAsFixed(2)}',
                         isBold: true,
                         fontSize: 11.0,
                       ),
                       if (settings.showKhrDualCurrency)
                         _rowTotal(
-                          'Total (KHR):',
-                          'KHR ${NumberFormat('#,###').format((order.totalAmount * settings.usdToKhrRate).round())}',
+                          'TOTAL (KHR):',
+                          '${NumberFormat('#,###').format((order.totalAmount * settings.usdToKhrRate).round())} KHR',
                           isBold: true,
                           fontSize: 10.5,
                         ),
 
-                      if (order.paymentMethod == PaymentMethod.cash) ...[
+                      _solidDivider(),
+
+                      // 7. Payment Info (Paid) OR KHQR Section (Not Paid)
+                      if (_isPaid) ...[
                         const SizedBox(height: 1),
                         _rowTotal(
-                          'Payment Method:',
+                          'PAYMENT METHOD:',
                           order.paymentMethod.displayName.toUpperCase(),
-                          fontSize: 9.0,
+                          isBold: true,
+                          fontSize: 9.5,
                         ),
-                        _rowTotal(
-                          'Cash Received:',
-                          '$currency${(order.cashTendered > 0 ? order.cashTendered : order.totalAmount).toStringAsFixed(2)}',
-                          fontSize: 9.0,
+                        const SizedBox(height: 2),
+                        _solidDivider(),
+                      ] else if (_showQr) ...[
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Bakong & All Mobile Banking Apps',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 9.0,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
                         ),
-                        _rowTotal(
-                          'Change Return:',
-                          '$currency${order.changeAmount.toStringAsFixed(2)}',
-                          fontSize: 9.0,
+                        const SizedBox(height: 4),
+                        Center(
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.black12),
+                            ),
+                            child: (settings.qrImagePath != null &&
+                                    settings.qrImagePath!.trim().isNotEmpty &&
+                                    File(settings.qrImagePath!).existsSync())
+                                ? Image.file(
+                                    File(settings.qrImagePath!),
+                                    width: 135,
+                                    height: 135,
+                                    fit: BoxFit.contain,
+                                  )
+                                : QrImageView(
+                                    data: (settings.qrPayloadTemplate.isNotEmpty &&
+                                            !settings.qrPayloadTemplate.contains('pay.restaurant.com'))
+                                        ? (settings.qrPayloadTemplate.contains('{order}')
+                                            ? settings.qrPayloadTemplate.replaceAll(
+                                                '{order}',
+                                                order.orderNumber ?? order.receiptNo,
+                                              )
+                                            : (settings.qrPayloadTemplate.endsWith('=')
+                                                ? '${settings.qrPayloadTemplate}${order.orderNumber ?? order.receiptNo}'
+                                                : settings.qrPayloadTemplate))
+                                        : 'KHQR:MERCHANT:${settings.storeName.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toUpperCase()}:INV#${order.orderNumber ?? order.receiptNo}:USD${order.totalAmount.toStringAsFixed(2)}:KHR${(order.totalAmount * settings.usdToKhrRate).round()}',
+                                    version: QrVersions.auto,
+                                    size: 115.0,
+                                  ),
+                          ),
                         ),
+                        const SizedBox(height: 3),
+                        const Text(
+                          'Scan with banking app or pay with Cash / Card',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 8.0,
+                            color: Color(0xFF475569),
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        _solidDivider(),
+                      ] else ...[
+                        const SizedBox(height: 2),
+                        const Text(
+                          'UNPAID BILL / INVOICE',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 9.0,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'Please present this bill at cashier counter to pay',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 8.0,
+                            color: Color(0xFF475569),
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        _solidDivider(),
                       ],
 
-                      _dashedDivider(),
-
-                      // 7. KHQR Header, QR Code & Caption
-                      const Text(
-                        'SCAN TO PAY WITH KHQR',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.4,
-                          color: Colors.black,
-                        ),
-                      ),
-                      const SizedBox(height: 1),
-                      const Text(
-                        'Bakong & All Mobile Banking Apps',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 8.0,
-                          color: Color(0xFF475569),
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-
-                      Center(
-                        child: Container(
-                          padding: const EdgeInsets.all(3),
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: Colors.black12),
-                          ),
-                          child: (settings.qrImagePath != null &&
-                                  settings.qrImagePath!.trim().isNotEmpty &&
-                                  File(settings.qrImagePath!).existsSync())
-                              ? Image.file(
-                                  File(settings.qrImagePath!),
-                                  width: 118,
-                                  height: 118,
-                                  fit: BoxFit.contain,
-                                )
-                              : QrImageView(
-                                  data: settings.qrPayloadTemplate.isNotEmpty
-                                      ? '${settings.qrPayloadTemplate}${order.receiptNo}'
-                                      : 'REC:${order.receiptNo}',
-                                  version: QrVersions.auto,
-                                  size: 88.0,
-                                ),
-                        ),
-                      ),
+                      // 8. Footer (both modes)
                       const SizedBox(height: 2),
                       const Text(
-                        'Scan with banking app or pay with Cash / Card',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 8.0,
-                          color: Color(0xFF475569),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-
-                      _dashedDivider(),
-
-                      // 8. Footer (under the QR code)
-                      const Text(
-                        '*** Thank you for your visit ***',
+                        '***THANK YOU FOR YOUR VISIT***',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 9.5,
@@ -552,14 +681,15 @@ class _ReceiptPreviewDialogState extends State<ReceiptPreviewDialog> {
                       ),
                       const SizedBox(height: 1),
                       const Text(
-                        'Please come again',
+                        '***Please Come Again***',
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           fontSize: 9.0,
+                          fontWeight: FontWeight.bold,
                           color: Color(0xFF334155),
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      const SizedBox(height: 4),
                     ],
                   ),
                 ),
@@ -593,9 +723,10 @@ class _ReceiptPreviewDialogState extends State<ReceiptPreviewDialog> {
                         ),
                       ),
                       onPressed: _closeDialog,
-                      icon: const Icon(
-                        Icons.arrow_back_ios_new_rounded,
-                        size: 12,
+                      icon: const AppSvgIcon.sprite(
+                        SpriteIcons.arrowLeft,
+                        size: 14,
+                        color: Color(0xFF64748B),
                       ),
                       label: const Text(
                         'Back to POS',
@@ -627,15 +758,17 @@ class _ReceiptPreviewDialogState extends State<ReceiptPreviewDialog> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Icon(
-                              Icons.print_outlined,
+                          : const AppSvgIcon.sprite(
+                              SpriteIcons.printer,
                               size: 15,
                               color: Colors.white,
                             ),
                       label: Text(
                         _isPrintingPdf
-                            ? 'Opening PDF...'
-                            : 'Print PDF Receipt',
+                            ? 'Printing...'
+                            : (_isPaid
+                                ? 'Print Paid Receipt'
+                                : (_showQr ? 'Print Bill (QR)' : 'Print Bill (No QR)')),
                         style: const TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 11.5,
@@ -652,28 +785,13 @@ class _ReceiptPreviewDialogState extends State<ReceiptPreviewDialog> {
     );
   }
 
-  Widget _dashedDivider({double height = 6, double dashWidth = 3.5, double dashSpace = 2.0}) {
-    return SizedBox(
+  Widget _solidDivider({double height = 7, double thickness = 0.8}) {
+    return Container(
       height: height,
-      child: Center(
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final width = constraints.maxWidth;
-            final count = (width / (dashWidth + dashSpace)).floor();
-            return Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: List.generate(count, (_) {
-                return SizedBox(
-                  width: dashWidth,
-                  height: 1.0,
-                  child: const DecoratedBox(
-                    decoration: BoxDecoration(color: Colors.black87),
-                  ),
-                );
-              }),
-            );
-          },
-        ),
+      alignment: Alignment.center,
+      child: Container(
+        height: thickness,
+        color: Colors.black,
       ),
     );
   }

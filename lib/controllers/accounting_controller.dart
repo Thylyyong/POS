@@ -61,20 +61,14 @@ class AccountingController extends ChangeNotifier {
         periodLabel: _selectedPeriod,
       );
 
-      final reportBranches = _selectedBranch == 'all'
-          ? const ['store_a', 'store_b', 'all']
-          : [_selectedBranch];
-      _visibleReports = [];
-      for (final visibleBranch in reportBranches) {
-        _visibleReports.add(
-          await _dao.computeProfitLoss(
-            branchId: visibleBranch,
-            startDate: start,
-            endDate: end,
-            periodLabel: _selectedPeriod,
-          ),
-        );
-      }
+      _report = await _dao.computeProfitLoss(
+        branchId: _selectedBranch,
+        startDate: start,
+        endDate: end,
+        periodLabel: _selectedPeriod,
+      );
+
+      _visibleReports = _report != null ? [_report!] : [];
 
       _expenses = await _dao.getExpenses(
         branchId: _selectedBranch == 'all' ? null : _selectedBranch,
@@ -82,11 +76,7 @@ class AccountingController extends ChangeNotifier {
         endDate: end,
       );
 
-      if (_selectedBranch != 'all') {
-        _hybridConfig = await _dao.getHybridConfig(_selectedBranch);
-      } else {
-        _hybridConfig = null;
-      }
+      _hybridConfig = null;
     } catch (e) {
       _error = 'Failed to load accounting report: $e';
       debugPrint('[AccountingController] $_error');

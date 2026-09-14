@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../app_config.dart';
 import '../../../controllers/cart_controller.dart';
 import '../../../core/theme/asset_theme.dart';
+import '../../../core/theme/sprite_icons.dart';
 import '../../../widgets/app_svg_icon.dart';
 import '../../tables/widgets/assign_table_dialog.dart';
 import 'held_orders_modal.dart';
@@ -103,14 +104,14 @@ class CartHeader extends StatelessWidget {
                         child: const Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
-                              Icons.soup_kitchen_rounded,
+                            AppSvgIcon.sprite(
+                              SpriteIcons.receipt,
                               size: 13,
                               color: Color(0xFF92400E),
                             ),
                             SizedBox(width: 3),
                             Text(
-                              'SENT TO CHEF',
+                              'BILL PRINTED',
                               style: TextStyle(
                                 color: Color(0xFF92400E),
                                 fontWeight: FontWeight.bold,
@@ -143,8 +144,8 @@ class CartHeader extends StatelessWidget {
                       onPressed: () => showHeldOrdersModal(context, cart),
                     ),
                   IconButton(
-                    icon: const AppSvgIcon(
-                      AssetTheme.bin,
+                    icon: const AppSvgIcon.sprite(
+                      SpriteIcons.trash,
                       color: AppConfig.accentRose,
                       size: 22,
                     ),
@@ -178,20 +179,20 @@ class CartHeader extends StatelessWidget {
               child: Row(
                 children: [
                   cart.orderType == 'TAKEAWAY'
-                      ? const AppSvgIcon(
-                          AssetTheme.packageIcon,
+                      ? const AppSvgIcon.sprite(
+                          SpriteIcons.products,
                           size: 19,
                           color: ColorTheme.primary400,
                         )
                       : cart.orderType == 'DELIVERY'
-                      ? const AppSvgIcon(
-                          AssetTheme.delivery,
+                      ? const AppSvgIcon.sprite(
+                          SpriteIcons.products,
                           size: 19,
                           color: ColorTheme.primary400,
                         )
-                      : const Icon(
-                          Icons.table_restaurant_outlined,
-                          size: 20,
+                      : const AppSvgIcon.sprite(
+                          SpriteIcons.table,
+                          size: 19,
                           color: ColorTheme.primary400,
                         ),
                   const SizedBox(width: 8),

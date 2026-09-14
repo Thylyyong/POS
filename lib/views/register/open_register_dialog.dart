@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../controllers/auth_controller.dart';
 import '../../controllers/register_controller.dart';
 import '../../models/register_session_model.dart';
 import '../../core/theme/asset_theme.dart';
 import '../../widgets/app_svg_icon.dart';
+import 'widgets/dual_currency_piece_counter_dialog.dart';
 
 class OpenRegisterDialog extends StatefulWidget {
   const OpenRegisterDialog({super.key});
@@ -27,7 +29,7 @@ class _OpenRegisterDialogState extends State<OpenRegisterDialog> {
     text: 'Opening details:\n  1 x \$ 5.00\n  2 x \$ 20.00\n  1 x \$ 100.00\n  1 x \$ 200.00\nTotal: \$ 345.00',
   );
 
-  bool _showDenominationWizard = false;
+  final bool _showDenominationWizard = false;
 
   final List<DenominationItem> _denominations = [
     DenominationItem(value: 200.0, label: '\$200 Note', count: 1),
@@ -94,7 +96,11 @@ class _OpenRegisterDialogState extends State<OpenRegisterDialog> {
                     ),
                   ),
                   IconButton(
-                    icon: const AppSvgIcon(AssetTheme.close, size: 18, color: Color(0xFF64748B)),
+                    icon: const AppSvgIcon(
+                      AssetTheme.close,
+                      size: 18,
+                      color: Color(0xFF64748B),
+                    ),
                     onPressed: () => Navigator.of(context).pop(false),
                   ),
                 ],
@@ -104,7 +110,11 @@ class _OpenRegisterDialogState extends State<OpenRegisterDialog> {
               // Opening Cash Input Field
               const Text(
                 'Opening cash',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF475569),
+                ),
               ),
               const SizedBox(height: 6),
               Row(
@@ -112,43 +122,66 @@ class _OpenRegisterDialogState extends State<OpenRegisterDialog> {
                   Expanded(
                     child: TextField(
                       controller: _cashCtrl,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
                       decoration: InputDecoration(
                         prefixText: '\$ ',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+                          borderSide: const BorderSide(
+                            color: Color(0xFFCBD5E1),
+                          ),
                         ),
                         suffixIcon: IconButton(
-                          icon: const AppSvgIcon(AssetTheme.close, size: 16, color: Color(0xFF64748B)),
+                          icon: const AppSvgIcon(
+                            AssetTheme.close,
+                            size: 16,
+                            color: Color(0xFF64748B),
+                          ),
                           onPressed: () => setState(() => _cashCtrl.clear()),
                         ),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   // Bill / Denomination Calculator Trigger Button
                   InkWell(
-                    onTap: () {
-                      setState(() {
-                        _showDenominationWizard = !_showDenominationWizard;
-                      });
+                    onTap: () async {
+                      final result = await DualCurrencyPieceCounterDialog.show(
+                        context,
+                        title: 'Opening Float Piece Counter (USD & KHR)',
+                      );
+                      if (result != null) {
+                        setState(() {
+                          _cashCtrl.text = result.combinedUsd.toStringAsFixed(
+                            2,
+                          );
+                          _notesCtrl.text = result.summaryText;
+                        });
+                      }
                     },
                     borderRadius: BorderRadius.circular(8),
                     child: Container(
                       height: 48,
                       width: 48,
                       decoration: BoxDecoration(
-                        color: _showDenominationWizard ? const Color(0xFF7C3AED) : const Color(0xFFF1F5F9),
+                        color: const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: const Color(0xFFCBD5E1)),
                       ),
-                      child: Center(
+                      child: const Center(
                         child: AppSvgIcon(
                           AssetTheme.payment,
-                          color: _showDenominationWizard ? Colors.white : const Color(0xFF475569),
+                          color: Color(0xFF475569),
                           size: 22,
                         ),
                       ),
@@ -172,7 +205,11 @@ class _OpenRegisterDialogState extends State<OpenRegisterDialog> {
                     children: [
                       const Text(
                         'Count Denominations (Bills & Coins)',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF334155)),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                          color: Color(0xFF334155),
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Wrap(
@@ -181,26 +218,44 @@ class _OpenRegisterDialogState extends State<OpenRegisterDialog> {
                         children: _denominations.map((d) {
                           return Container(
                             width: 140,
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: const Color(0xFFCBD5E1)),
+                              border: Border.all(
+                                color: const Color(0xFFCBD5E1),
+                              ),
                             ),
                             child: Row(
                               children: [
                                 Expanded(
                                   child: Text(
                                     d.label,
-                                    style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
                                 ),
                                 DropdownButton<int>(
                                   value: d.count,
                                   isDense: true,
                                   underline: const SizedBox(),
-                                  style: const TextStyle(fontSize: 12, color: Color(0xFF0F172A), fontWeight: FontWeight.bold),
-                                  items: List.generate(21, (i) => DropdownMenuItem(value: i, child: Text('$i'))),
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFF0F172A),
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                  items: List.generate(
+                                    21,
+                                    (i) => DropdownMenuItem(
+                                      value: i,
+                                      child: Text('$i'),
+                                    ),
+                                  ),
                                   onChanged: (val) {
                                     if (val != null) {
                                       d.count = val;
@@ -222,7 +277,11 @@ class _OpenRegisterDialogState extends State<OpenRegisterDialog> {
               // Opening Note Input Field
               const Text(
                 'Opening note',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF475569),
+                ),
               ),
               const SizedBox(height: 6),
               TextField(
@@ -245,14 +304,25 @@ class _OpenRegisterDialogState extends State<OpenRegisterDialog> {
                 children: [
                   ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF714B67), // Odoo Purple Accent
+                      backgroundColor: const Color(
+                        0xFF714B67,
+                      ), // Odoo Purple Accent
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       elevation: 0,
                     ),
                     onPressed: () async {
-                      final amount = double.tryParse(_cashCtrl.text.replaceAll('\$', '').trim()) ?? 0.0;
+                      final amount =
+                          double.tryParse(
+                            _cashCtrl.text.replaceAll('\$', '').trim(),
+                          ) ??
+                          0.0;
                       await register.openRegister(
                         openingCash: amount,
                         openingNotes: _notesCtrl.text.trim(),
@@ -267,16 +337,27 @@ class _OpenRegisterDialogState extends State<OpenRegisterDialog> {
                         Navigator.of(context).pop(true);
                       }
                     },
-                    child: const Text('Open Register', style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: const Text(
+                      'Open Register',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
                   const SizedBox(width: 12),
                   OutlinedButton(
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
                     onPressed: () => Navigator.of(context).pop(false),
-                    child: const Text('Discard', style: TextStyle(color: Color(0xFF64748B))),
+                    child: const Text(
+                      'Discard',
+                      style: TextStyle(color: Color(0xFF64748B)),
+                    ),
                   ),
                 ],
               ),
