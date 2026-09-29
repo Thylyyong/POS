@@ -10,6 +10,7 @@ import 'package:printing/printing.dart';
 import '../models/order_model.dart';
 import '../models/store_settings_model.dart';
 import 'pdf_receipt_service.dart';
+import 'thermal_image_helper.dart';
 
 class PrinterService {
   static final PrinterService _instance = PrinterService._internal();
@@ -106,8 +107,10 @@ class PrinterService {
               decoded,
               width: settings.isPaperSize80mm ? 260 : 180,
             );
-            final grayscale = img.grayscale(resized);
-            bytes += generator.imageRaster(grayscale, align: PosAlign.center);
+            final rasterImage = settings.monochromeLogoOnRealPrint
+                ? ThermalImageHelper.convertToMonochromeImage(resized, threshold: 210)
+                : img.grayscale(resized);
+            bytes += generator.imageRaster(rasterImage, align: PosAlign.center);
           }
         } catch (_) {}
       }
@@ -360,8 +363,10 @@ class PrinterService {
                 decoded,
                 width: settings.isPaperSize80mm ? 260 : 180,
               );
-              final grayscale = img.grayscale(resized);
-              bytes += generator.imageRaster(grayscale, align: PosAlign.center);
+              final rasterImage = settings.monochromeLogoOnRealPrint
+                  ? ThermalImageHelper.convertToMonochromeImage(resized, threshold: 210)
+                  : img.grayscale(resized);
+              bytes += generator.imageRaster(rasterImage, align: PosAlign.center);
               qrImagePrinted = true;
             }
           } catch (_) {}
@@ -701,6 +706,7 @@ class PrinterService {
         isPaid: isPaid,
         showQr: showQr,
         isReprint: isReprint,
+        isForRealPrint: true,
       );
 
       final printer = await autoDetectThermalPrinter(

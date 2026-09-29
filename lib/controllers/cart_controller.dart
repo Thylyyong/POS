@@ -286,12 +286,14 @@ class CartController extends ChangeNotifier {
 
   // ── Cart mutations ───────────────────────────────────────────────────────
 
-  void addProduct(
+  bool addProduct(
     Product product, {
     int quantity = 1,
     double? customUnitPrice,
     String? notes,
   }) {
+    if (product.stockQuantity <= 0) return false;
+
     final idx = _items.indexWhere(
       (i) =>
           i.product.id == product.id &&
@@ -299,10 +301,15 @@ class CartController extends ChangeNotifier {
           i.customUnitPrice == customUnitPrice,
     );
     if (idx >= 0) {
-      _items[idx] = _items[idx].copyWith(
-        quantity: _items[idx].quantity + quantity,
-      );
+      final newQty = _items[idx].quantity + quantity;
+      if (newQty > product.stockQuantity) {
+        return false;
+      }
+      _items[idx] = _items[idx].copyWith(quantity: newQty);
     } else {
+      if (quantity > product.stockQuantity) {
+        return false;
+      }
       _items.insert(
         0,
         CartItem(
@@ -314,15 +321,22 @@ class CartController extends ChangeNotifier {
       );
     }
     _commit();
+    return true;
   }
 
-  void incrementQuantity(int index) {
+  bool incrementQuantity(int index) {
     if (_validIndex(index)) {
-      _items[index] = _items[index].copyWith(
-        quantity: _items[index].quantity + 1,
+      final item = _items[index];
+      if (item.quantity + 1 > item.product.stockQuantity) {
+        return false;
+      }
+      _items[index] = item.copyWith(
+        quantity: item.quantity + 1,
       );
       _commit();
+      return true;
     }
+    return false;
   }
 
   void decrementQuantity(int index) {

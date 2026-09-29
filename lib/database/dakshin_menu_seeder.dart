@@ -161,6 +161,7 @@ class DakshinMenuSeeder {
           'barcode': 'IND${(d['id'] as String).replaceAll('ind_', '')}',
           'color_hex': '0xFFF59E0B',
           'in_stock': 1,
+          'stock_quantity': 45,
           'created_at': now,
         },
         conflictAlgorithm: ConflictAlgorithm.replace,

@@ -87,6 +87,9 @@ class SettingsController extends ChangeNotifier {
   Future<void> toggleKhrDualCurrency(bool enabled) =>
       _save(_settings.copyWith(showKhrDualCurrency: enabled));
 
+  Future<void> toggleMonochromeLogoOnRealPrint(bool enabled) =>
+      _save(_settings.copyWith(monochromeLogoOnRealPrint: enabled));
+
   Future<void> updateAdminPin(String pin) => _save(_settings.withAdminPin(pin));
 
   Future<void> toggleCfd(bool enabled) async {

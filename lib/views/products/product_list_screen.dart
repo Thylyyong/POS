@@ -1,14 +1,17 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../app_config.dart';
+import '../../controllers/auth_controller.dart';
 import '../../controllers/pos_controller.dart';
 import '../../controllers/settings_controller.dart';
 import '../../database/product_dao.dart';
 import '../../models/product_model.dart';
+import '../../core/product_image_helper.dart';
+import '../../widgets/admin_pin_dialog.dart';
 import '../../widgets/image_picker_dialog.dart';
+import '../../widgets/stock_adjustment_dialog.dart';
+import '../../widgets/stock_audit_logs_dialog.dart';
 import '../../core/theme/asset_theme.dart';
 import '../../widgets/app_svg_icon.dart';
 
@@ -150,6 +153,21 @@ class _ProductListScreenState extends State<ProductListScreen> {
                   ),
                 ),
                 const SizedBox(width: 10),
+                OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF0F172A),
+                    side: const BorderSide(color: Color(0xFFCBD5E1)),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  ),
+                  onPressed: () => StockAuditLogsDialog.show(context),
+                  icon: const Icon(Icons.history_edu_rounded, size: 16, color: Color(0xFF0F172A)),
+                  label: const Text(
+                    'Audit Logs & Waste',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0D9488),
@@ -163,7 +181,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     ),
                     elevation: 0,
                   ),
-                  onPressed: () => _showAddEditProductDialog(context, null),
+                  onPressed: () => _checkManagerAndShowAddEdit(null),
                   icon: const AppSvgIcon(
                     AssetTheme.plus,
                     size: 16,
@@ -219,15 +237,11 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         (c) => c.id == product.categoryId,
                         orElse: () => Category(id: '', name: 'Uncategorized'),
                       );
-                      final imgPath = product.imagePath?.trim();
-                      ImageProvider? imgProvider;
-                      if (imgPath != null && imgPath.isNotEmpty) {
-                        if (imgPath.startsWith('assets/')) {
-                          imgProvider = AssetImage(imgPath);
-                        } else {
-                          imgProvider = FileImage(File(imgPath));
-                        }
-                      }
+                      final imgProvider = ProductImageHelper.resolveImageProvider(
+                        imagePath: product.imagePath,
+                        productName: product.name,
+                        categoryId: product.categoryId,
+                      );
                       final hasDesc =
                           product.description != null &&
                           product.description!.trim().isNotEmpty;
@@ -264,28 +278,26 @@ class _ProductListScreenState extends State<ProductListScreen> {
                               ),
                               child: ClipRRect(
                                 borderRadius: BorderRadius.circular(10),
-                                child: imgProvider != null
-                                    ? Image(
-                                        image: imgProvider,
-                                        fit: BoxFit.cover,
-                                        errorBuilder:
-                                            (context, error, stackTrace) =>
-                                                const Center(
-                                                  child: AppSvgIcon(
-                                                    AssetTheme.kitchen,
-                                                    color:
-                                                        ColorTheme.primary400,
-                                                    size: 24,
-                                                  ),
-                                                ),
-                                      )
-                                    : const Center(
-                                        child: AppSvgIcon(
-                                          AssetTheme.kitchen,
-                                          color: ColorTheme.primary400,
-                                          size: 24,
-                                        ),
+                                child: Image(
+                                  image: imgProvider,
+                                  fit: BoxFit.contain,
+                                  errorBuilder: (context, error, stackTrace) =>
+                                      Image.asset(
+                                    ProductImageHelper.getDefaultAssetFor(
+                                      productName: product.name,
+                                      categoryId: product.categoryId,
+                                    ),
+                                    fit: BoxFit.contain,
+                                    errorBuilder: (context, error, stackTrace) =>
+                                        const Center(
+                                      child: AppSvgIcon(
+                                        AssetTheme.kitchen,
+                                        color: ColorTheme.primary400,
+                                        size: 24,
                                       ),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ),
                             const SizedBox(width: 14),
@@ -369,35 +381,86 @@ class _ProductListScreenState extends State<ProductListScreen> {
                               ),
                             ),
 
-                            // Stock Status Badge
+                            // Stock On-Hand Badge
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 9,
-                                vertical: 3.5,
+                                vertical: 4,
                               ),
                               decoration: BoxDecoration(
-                                color: product.inStock
-                                    ? ColorTheme.neutral100
-                                    : ColorTheme.statusRedBg,
+                                color: product.stockQuantity <= 0
+                                    ? const Color(0xFFFEE2E2)
+                                    : (product.stockQuantity <= 5
+                                        ? const Color(0xFFFEF3C7)
+                                        : const Color(0xFFF0FDFA)),
                                 borderRadius: BorderRadius.circular(6),
                                 border: Border.all(
-                                  color: product.inStock
-                                      ? ColorTheme.neutral300
-                                      : ColorTheme.statusRed,
+                                  color: product.stockQuantity <= 0
+                                      ? const Color(0xFFFECACA)
+                                      : (product.stockQuantity <= 5
+                                          ? const Color(0xFFFDE68A)
+                                          : const Color(0xFF99F6E4)),
                                 ),
                               ),
-                              child: Text(
-                                product.inStock ? 'IN STOCK' : 'OUT OF STOCK',
-                                style: TextStyle(
-                                  color: product.inStock
-                                      ? ColorTheme.primary400
-                                      : ColorTheme.statusRed,
-                                  fontSize: 10.5,
-                                  fontWeight: FontWeight.bold,
-                                ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    product.stockQuantity <= 0
+                                        ? Icons.remove_circle_outline_rounded
+                                        : (product.stockQuantity <= 5
+                                            ? Icons.warning_amber_rounded
+                                            : Icons.inventory_2_outlined),
+                                    size: 13,
+                                    color: product.stockQuantity <= 0
+                                        ? const Color(0xFFDC2626)
+                                        : (product.stockQuantity <= 5
+                                            ? const Color(0xFFD97706)
+                                            : const Color(0xFF0F766E)),
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    product.stockQuantity <= 0
+                                        ? '0 on-hand'
+                                        : '${product.stockQuantity} on-hand',
+                                    style: TextStyle(
+                                      color: product.stockQuantity <= 0
+                                          ? const Color(0xFFDC2626)
+                                          : (product.stockQuantity <= 5
+                                              ? const Color(0xFFD97706)
+                                              : const Color(0xFF0F766E)),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                             const SizedBox(width: 8),
+
+                            // Stock Adjustment & Waste Logging Button
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                                side: const BorderSide(color: Color(0xFFCBD5E1)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                              ),
+                              icon: const Icon(Icons.tune_rounded, size: 14, color: Color(0xFF0D9488)),
+                              label: const Text(
+                                'Stock & Waste',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0D9488),
+                                ),
+                              ),
+                              onPressed: () => StockAdjustmentDialog.show(
+                                context,
+                                product: product,
+                                onSaved: _loadData,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
 
                             // Actions (Edit Photo & Info, Delete)
                             IconButton(
@@ -408,7 +471,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                               ),
                               tooltip: 'Edit Item & Photo',
                               onPressed: () =>
-                                  _showAddEditProductDialog(context, product),
+                                  _checkManagerAndShowAddEdit(product),
                             ),
                             IconButton(
                               icon: const AppSvgIcon(
@@ -417,8 +480,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                 size: 18,
                               ),
                               tooltip: 'Delete Item',
-                              onPressed: () => _confirmDeleteProduct(
-                                context,
+                              onPressed: () => _checkManagerAndDelete(
                                 product,
                                 posCtrl,
                               ),
@@ -459,6 +521,41 @@ class _ProductListScreenState extends State<ProductListScreen> {
     );
   }
 
+  Future<void> _checkManagerAndShowAddEdit(Product? existing) async {
+    final auth = context.read<AuthController>();
+    if (!auth.isOwner && !auth.isAdminAuthenticated) {
+      final verified = await AdminPinDialog.show(
+        context,
+        title: 'Manager Authorization',
+        subtitle: existing == null
+            ? 'Only managers can add new products and initial stock.'
+            : 'Only managers can edit product prices, details, and stock.',
+      );
+      if (!verified || !mounted) return;
+    }
+    if (mounted) {
+      _showAddEditProductDialog(context, existing);
+    }
+  }
+
+  Future<void> _checkManagerAndDelete(
+    Product product,
+    PosController posCtrl,
+  ) async {
+    final auth = context.read<AuthController>();
+    if (!auth.isOwner && !auth.isAdminAuthenticated) {
+      final verified = await AdminPinDialog.show(
+        context,
+        title: 'Manager Authorization',
+        subtitle: 'Only managers can delete items from the catalog.',
+      );
+      if (!verified || !mounted) return;
+    }
+    if (mounted) {
+      _confirmDeleteProduct(context, product, posCtrl);
+    }
+  }
+
   void _showAddEditProductDialog(BuildContext context, Product? existing) {
     final posCtrl = context.read<PosController>();
     final nameCtrl = TextEditingController(text: existing?.name ?? '');
@@ -470,6 +567,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
       text: existing != null ? existing.cost.toString() : '0.0',
     );
     final barcodeCtrl = TextEditingController(text: existing?.barcode ?? '');
+    final stockCtrl = TextEditingController(
+      text: existing != null ? '${existing.stockQuantity}' : '50',
+    );
     String selectedCatId =
         existing?.categoryId ??
         (_categories.isNotEmpty ? _categories.first.id : '');
@@ -481,16 +581,58 @@ class _ProductListScreenState extends State<ProductListScreen> {
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) {
-          final hasImg =
-              localImagePath != null && localImagePath!.trim().isNotEmpty;
-          ImageProvider? previewProvider;
-          if (hasImg) {
-            final path = localImagePath!.trim();
-            if (path.startsWith('assets/')) {
-              previewProvider = AssetImage(path);
-            } else {
-              previewProvider = FileImage(File(path));
-            }
+          final previewProvider = (localImagePath != null && localImagePath!.trim().isNotEmpty)
+              ? ProductImageHelper.resolveImageProvider(
+                  imagePath: localImagePath,
+                  productName: nameCtrl.text.isNotEmpty ? nameCtrl.text : existing?.name,
+                  categoryId: selectedCatId,
+                )
+              : null;
+
+          InputDecoration dialogInputDeco(
+            String label, {
+            String? hint,
+            String? helper,
+          }) {
+            return InputDecoration(
+              labelText: label,
+              hintText: hint,
+              helperText: helper,
+              labelStyle: const TextStyle(
+                fontSize: 13,
+                color: Color(0xFF475569),
+                fontWeight: FontWeight.w500,
+              ),
+              hintStyle: const TextStyle(
+                fontSize: 12.5,
+                color: Color(0xFF94A3B8),
+              ),
+              helperStyle: const TextStyle(
+                fontSize: 11,
+                color: Color(0xFF64748B),
+              ),
+              filled: true,
+              fillColor: const Color(0xFFF8FAFC),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 14,
+                vertical: 12,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0xFFCBD5E1)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(
+                  color: Color(0xFF0D9488),
+                  width: 1.5,
+                ),
+              ),
+            );
           }
 
           return Dialog(
@@ -549,7 +691,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       },
                       borderRadius: BorderRadius.circular(12),
                       child: Container(
-                        height: 130,
+                        height: 180,
                         decoration: BoxDecoration(
                           color: const Color(0xFFF8FAFC),
                           borderRadius: BorderRadius.circular(12),
@@ -564,18 +706,22 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                 child: Stack(
                                   fit: StackFit.expand,
                                   children: [
-                                    Image(
-                                      image: previewProvider,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) =>
-                                              const Center(
-                                                child: AppSvgIcon(
-                                                  AssetTheme.gallery,
-                                                  color: Color(0xFF94A3B8),
-                                                  size: 36,
+                                    Padding(
+                                      padding: const EdgeInsets.all(8),
+                                      child: Image(
+                                        image: previewProvider,
+                                        fit: BoxFit.contain,
+                                        alignment: Alignment.center,
+                                        errorBuilder:
+                                            (context, error, stackTrace) =>
+                                                const Center(
+                                                  child: AppSvgIcon(
+                                                    AssetTheme.gallery,
+                                                    color: Color(0xFF94A3B8),
+                                                    size: 36,
+                                                  ),
                                                 ),
-                                              ),
+                                      ),
                                     ),
                                     Align(
                                       alignment: Alignment.topRight,
@@ -591,7 +737,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                           icon: const AppSvgIcon(
                                             AssetTheme.bin,
                                             color: Colors.white,
-                                            size: 18,
+                                            size: 16,
                                           ),
                                           tooltip: 'Remove photo',
                                           onPressed: () {
@@ -599,6 +745,28 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                               localImagePath = null;
                                             });
                                           },
+                                        ),
+                                      ),
+                                    ),
+                                    Align(
+                                      alignment: Alignment.bottomCenter,
+                                      child: Container(
+                                        margin: const EdgeInsets.only(bottom: 8),
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 12,
+                                          vertical: 4,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black.withValues(alpha: 0.55),
+                                          borderRadius: BorderRadius.circular(16),
+                                        ),
+                                        child: const Text(
+                                          'Tap to change photo',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                         ),
                                       ),
                                     ),
@@ -637,18 +805,14 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
                     TextField(
                       controller: nameCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Item Name',
-                        border: OutlineInputBorder(),
-                      ),
+                      decoration: dialogInputDeco('Item Name'),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: descCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Subtitle / Description (Optional)',
-                        hintText: 'e.g. Double espresso with frothed milk',
-                        border: OutlineInputBorder(),
+                      decoration: dialogInputDeco(
+                        'Subtitle / Description (Optional)',
+                        hint: 'e.g. Double espresso with frothed milk',
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -658,10 +822,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                           child: TextField(
                             controller: priceCtrl,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Selling Price (\$)',
-                              border: OutlineInputBorder(),
-                            ),
+                            decoration: dialogInputDeco('Selling Price (\$)'),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -669,10 +830,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                           child: TextField(
                             controller: costCtrl,
                             keyboardType: TextInputType.number,
-                            decoration: const InputDecoration(
-                              labelText: 'Cost (\$)',
-                              border: OutlineInputBorder(),
-                            ),
+                            decoration: dialogInputDeco('Cost (\$)'),
                           ),
                         ),
                       ],
@@ -680,9 +838,16 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     const SizedBox(height: 12),
                     TextField(
                       controller: barcodeCtrl,
-                      decoration: const InputDecoration(
-                        labelText: 'Barcode / SKU',
-                        border: OutlineInputBorder(),
+                      decoration: dialogInputDeco('Barcode / SKU'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: stockCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: dialogInputDeco(
+                        'On-Hand Stock Quantity',
+                        hint: '50',
+                        helper: 'Current units available in physical inventory',
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -690,10 +855,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       initialValue: selectedCatId.isNotEmpty
                           ? selectedCatId
                           : null,
-                      decoration: const InputDecoration(
-                        labelText: 'Category',
-                        border: OutlineInputBorder(),
-                      ),
+                      decoration: dialogInputDeco('Category'),
                       items: _categories.map((c) {
                         return DropdownMenuItem(
                           value: c.id,
@@ -731,10 +893,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                   catSubs.any((s) => s.id == selectedSubcatId))
                               ? selectedSubcatId
                               : null,
-                          decoration: const InputDecoration(
-                            labelText: 'Subcategory (Optional)',
-                            border: OutlineInputBorder(),
-                            helperText: 'Select a subcategory group within this category',
+                          decoration: dialogInputDeco(
+                            'Subcategory (Optional)',
+                            helper: 'Select a subcategory group within this category',
                           ),
                           items: [
                             const DropdownMenuItem<String?>(
@@ -796,6 +957,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
                               final cost =
                                   double.tryParse(costCtrl.text) ?? 0.0;
 
+                              final stockQty =
+                                  int.tryParse(stockCtrl.text.trim()) ?? 50;
+
                               final product = Product(
                                 id:
                                     existing?.id ??
@@ -812,18 +976,78 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                     ? null
                                     : barcodeCtrl.text.trim(),
                                 imagePath: localImagePath,
-                                inStock: inStock,
+                                inStock: inStock && stockQty > 0,
+                                stockQuantity: stockQty,
                               );
 
-                              if (existing == null) {
-                                await _productDao.insertProduct(product);
-                              } else {
-                                await _productDao.updateProduct(product);
-                              }
+                              try {
+                                final auth = context.read<AuthController>();
+                                if (existing == null) {
+                                  await _productDao.insertProduct(product);
+                                  await _productDao.adjustProductStock(
+                                    productId: product.id,
+                                    quantityChange: stockQty,
+                                    reasonCode: 'vendor_delivery',
+                                    notes: 'Initial inventory set upon product creation',
+                                    userId: auth.currentUser.id,
+                                    userName: auth.currentUser.displayName,
+                                    userRole: auth.currentUser.role.name,
+                                    absoluteCount: true,
+                                  );
+                                } else {
+                                  await _productDao.updateProduct(product);
+                                  if (existing.stockQuantity != stockQty) {
+                                    await _productDao.adjustProductStock(
+                                      productId: product.id,
+                                      quantityChange: stockQty,
+                                      reasonCode: 'recount',
+                                      notes: 'Manual stock count update via Catalog Editor',
+                                      userId: auth.currentUser.id,
+                                      userName: auth.currentUser.displayName,
+                                      userRole: auth.currentUser.role.name,
+                                      absoluteCount: true,
+                                    );
+                                  }
+                                }
 
-                              await _loadData();
-                              posCtrl.loadProducts();
-                              if (ctx.mounted) Navigator.of(ctx).pop();
+                                await _loadData();
+                                await posCtrl.loadProducts();
+                                await posCtrl.loadCategories();
+                                await posCtrl.broadcastMenuUpdate();
+
+                                if (ctx.mounted) {
+                                  Navigator.of(ctx).pop();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Row(
+                                        children: [
+                                          const Icon(Icons.check_circle, color: Colors.white, size: 20),
+                                          const SizedBox(width: 8),
+                                          Expanded(
+                                            child: Text(
+                                              existing == null
+                                                  ? 'Created "${product.name}" in database & synced to CDS'
+                                                  : 'Saved "${product.name}" in database & synced to CDS',
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      backgroundColor: const Color(0xFF10B981),
+                                      duration: const Duration(seconds: 2),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
+                                }
+                              } catch (e) {
+                                if (ctx.mounted) {
+                                  ScaffoldMessenger.of(ctx).showSnackBar(
+                                    SnackBar(
+                                      content: Text('Error saving product: $e'),
+                                      backgroundColor: Colors.red,
+                                    ),
+                                  );
+                                }
+                              }
                             },
                             child: Text(
                               existing == null ? 'Create Item' : 'Save Changes',

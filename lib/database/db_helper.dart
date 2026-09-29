@@ -5,7 +5,7 @@ import 'package:sqflite/sqflite.dart';
 
 class DbHelper {
   static const String _dbName = 'omni_pos.db';
-  static const int _dbVersion = 6;
+  static const int _dbVersion = 7;
 
   static DbHelper? _instance;
   static Database? _database;
@@ -32,7 +32,67 @@ class DbHelper {
       version: _dbVersion,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
+      onOpen: _onOpen,
     );
+  }
+
+  FutureOr<void> _onOpen(Database db) async {
+    await _ensureProductImages(db);
+    await _ensureStockSchema(db);
+  }
+
+  /// Automatically ensures stock_quantity column and stock_audit_logs table exist
+  Future<void> _ensureStockSchema(Database db) async {
+    try {
+      await db.execute(
+        'ALTER TABLE products ADD COLUMN stock_quantity INTEGER NOT NULL DEFAULT 50',
+      );
+    } catch (_) {}
+    try {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS stock_audit_logs (
+          id TEXT PRIMARY KEY,
+          product_id TEXT NOT NULL,
+          product_name TEXT NOT NULL,
+          change_qty INTEGER NOT NULL,
+          previous_stock INTEGER NOT NULL,
+          new_stock INTEGER NOT NULL,
+          reason_code TEXT NOT NULL,
+          notes TEXT,
+          user_id TEXT NOT NULL,
+          user_name TEXT NOT NULL,
+          user_role TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )
+      ''');
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_stock_audit_product ON stock_audit_logs (product_id)',
+      );
+      await db.execute(
+        'CREATE INDEX IF NOT EXISTS idx_stock_audit_created ON stock_audit_logs (created_at)',
+      );
+    } catch (_) {}
+  }
+
+  /// Automatically updates products with high-resolution food & beverage images
+  /// so existing databases will immediately display pictures.
+  Future<void> _ensureProductImages(Database db) async {
+    try {
+      await db.rawUpdate('''
+        UPDATE products SET image_path = CASE
+          WHEN id IN ('prod_espresso', 'prod_americano', 'prod_latte', 'prod_cappuccino', 'prod_iced_latte', 'prod_matcha') THEN 'assets/images/coffee_latte.png'
+          WHEN id IN ('prod_wagyu_burger', 'prod_crispy_chicken', 'prod_club_sandwich', 'prod_truffle_fries', 'prod_onion_rings') THEN 'assets/images/burger_fastfood.png'
+          WHEN id IN ('prod_pad_thai', 'prod_carbonara') THEN 'assets/images/asian_mains.png'
+          WHEN id = 'prod_teriyaki_bowl' THEN 'assets/images/salmon_teriyaki.png'
+          WHEN id IN ('prod_cheesecake', 'prod_tiramisu', 'prod_croissant') THEN 'assets/images/pastry_dessert.png'
+          WHEN id = 'prod_mango_smoothie' THEN 'assets/images/mango_smoothie.png'
+          WHEN id = 'prod_berry_blast' THEN 'assets/images/berry_frappe.png'
+          WHEN id = 'prod_sparkling_lemonade' THEN 'assets/images/beverage_lemonade.png'
+          ELSE image_path
+        END
+        WHERE image_path IS NULL OR image_path = '' OR image_path = 'null';
+      ''');
+    } catch (_) {}
   }
 
   /// Completely resets the SQLite database by closing the active connection,
@@ -43,12 +103,22 @@ class DbHelper {
     final dbPath = await getDatabasesPath();
     final path = join(dbPath, _dbName);
 
+    await closeDatabase();
+
+    await deleteDatabase(path);
+  }
+
+  /// Closes the active database connection and clears cached instance
+  Future<void> closeDatabase() async {
     if (_database != null) {
       await _database!.close();
       _database = null;
     }
+  }
 
-    await deleteDatabase(path);
+  /// Public accessor to ensure product images are updated
+  Future<void> ensureProductImagesOnDb(Database db) async {
+    await _ensureProductImages(db);
   }
 
   FutureOr<void> _onCreate(Database db, int version) async {
@@ -97,6 +167,7 @@ class DbHelper {
         barcode TEXT,
         image_path TEXT,
         in_stock INTEGER NOT NULL DEFAULT 1,
+        stock_quantity INTEGER NOT NULL DEFAULT 50,
         color_hex TEXT,
         created_at TEXT NOT NULL,
         FOREIGN KEY (category_id) REFERENCES categories (id) ON DELETE CASCADE,
@@ -268,6 +339,24 @@ class DbHelper {
       )
     ''');
 
+    // Stock Audit Logs Table (v7)
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS stock_audit_logs (
+        id TEXT PRIMARY KEY,
+        product_id TEXT NOT NULL,
+        product_name TEXT NOT NULL,
+        change_qty INTEGER NOT NULL,
+        previous_stock INTEGER NOT NULL,
+        new_stock INTEGER NOT NULL,
+        reason_code TEXT NOT NULL,
+        notes TEXT,
+        user_id TEXT NOT NULL,
+        user_name TEXT NOT NULL,
+        user_role TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      )
+    ''');
+
     // Indexes
     await db.execute(
       'CREATE INDEX idx_products_category ON products (category_id)',
@@ -298,6 +387,12 @@ class DbHelper {
     );
     await db.execute(
       'CREATE INDEX idx_expenses_branch ON expenses (branch_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_stock_audit_product ON stock_audit_logs (product_id)',
+    );
+    await db.execute(
+      'CREATE INDEX idx_stock_audit_created ON stock_audit_logs (created_at)',
     );
 
     // Seed Initial Data
@@ -495,6 +590,39 @@ class DbHelper {
         );
       }
     }
+    if (oldVersion < 7) {
+      try {
+        await db.execute(
+          'ALTER TABLE products ADD COLUMN stock_quantity INTEGER NOT NULL DEFAULT 50',
+        );
+      } catch (_) {}
+
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS stock_audit_logs (
+          id TEXT PRIMARY KEY,
+          product_id TEXT NOT NULL,
+          product_name TEXT NOT NULL,
+          change_qty INTEGER NOT NULL,
+          previous_stock INTEGER NOT NULL,
+          new_stock INTEGER NOT NULL,
+          reason_code TEXT NOT NULL,
+          notes TEXT,
+          user_id TEXT NOT NULL,
+          user_name TEXT NOT NULL,
+          user_role TEXT NOT NULL,
+          created_at TEXT NOT NULL
+        )
+      ''');
+
+      try {
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_stock_audit_product ON stock_audit_logs (product_id)',
+        );
+        await db.execute(
+          'CREATE INDEX IF NOT EXISTS idx_stock_audit_created ON stock_audit_logs (created_at)',
+        );
+      } catch (_) {}
+    }
   }
 
   Future<void> _seedInitialData(Database db) async {
@@ -634,6 +762,7 @@ class DbHelper {
         'price': 2.75,
         'cost': 0.80,
         'barcode': '100001',
+        'image_path': 'assets/images/coffee_latte.png',
         'color_hex': '0xFF0D9488',
         'in_stock': 1,
         'created_at': DateTime.now().toIso8601String(),
@@ -646,6 +775,7 @@ class DbHelper {
         'price': 3.25,
         'cost': 0.90,
         'barcode': '100002',
+        'image_path': 'assets/images/coffee_latte.png',
         'color_hex': '0xFF0D9488',
         'in_stock': 1,
         'created_at': DateTime.now().toIso8601String(),
@@ -658,6 +788,7 @@ class DbHelper {
         'price': 4.50,
         'cost': 1.20,
         'barcode': '100003',
+        'image_path': 'assets/images/coffee_latte.png',
         'color_hex': '0xFF0D9488',
         'in_stock': 1,
         'created_at': DateTime.now().toIso8601String(),
@@ -670,6 +801,7 @@ class DbHelper {
         'price': 4.75,
         'cost': 1.30,
         'barcode': '100004',
+        'image_path': 'assets/images/coffee_latte.png',
         'color_hex': '0xFF0D9488',
         'in_stock': 1,
         'created_at': DateTime.now().toIso8601String(),
@@ -682,6 +814,7 @@ class DbHelper {
         'price': 5.00,
         'cost': 1.50,
         'barcode': '100005',
+        'image_path': 'assets/images/coffee_latte.png',
         'color_hex': '0xFF0D9488',
         'in_stock': 1,
         'created_at': DateTime.now().toIso8601String(),
@@ -694,6 +827,7 @@ class DbHelper {
         'price': 5.50,
         'cost': 1.80,
         'barcode': '100006',
+        'image_path': 'assets/images/coffee_latte.png',
         'color_hex': '0xFF0D9488',
         'in_stock': 1,
         'created_at': DateTime.now().toIso8601String(),
@@ -707,6 +841,7 @@ class DbHelper {
         'price': 12.50,
         'cost': 4.80,
         'barcode': '200001',
+        'image_path': 'assets/images/burger_fastfood.png',
         'color_hex': '0xFF10B981',
         'in_stock': 1,
         'created_at': DateTime.now().toIso8601String(),
@@ -719,6 +854,7 @@ class DbHelper {
         'price': 9.75,
         'cost': 3.20,
         'barcode': '200002',
+        'image_path': 'assets/images/burger_fastfood.png',
         'color_hex': '0xFF10B981',
         'in_stock': 1,
         'created_at': DateTime.now().toIso8601String(),
@@ -731,6 +867,7 @@ class DbHelper {
         'price': 8.50,
         'cost': 2.80,
         'barcode': '200003',
+        'image_path': 'assets/images/burger_fastfood.png',
         'color_hex': '0xFF10B981',
         'in_stock': 1,
         'created_at': DateTime.now().toIso8601String(),
@@ -743,6 +880,7 @@ class DbHelper {
         'price': 4.95,
         'cost': 1.40,
         'barcode': '200004',
+        'image_path': 'assets/images/burger_fastfood.png',
         'color_hex': '0xFF10B981',
         'in_stock': 1,
         'created_at': DateTime.now().toIso8601String(),
@@ -755,6 +893,7 @@ class DbHelper {
         'price': 4.25,
         'cost': 1.10,
         'barcode': '200005',
+        'image_path': 'assets/images/burger_fastfood.png',
         'color_hex': '0xFF10B981',
         'in_stock': 1,
         'created_at': DateTime.now().toIso8601String(),
@@ -768,6 +907,7 @@ class DbHelper {
         'price': 11.00,
         'cost': 3.90,
         'barcode': '300001',
+        'image_path': 'assets/images/asian_mains.png',
         'color_hex': '0xFFF59E0B',
         'in_stock': 1,
         'created_at': DateTime.now().toIso8601String(),
@@ -780,6 +920,7 @@ class DbHelper {
         'price': 13.50,
         'cost': 5.10,
         'barcode': '300002',
+        'image_path': 'assets/images/salmon_teriyaki.png',
         'color_hex': '0xFFF59E0B',
         'in_stock': 1,
         'created_at': DateTime.now().toIso8601String(),
@@ -792,6 +933,7 @@ class DbHelper {
         'price': 12.00,
         'cost': 4.00,
         'barcode': '300003',
+        'image_path': 'assets/images/asian_mains.png',
         'color_hex': '0xFFF59E0B',
         'in_stock': 1,
         'created_at': DateTime.now().toIso8601String(),
@@ -805,6 +947,7 @@ class DbHelper {
         'price': 6.25,
         'cost': 2.00,
         'barcode': '400001',
+        'image_path': 'assets/images/pastry_dessert.png',
         'color_hex': '0xFF8B5CF6',
         'in_stock': 1,
         'created_at': DateTime.now().toIso8601String(),
@@ -817,6 +960,7 @@ class DbHelper {
         'price': 6.75,
         'cost': 2.20,
         'barcode': '400002',
+        'image_path': 'assets/images/pastry_dessert.png',
         'color_hex': '0xFF8B5CF6',
         'in_stock': 1,
         'created_at': DateTime.now().toIso8601String(),
@@ -829,6 +973,7 @@ class DbHelper {
         'price': 3.95,
         'cost': 1.10,
         'barcode': '400003',
+        'image_path': 'assets/images/pastry_dessert.png',
         'color_hex': '0xFF8B5CF6',
         'in_stock': 1,
         'created_at': DateTime.now().toIso8601String(),
@@ -842,6 +987,7 @@ class DbHelper {
         'price': 5.25,
         'cost': 1.60,
         'barcode': '500001',
+        'image_path': 'assets/images/mango_smoothie.png',
         'color_hex': '0xFFEC4899',
         'in_stock': 1,
         'created_at': DateTime.now().toIso8601String(),
@@ -854,6 +1000,7 @@ class DbHelper {
         'price': 5.75,
         'cost': 1.75,
         'barcode': '500002',
+        'image_path': 'assets/images/berry_frappe.png',
         'color_hex': '0xFFEC4899',
         'in_stock': 1,
         'created_at': DateTime.now().toIso8601String(),
@@ -866,6 +1013,7 @@ class DbHelper {
         'price': 4.25,
         'cost': 0.95,
         'barcode': '500003',
+        'image_path': 'assets/images/beverage_lemonade.png',
         'color_hex': '0xFFEC4899',
         'in_stock': 1,
         'created_at': DateTime.now().toIso8601String(),

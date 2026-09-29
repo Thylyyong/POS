@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../controllers/auth_controller.dart';
 import '../controllers/cart_controller.dart';
 import '../core/theme/asset_theme.dart';
+import 'admin_pin_dialog.dart';
 import 'app_svg_icon.dart';
 
 class CartItemActionDialog extends StatefulWidget {
@@ -59,6 +61,7 @@ class _CartItemActionDialogState extends State<CartItemActionDialog> {
 
   void _onNumpadDigit(String val) {
     if (_inputMode == 'QTY') {
+      final maxStock = widget.item.product.stockQuantity;
       if (val == 'C') {
         setState(() => _quantity = 1);
       } else if (val == '⌫') {
@@ -73,7 +76,17 @@ class _CartItemActionDialogState extends State<CartItemActionDialog> {
         if (digit != null) {
           final s = '$_quantity$val';
           final newQty = int.tryParse(s) ?? _quantity;
-          if (newQty <= 999) {
+          if (newQty > maxStock) {
+            ScaffoldMessenger.of(context).hideCurrentSnackBar();
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Cannot exceed available stock ($maxStock)'),
+                backgroundColor: const Color(0xFFDC2626),
+                duration: const Duration(seconds: 1),
+              ),
+            );
+            setState(() => _quantity = maxStock > 0 ? maxStock : 1);
+          } else {
             setState(() => _quantity = newQty);
           }
         }
@@ -93,12 +106,28 @@ class _CartItemActionDialogState extends State<CartItemActionDialog> {
     }
   }
 
+  Future<void> _handlePriceModeTap() async {
+    final auth = context.read<AuthController>();
+    if (!auth.isOwner && !auth.isAdminAuthenticated) {
+      final verified = await AdminPinDialog.show(
+        context,
+        title: 'Manager Authorization',
+        subtitle: 'Cashiers cannot modify product prices. Enter manager PIN to authorize.',
+      );
+      if (!verified || !mounted) return;
+    }
+    setState(() => _inputMode = 'PRICE');
+  }
+
   @override
   Widget build(BuildContext context) {
     final cart = context.read<CartController>();
+    final auth = context.watch<AuthController>();
     final currency = cart.currencySymbol;
     final currentPrice = double.tryParse(_priceCtrl.text) ?? widget.item.unitPrice;
     final lineTotal = currentPrice * _quantity;
+    final isManager = auth.isOwner || auth.isAdminAuthenticated;
+    final stockAvailable = widget.item.product.stockQuantity;
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -129,14 +158,43 @@ class _CartItemActionDialogState extends State<CartItemActionDialog> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 2),
-                        Text(
-                          'Line Total: $currency${lineTotal.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF059669),
-                          ),
+                        const SizedBox(height: 3),
+                        Row(
+                          children: [
+                            Text(
+                              'Line Total: $currency${lineTotal.toStringAsFixed(2)}',
+                              style: const TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF059669),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                              decoration: BoxDecoration(
+                                color: stockAvailable <= 5
+                                    ? const Color(0xFFFEF3C7)
+                                    : const Color(0xFFF1F5F9),
+                                borderRadius: BorderRadius.circular(4),
+                                border: Border.all(
+                                  color: stockAvailable <= 5
+                                      ? const Color(0xFFFDE68A)
+                                      : const Color(0xFFE2E8F0),
+                                ),
+                              ),
+                              child: Text(
+                                'Available Stock: $stockAvailable',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: stockAvailable <= 5
+                                      ? const Color(0xFFB45309)
+                                      : const Color(0xFF475569),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -153,7 +211,7 @@ class _CartItemActionDialogState extends State<CartItemActionDialog> {
               ),
               const Divider(height: 20),
 
-              // Mode Tabs: [ Quantity ] vs [ Override Price ]
+              // Mode Tabs: [ Quantity ] vs [ Override Price (Manager only) ]
               Row(
                 children: [
                   Expanded(
@@ -185,7 +243,7 @@ class _CartItemActionDialogState extends State<CartItemActionDialog> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: InkWell(
-                      onTap: () => setState(() => _inputMode = 'PRICE'),
+                      onTap: _handlePriceModeTap,
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
                         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -196,15 +254,24 @@ class _CartItemActionDialogState extends State<CartItemActionDialog> {
                           borderRadius: BorderRadius.circular(8),
                         ),
                         alignment: Alignment.center,
-                        child: Text(
-                          'Price: $currency${currentPrice.toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.bold,
-                            color: _inputMode == 'PRICE'
-                                ? Colors.white
-                                : const Color(0xFF475569),
-                          ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            if (!isManager) ...[
+                              const Icon(Icons.lock_rounded, size: 13, color: Color(0xFF64748B)),
+                              const SizedBox(width: 4),
+                            ],
+                            Text(
+                              'Price: $currency${currentPrice.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: _inputMode == 'PRICE'
+                                    ? Colors.white
+                                    : const Color(0xFF475569),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),

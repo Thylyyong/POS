@@ -49,6 +49,8 @@ class PresentationPayload {
   final double scrollOffset;
   final String gridTemplate;
   final double fontSizeScale;
+  final int menuVersion;
+  final bool? cfdShowAdsWhenIdle;
 
   PresentationPayload({
     required this.state,
@@ -70,6 +72,8 @@ class PresentationPayload {
     this.scrollOffset = 0.0,
     this.gridTemplate = '4x6',
     this.fontSizeScale = 1.0,
+    this.menuVersion = 0,
+    this.cfdShowAdsWhenIdle,
   });
 
   PresentationPayload copyWith({
@@ -92,6 +96,8 @@ class PresentationPayload {
     double? scrollOffset,
     String? gridTemplate,
     double? fontSizeScale,
+    int? menuVersion,
+    bool? cfdShowAdsWhenIdle,
   }) {
     return PresentationPayload(
       state: state ?? this.state,
@@ -113,6 +119,8 @@ class PresentationPayload {
       scrollOffset: scrollOffset ?? this.scrollOffset,
       gridTemplate: gridTemplate ?? this.gridTemplate,
       fontSizeScale: fontSizeScale ?? this.fontSizeScale,
+      menuVersion: menuVersion ?? this.menuVersion,
+      cfdShowAdsWhenIdle: cfdShowAdsWhenIdle ?? this.cfdShowAdsWhenIdle,
     );
   }
 
@@ -137,6 +145,8 @@ class PresentationPayload {
       'scrollOffset': scrollOffset,
       'gridTemplate': gridTemplate,
       'fontSizeScale': fontSizeScale,
+      'menuVersion': menuVersion,
+      'cfdShowAdsWhenIdle': cfdShowAdsWhenIdle,
     };
   }
 
@@ -164,6 +174,8 @@ class PresentationPayload {
       scrollOffset: (map['scrollOffset'] as num?)?.toDouble() ?? 0.0,
       gridTemplate: map['gridTemplate'] as String? ?? '4x6',
       fontSizeScale: (map['fontSizeScale'] as num?)?.toDouble() ?? 1.0,
+      menuVersion: (map['menuVersion'] as num?)?.toInt() ?? 0,
+      cfdShowAdsWhenIdle: map['cfdShowAdsWhenIdle'] as bool?,
     );
   }
 
@@ -324,6 +336,7 @@ class PresentationService {
     double? scrollOffset,
     String? gridTemplate,
     double? fontSizeScale,
+    int? menuVersion,
   }) async {
     final updated = _latestPayload.copyWith(
       selectedCategoryId: selectedCategoryId ?? _latestPayload.selectedCategoryId,
@@ -332,6 +345,7 @@ class PresentationService {
       scrollOffset: scrollOffset ?? _latestPayload.scrollOffset,
       gridTemplate: gridTemplate ?? _latestPayload.gridTemplate,
       fontSizeScale: fontSizeScale ?? _latestPayload.fontSizeScale,
+      menuVersion: menuVersion ?? _latestPayload.menuVersion,
     );
     await sendToCustomerDisplay(updated);
   }

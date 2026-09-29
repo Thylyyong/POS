@@ -111,6 +111,7 @@ class Product {
   final String? barcode;
   final String? imagePath;
   final bool inStock;
+  final int stockQuantity;
   final String? colorHex;
   final DateTime createdAt;
 
@@ -125,6 +126,7 @@ class Product {
     this.barcode,
     this.imagePath,
     this.inStock = true,
+    this.stockQuantity = 50,
     this.colorHex,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
@@ -140,13 +142,16 @@ class Product {
       'cost': cost,
       'barcode': barcode,
       'image_path': imagePath,
-      'in_stock': inStock ? 1 : 0,
+      'in_stock': (inStock && stockQuantity > 0) ? 1 : 0,
+      'stock_quantity': stockQuantity,
       'color_hex': colorHex,
       'created_at': createdAt.toIso8601String(),
     };
   }
 
   factory Product.fromMap(Map<String, dynamic> map) {
+    final qty = (map['stock_quantity'] as num?)?.toInt() ?? 50;
+    final stockFlag = (map['in_stock'] as int? ?? 1) == 1;
     return Product(
       id: map['id'] as String,
       categoryId: map['category_id'] as String,
@@ -157,7 +162,8 @@ class Product {
       cost: (map['cost'] as num?)?.toDouble() ?? 0.0,
       barcode: map['barcode'] as String?,
       imagePath: map['image_path'] as String?,
-      inStock: (map['in_stock'] as int? ?? 1) == 1,
+      inStock: stockFlag && qty > 0,
+      stockQuantity: qty,
       colorHex: map['color_hex'] as String?,
       createdAt: map['created_at'] != null
           ? DateTime.tryParse(map['created_at'] as String) ?? DateTime.now()
@@ -176,6 +182,7 @@ class Product {
     String? barcode,
     String? imagePath,
     bool? inStock,
+    int? stockQuantity,
     String? colorHex,
     DateTime? createdAt,
   }) {
@@ -190,6 +197,7 @@ class Product {
       barcode: barcode ?? this.barcode,
       imagePath: imagePath ?? this.imagePath,
       inStock: inStock ?? this.inStock,
+      stockQuantity: stockQuantity ?? this.stockQuantity,
       colorHex: colorHex ?? this.colorHex,
       createdAt: createdAt ?? this.createdAt,
     );

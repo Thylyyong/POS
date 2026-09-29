@@ -9,14 +9,16 @@ import '../../../controllers/settings_controller.dart';
 import '../../../core/debouncer.dart';
 import '../../../core/device_profile.dart';
 import '../../../core/theme/asset_theme.dart';
-import '../../../core/theme/sprite_icons.dart';
 import '../../../services/presentation_service.dart';
 import '../../../widgets/app_logo_widget.dart';
 import '../../../widgets/app_svg_icon.dart';
 import '../../../widgets/floating_customer_display_modal.dart';
+import '../../../controllers/table_controller.dart';
+import '../../advertising/advertising_screen.dart';
 import '../../register/cash_in_out_dialog.dart';
 import '../../register/close_register_dialog.dart';
 import '../../register/open_register_dialog.dart';
+import '../../settings/store_settings_screen.dart';
 import 'nav_sidebar.dart';
 
 /// POS Top Header Bar with Register status, Role badge, and Drawer controls.
@@ -57,6 +59,7 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
     final posCtrl = context.read<PosController>();
     final auth = context.watch<AuthController>();
     final register = context.watch<RegisterController>();
+    final tableCtrl = context.watch<TableController>();
     final settings = context.select<SettingsController, dynamic>(
       (c) => c.settings,
     );
@@ -84,11 +87,6 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
       ),
       child: Row(
         children: [
-          // ── Nav menu button ───────────────────────────────────────────
-          if (widget.onNavigate != null)
-            _NavMenuButton(onNavigate: widget.onNavigate!),
-          const SizedBox(width: 8),
-
           // ── Left: Logo + Store Name ───────────────────────────────────
           AppLogoWidget(
             logoPath: logoPath,
@@ -120,11 +118,11 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
               ),
             ],
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
 
           // ── User Role Badge ───────────────────────────────────────────
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
             decoration: BoxDecoration(
               color: auth.isMainBoss
                   ? const Color(0xFFFAF5FF)
@@ -147,7 +145,7 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
                   auth.isMainBoss
                       ? AssetTheme.verify
                       : (auth.isSubBoss ? AssetTheme.store : AssetTheme.user),
-                  size: 15,
+                  size: 13,
                   color: auth.isMainBoss
                       ? const Color(0xFF7C3AED)
                       : (auth.isSubBoss
@@ -158,7 +156,7 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
                 Text(
                   auth.currentUser.displayName,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10.5,
                     fontWeight: FontWeight.bold,
                     color: auth.isMainBoss
                         ? const Color(0xFF7C3AED)
@@ -170,7 +168,7 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
               ],
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
 
           // ── Register Status Pill (Open / Close Control) ────────────────
           InkWell(
@@ -181,14 +179,14 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
                 OpenRegisterDialog.show(context);
               }
             },
-            borderRadius: BorderRadius.circular(20),
+            borderRadius: BorderRadius.circular(16),
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
               decoration: BoxDecoration(
                 color: isSessionOpen
                     ? const Color(0xFFECFDF5)
                     : const Color(0xFFFEF2F2),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: isSessionOpen
                       ? const Color(0xFFA7F3D0)
@@ -199,8 +197,8 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 7,
-                    height: 7,
+                    width: 6,
+                    height: 6,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: isSessionOpen
@@ -208,14 +206,14 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
                           : const Color(0xFFDC2626),
                     ),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 5),
                   Text(
                     isSessionOpen ? 'Register: OPEN' : 'Register: CLOSED',
                     style: TextStyle(
                       color: isSessionOpen
                           ? const Color(0xFF059669)
                           : const Color(0xFFDC2626),
-                      fontSize: 11,
+                      fontSize: 10,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -223,15 +221,15 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
               ),
             ),
           ),
-          const SizedBox(width: 14),
+          const SizedBox(width: 10),
 
           // ── Center: Search ────────────────────────────────────────────
           Flexible(
             fit: FlexFit.loose,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 320),
+              constraints: const BoxConstraints(maxWidth: 280),
               child: SizedBox(
-                height: 36,
+                height: 32,
                 child: TextField(
                   controller: _searchCtrl,
                   onChanged: (val) {
@@ -239,20 +237,20 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
                     setState(() {});
                   },
                   style: const TextStyle(
-                    fontSize: 13,
+                    fontSize: 12,
                     color: Color(0xFF0F172A),
                   ),
                   decoration: InputDecoration(
-                    hintText: 'Search menu items...',
+                    hintText: 'Search menu...',
                     hintStyle: const TextStyle(
                       color: Color(0xFF94A3B8),
-                      fontSize: 12.5,
+                      fontSize: 11.5,
                     ),
                     prefixIcon: const Padding(
-                      padding: EdgeInsets.only(left: 10, right: 6),
+                      padding: EdgeInsets.only(left: 8, right: 5),
                       child: AppSvgIcon(
                         AssetTheme.search,
-                        size: 18,
+                        size: 16,
                         color: Color(0xFF94A3B8),
                       ),
                     ),
@@ -264,7 +262,7 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
                         ? IconButton(
                             icon: const AppSvgIcon(
                               AssetTheme.close,
-                              size: 14,
+                              size: 12,
                               color: Color(0xFF94A3B8),
                             ),
                             onPressed: () {
@@ -279,11 +277,11 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
                     fillColor: const Color(0xFFF1F5F9),
                     filled: true,
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(8),
                       borderSide: BorderSide.none,
                     ),
                     focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(8),
                       borderSide: const BorderSide(
                         color: Color(0xFF0F172A),
                         width: 1.5,
@@ -296,32 +294,210 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
           ),
           const Spacer(),
 
-          // ── Cash In / Out Button ──────────────────────────────────────
-          if (isSessionOpen) ...[
+          // ── 1. Odoo POS: Tables / Floor Plan Button (Compact) ─────────
+          InkWell(
+            onTap: () => widget.onNavigate?.call(CashierNavTab.tables),
+            borderRadius: BorderRadius.circular(6),
+            child: Container(
+              height: 26,
+              padding: const EdgeInsets.symmetric(horizontal: 7),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFBBF7D0)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.table_restaurant_rounded,
+                    size: 13,
+                    color: Color(0xFF16A34A),
+                  ),
+                  const SizedBox(width: 4),
+                  const Text(
+                    'Tables',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF166534),
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: tableCtrl.occupiedCount > 0
+                          ? const Color(0xFFEA580C)
+                          : const Color(0xFF16A34A),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      tableCtrl.occupiedCount > 0
+                          ? '${tableCtrl.occupiedCount} Occ'
+                          : '${tableCtrl.totalCount}',
+                      style: const TextStyle(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 5),
+
+          // ── 2. Odoo POS: Orders / Receipts History Button (Compact) ───
+          InkWell(
+            onTap: () => widget.onNavigate?.call(CashierNavTab.history),
+            borderRadius: BorderRadius.circular(6),
+            child: Container(
+              height: 26,
+              padding: const EdgeInsets.symmetric(horizontal: 7),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFCBD5E1)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.receipt_long_rounded,
+                    size: 13,
+                    color: Color(0xFF475569),
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    'Orders',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF334155),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 5),
+
+          // ── 3. Odoo POS: Screen Saver / Advertising Display Button ────
+          InkWell(
+            onTap: () {
+              Navigator.of(context).pushReplacement(
+                PageRouteBuilder(
+                  transitionDuration: const Duration(milliseconds: 300),
+                  pageBuilder: (_, _, _) => const AdvertisingScreen(),
+                  transitionsBuilder: (_, animation, _, child) =>
+                      FadeTransition(opacity: animation, child: child),
+                ),
+              );
+            },
+            borderRadius: BorderRadius.circular(6),
+            child: Container(
+              height: 26,
+              padding: const EdgeInsets.symmetric(horizontal: 7),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: const Color(0xFFCBD5E1)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.tv_rounded,
+                    size: 13,
+                    color: Color(0xFF0D9488),
+                  ),
+                  SizedBox(width: 4),
+                  Text(
+                    'Idle / Ads',
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F766E),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(width: 5),
+
+          // ── 4. Odoo POS: Owner / Admin Dashboard Button ───────────────
+          if (auth.isOwner || auth.isAdminAuthenticated) ...[
             InkWell(
-              onTap: () => CashInOutDialog.show(context),
-              borderRadius: BorderRadius.circular(8),
+              onTap: () => widget.onNavigate?.call(CashierNavTab.dashboard),
+              borderRadius: BorderRadius.circular(6),
               child: Container(
-                height: 32,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+                height: 26,
+                padding: const EdgeInsets.symmetric(horizontal: 7),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(8),
+                  color: const Color(0xFF0F172A),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.dashboard_customize_rounded,
+                      size: 13,
+                      color: Colors.white,
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      'Dashboard',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 5),
+
+            // ── 5. Odoo POS: Owner / Admin Settings Button ───────────────
+            InkWell(
+              onTap: () {
+                if (widget.onNavigate != null) {
+                  widget.onNavigate!(CashierNavTab.settings);
+                } else {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const StoreSettingsScreen(),
+                    ),
+                  );
+                }
+              },
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                height: 26,
+                padding: const EdgeInsets.symmetric(horizontal: 7),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: const Color(0xFFCBD5E1)),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    AppSvgIcon(
-                      AssetTheme.wallet,
-                      size: 16,
-                      color: Color(0xFF475569),
+                    Icon(
+                      Icons.settings_outlined,
+                      size: 13,
+                      color: Color(0xFF334155),
                     ),
-                    SizedBox(width: 6),
+                    SizedBox(width: 4),
                     Text(
-                      'Cash In/Out',
+                      'Settings',
                       style: TextStyle(
-                        fontSize: 11.5,
+                        fontSize: 10.5,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF334155),
                       ),
@@ -330,10 +506,47 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
                 ),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 5),
           ],
 
-          // ── Kick Cash Drawer Direct Button ────────────────────────────
+          // ── Cash In / Out Button (Compact) ────────────────────────────
+          if (isSessionOpen) ...[
+            InkWell(
+              onTap: () => CashInOutDialog.show(context),
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                height: 26,
+                padding: const EdgeInsets.symmetric(horizontal: 7),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFCBD5E1)),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    AppSvgIcon(
+                      AssetTheme.wallet,
+                      size: 13,
+                      color: Color(0xFF475569),
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      'Cash In/Out',
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF334155),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(width: 5),
+          ],
+
+          // ── Kick Cash Drawer Direct Button (Compact) ──────────────────
           InkWell(
             onTap: () async {
               await register.kickDrawerDirectly();
@@ -346,15 +559,15 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
                 );
               }
             },
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(6),
             child: Tooltip(
               message: 'Kick Cash Drawer Open (ESC/POS)',
               child: Container(
-                height: 32,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+                height: 26,
+                padding: const EdgeInsets.symmetric(horizontal: 7),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: const Color(0xFFCBD5E1)),
                 ),
                 child: const Row(
@@ -362,14 +575,14 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
                   children: [
                     Icon(
                       Icons.point_of_sale_rounded,
-                      size: 16,
+                      size: 13,
                       color: Color(0xFF475569),
                     ),
-                    SizedBox(width: 6),
+                    SizedBox(width: 4),
                     Text(
                       'Kick Drawer',
                       style: TextStyle(
-                        fontSize: 11.5,
+                        fontSize: 10.5,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF334155),
                       ),
@@ -379,23 +592,23 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
               ),
             ),
           ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 5),
 
-          // ── Auto-Print Toggle Chip ────────────────────────────────────
+          // ── Auto-Print Toggle Chip (Compact) ──────────────────────────
           InkWell(
             onTap: () {
               final newAutoPrint = !autoPrint;
               context.read<SettingsController>().toggleAutoPrint(newAutoPrint);
             },
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(6),
             child: Container(
-              height: 32,
-              padding: const EdgeInsets.symmetric(horizontal: 10),
+              height: 26,
+              padding: const EdgeInsets.symmetric(horizontal: 7),
               decoration: BoxDecoration(
                 color: autoPrint
                     ? const Color(0xFFECFDF5)
                     : const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(6),
                 border: Border.all(
                   color: autoPrint
                       ? const Color(0xFFA7F3D0)
@@ -407,16 +620,16 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
                 children: [
                   Icon(
                     Icons.print_outlined,
-                    size: 16,
+                    size: 13,
                     color: autoPrint
                         ? const Color(0xFF059669)
                         : const Color(0xFF64748B),
                   ),
-                  const SizedBox(width: 6),
+                  const SizedBox(width: 4),
                   Text(
                     autoPrint ? 'PRINT: ON' : 'PRINT: OFF',
                     style: TextStyle(
-                      fontSize: 11.5,
+                      fontSize: 10.5,
                       fontWeight: FontWeight.bold,
                       color: autoPrint
                           ? const Color(0xFF059669)
@@ -428,9 +641,9 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
             ),
           ),
 
-          // ── Model POS CA9 Dual-Screen / Duplicate Screen Button ───────
+          // ── Dual-Screen / Duplicate Screen Button (Compact) ───────────
           if (!isKiosk && cfdEnabled) ...[
-            const SizedBox(width: 8),
+            const SizedBox(width: 5),
             InkWell(
               onTap: () async {
                 final launched =
@@ -468,13 +681,13 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
                   }
                 }
               },
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(6),
               child: Container(
-                height: 32,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
+                height: 26,
+                padding: const EdgeInsets.symmetric(horizontal: 7),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                   border: Border.all(color: const Color(0xFFCBD5E1)),
                 ),
                 child: const Row(
@@ -482,14 +695,14 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
                   children: [
                     Icon(
                       Icons.devices_rounded,
-                      size: 16,
+                      size: 13,
                       color: Color(0xFF0D9488),
                     ),
-                    SizedBox(width: 6),
+                    SizedBox(width: 4),
                     Text(
                       'Duplicate Screen',
                       style: TextStyle(
-                        fontSize: 11.5,
+                        fontSize: 10.5,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF0F172A),
                       ),
@@ -500,73 +713,6 @@ class _TopHeaderBarState extends State<TopHeaderBar> {
             ),
           ],
         ],
-      ),
-    );
-  }
-}
-
-
-class _NavMenuButton extends StatelessWidget {
-  final ValueChanged<CashierNavTab> onNavigate;
-
-  const _NavMenuButton({required this.onNavigate});
-
-  static const _items = [
-    (CashierNavTab.pos, SpriteIcons.pos, 'POS Register'),
-    (CashierNavTab.tables, SpriteIcons.table, 'Tables'),
-    (CashierNavTab.products, SpriteIcons.products, 'Products Catalog'),
-    (CashierNavTab.categories, SpriteIcons.categories, 'Menu Categories'),
-    (CashierNavTab.history, SpriteIcons.history, 'Receipts History'),
-    (
-      CashierNavTab.accounting,
-      SpriteIcons.accounting,
-      'P&L Accounting',
-    ),
-    (CashierNavTab.dashboard, SpriteIcons.dashboard, 'Analytics Dashboard'),
-    (CashierNavTab.settings, SpriteIcons.settings, 'Hardware & Settings'),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return PopupMenuButton<CashierNavTab>(
-      tooltip: 'Navigate Modules',
-      offset: const Offset(0, 44),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      color: Colors.white,
-      elevation: 8,
-      shadowColor: Colors.black.withValues(alpha: 0.12),
-      onSelected: onNavigate,
-      itemBuilder: (_) => _items.map((item) {
-        return PopupMenuItem<CashierNavTab>(
-          value: item.$1,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-          child: Row(
-            children: [
-              AppSvgIcon.sprite(item.$2, size: 18, color: const Color(0xFF64748B)),
-              const SizedBox(width: 12),
-              Text(
-                item.$3,
-                style: const TextStyle(
-                  fontSize: 13.5,
-                  color: Color(0xFF1E293B),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        );
-      }).toList(),
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF1F5F9),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: const AppSvgIcon.sprite(
-          SpriteIcons.categories,
-          size: 18,
-          color: Color(0xFF64748B),
-        ),
       ),
     );
   }

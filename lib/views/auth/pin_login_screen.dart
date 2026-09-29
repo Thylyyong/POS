@@ -104,21 +104,11 @@ class _PinLoginScreenState extends State<PinLoginScreen> with SingleTickerProvid
   }
 
   void _routeUserToDashboard(UserModel user) {
-    if (user.isOwner) {
-      // OWNER / BOSS -> routes to full analytics dashboard with all tabs
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => const CashierMainLayout(initialTab: CashierNavTab.dashboard),
-        ),
-      );
-    } else {
-      // STAFF CASHIER -> routes to POS Register
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => const CashierMainLayout(initialTab: CashierNavTab.pos),
-        ),
-      );
-    }
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => const CashierMainLayout(initialTab: CashierNavTab.pos),
+      ),
+    );
   }
 
   @override

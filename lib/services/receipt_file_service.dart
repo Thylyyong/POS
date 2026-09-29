@@ -196,12 +196,7 @@ class ReceiptFileService {
       );
     }
 
-    if (order.taxAmount > 0) {
-      buf.writeln(
-        '| Tax / VAT (${order.taxRate.toStringAsFixed(0)}%) '
-        '| $curr${order.taxAmount.toStringAsFixed(2)} |',
-      );
-    }
+    // VAT/Tax line excluded from receipt as requested
 
     buf.writeln(
       '| **TOTAL (USD)** | **$curr${order.totalAmount.toStringAsFixed(2)}** |',

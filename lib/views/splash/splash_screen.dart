@@ -10,8 +10,10 @@ import '../../core/device_profile.dart';
 import '../../widgets/app_logo_widget.dart';
 import '../../core/theme/asset_theme.dart';
 import '../../widgets/app_svg_icon.dart';
+import '../advertising/advertising_screen.dart';
 import '../cashier/cashier_main_layout.dart';
 import '../cashier/widgets/nav_sidebar.dart';
+import '../portal/owner_portal_screen.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -67,11 +69,14 @@ class _SplashScreenState extends State<SplashScreen>
           final auth = context.read<AuthController>();
           auth.loginWithUserAndPin(user, user.pinCode);
 
-          if (user.isMainBoss || user.isSubBoss) {
-            _navigateToLayout(context, CashierNavTab.dashboard);
-          } else {
-            _navigateToLayout(context, CashierNavTab.pos);
-          }
+          Navigator.of(context).pushReplacement(
+            PageRouteBuilder(
+              transitionDuration: const Duration(milliseconds: 350),
+              pageBuilder: (_, _, _) => const OwnerPortalScreen(),
+              transitionsBuilder: (_, animation, _, child) =>
+                  FadeTransition(opacity: animation, child: child),
+            ),
+          );
         },
       ),
     );
@@ -115,6 +120,29 @@ class _SplashScreenState extends State<SplashScreen>
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    // Back to Advertising Display button
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).pushReplacement(
+                            PageRouteBuilder(
+                              transitionDuration: const Duration(milliseconds: 300),
+                              pageBuilder: (_, _, _) => const AdvertisingScreen(),
+                              transitionsBuilder: (_, animation, _, child) =>
+                                  FadeTransition(opacity: animation, child: child),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.arrow_back_rounded, size: 16, color: Color(0xFF64748B)),
+                        label: const Text(
+                          'Idle Screen / Promotions',
+                          style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B), fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
                     // Brand Logo
                     AppLogoWidget(
                       logoPath: logoPath,

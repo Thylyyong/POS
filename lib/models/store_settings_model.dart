@@ -10,6 +10,7 @@ class StoreSettingsModel {
   final String storeEmail;
   final String currencySymbol;
   final double defaultTaxRate;
+  final bool enableTax; // Owner can toggle tax ON or OFF
   final String footerNote;
   final String? logoPath;
   final String? qrImagePath;
@@ -41,6 +42,19 @@ class StoreSettingsModel {
   final double printerMarginLeft; // Left print margin in mm
   final double printerMarginRight; // Right print margin in mm
   final bool printLogoOnReceipt; // Whether to print store brand logo at receipt header
+  final bool monochromeLogoOnRealPrint; // Convert logo to high-contrast pure B&W for thermal printers
+  final List<String> promoBanners; // Promotional image/video paths for idle advertising screen
+  final int promoAutoPlaySeconds; // Auto-advance interval for advertising slides
+  final bool cfdShowAdsWhenIdle; // Show fullscreen promotional ads on customer display when idle
+
+  static const List<String> defaultPromoBanners = [
+    'assets/images/asian_mains.png',
+    'assets/images/western_mains.png',
+    'assets/images/coffee_latte.png',
+    'assets/images/burger_fastfood.png',
+    'assets/images/berry_frappe.png',
+    'assets/images/salmon_teriyaki.png',
+  ];
 
   const StoreSettingsModel({
     this.storeName = 'CA SOLUTION POS',
@@ -49,6 +63,7 @@ class StoreSettingsModel {
     this.storeEmail = 'contact@casolution.com',
     this.currencySymbol = '\$',
     this.defaultTaxRate = 10.0,
+    this.enableTax = true,
     this.footerNote = '***THANK YOU FOR YOUR VISIT***\n***Please Come Again***',
     this.logoPath = 'assets/images/ca.png',
     this.qrImagePath,
@@ -74,6 +89,10 @@ class StoreSettingsModel {
     this.printerMarginLeft = 2.0,
     this.printerMarginRight = 2.0,
     this.printLogoOnReceipt = true,
+    this.monochromeLogoOnRealPrint = true,
+    this.promoBanners = defaultPromoBanners,
+    this.promoAutoPlaySeconds = 5,
+    this.cfdShowAdsWhenIdle = true,
   });
 
   bool verifyAdminPin(String pin) {
@@ -104,6 +123,7 @@ class StoreSettingsModel {
       'store_email': storeEmail,
       'currency_symbol': currencySymbol,
       'default_tax_rate': defaultTaxRate.toString(),
+      'enable_tax': enableTax ? '1' : '0',
       'footer_note': footerNote,
       'logo_path': logoPath ?? '',
       'qr_image_path': qrImagePath ?? '',
@@ -129,12 +149,27 @@ class StoreSettingsModel {
       'printer_margin_left': printerMarginLeft.toString(),
       'printer_margin_right': printerMarginRight.toString(),
       'print_logo_on_receipt': printLogoOnReceipt ? '1' : '0',
+      'monochrome_logo_on_real_print': monochromeLogoOnRealPrint ? '1' : '0',
+      'promo_banners': jsonEncode(promoBanners),
+      'promo_autoplay_seconds': promoAutoPlaySeconds.toString(),
+      'cfd_show_ads_when_idle': cfdShowAdsWhenIdle ? '1' : '0',
     };
   }
 
   factory StoreSettingsModel.fromMap(Map<String, String> map) {
     final rawQr = map['qr_payload_template'] ?? '';
     final sanitizedQr = (rawQr.contains('pay.restaurant.com')) ? '' : rawQr;
+
+    List<String> promoBannersList = StoreSettingsModel.defaultPromoBanners;
+    if (map['promo_banners'] != null && map['promo_banners']!.isNotEmpty) {
+      try {
+        final decoded = jsonDecode(map['promo_banners']!);
+        if (decoded is List && decoded.isNotEmpty) {
+          promoBannersList = decoded.map((e) => e.toString()).toList();
+        }
+      } catch (_) {}
+    }
+
     return StoreSettingsModel(
       storeName: map['store_name'] ?? 'CA SOLUTION POS',
       storeAddress: map['store_address'] ?? 'Phnom Penh, Cambodia',
@@ -143,6 +178,7 @@ class StoreSettingsModel {
       currencySymbol: map['currency_symbol'] ?? '\$',
       defaultTaxRate:
           double.tryParse(map['default_tax_rate'] ?? '10.0') ?? 10.0,
+      enableTax: (map['enable_tax'] ?? '1') == '1',
       footerNote:
           map['footer_note'] ??
           '***THANK YOU FOR YOUR VISIT***\n***Please Come Again***',
@@ -181,6 +217,10 @@ class StoreSettingsModel {
       printerMarginRight:
           double.tryParse(map['printer_margin_right'] ?? '2.0') ?? 2.0,
       printLogoOnReceipt: (map['print_logo_on_receipt'] ?? '1') == '1',
+      monochromeLogoOnRealPrint: (map['monochrome_logo_on_real_print'] ?? '1') == '1',
+      promoBanners: promoBannersList,
+      promoAutoPlaySeconds: int.tryParse(map['promo_autoplay_seconds'] ?? '5') ?? 5,
+      cfdShowAdsWhenIdle: (map['cfd_show_ads_when_idle'] ?? '1') == '1',
     );
   }
 
@@ -191,6 +231,7 @@ class StoreSettingsModel {
     String? storeEmail,
     String? currencySymbol,
     double? defaultTaxRate,
+    bool? enableTax,
     String? footerNote,
     String? logoPath,
     String? qrImagePath,
@@ -218,6 +259,10 @@ class StoreSettingsModel {
     double? printerMarginLeft,
     double? printerMarginRight,
     bool? printLogoOnReceipt,
+    bool? monochromeLogoOnRealPrint,
+    List<String>? promoBanners,
+    int? promoAutoPlaySeconds,
+    bool? cfdShowAdsWhenIdle,
   }) {
     return StoreSettingsModel(
       storeName: storeName ?? this.storeName,
@@ -226,6 +271,7 @@ class StoreSettingsModel {
       storeEmail: storeEmail ?? this.storeEmail,
       currencySymbol: currencySymbol ?? this.currencySymbol,
       defaultTaxRate: defaultTaxRate ?? this.defaultTaxRate,
+      enableTax: enableTax ?? this.enableTax,
       footerNote: footerNote ?? this.footerNote,
       logoPath: clearLogoPath ? null : (logoPath ?? this.logoPath),
       qrImagePath: clearQrImagePath ? null : (qrImagePath ?? this.qrImagePath),
@@ -251,6 +297,10 @@ class StoreSettingsModel {
       printerMarginLeft: printerMarginLeft ?? this.printerMarginLeft,
       printerMarginRight: printerMarginRight ?? this.printerMarginRight,
       printLogoOnReceipt: printLogoOnReceipt ?? this.printLogoOnReceipt,
+      monochromeLogoOnRealPrint: monochromeLogoOnRealPrint ?? this.monochromeLogoOnRealPrint,
+      promoBanners: promoBanners ?? this.promoBanners,
+      promoAutoPlaySeconds: promoAutoPlaySeconds ?? this.promoAutoPlaySeconds,
+      cfdShowAdsWhenIdle: cfdShowAdsWhenIdle ?? this.cfdShowAdsWhenIdle,
     );
   }
 }

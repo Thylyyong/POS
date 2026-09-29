@@ -93,20 +93,28 @@ class _ProductGridState extends State<ProductGrid> {
   void didUpdateWidget(covariant ProductGrid oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isCustomerDisplay) {
-      // Synchronize customer duplicate screen scroll offset from POS
+      // Synchronize customer duplicate screen scroll offset from POS smoothly
       final targetOffset = widget.posCtrl.scrollOffset;
       if (_scrollController.hasClients) {
         if ((_scrollController.offset - targetOffset).abs() > 4.0) {
           final maxExtent = _scrollController.position.maxScrollExtent;
-          _scrollController.jumpTo(targetOffset.clamp(0.0, maxExtent));
+          _scrollController.animateTo(
+            targetOffset.clamp(0.0, maxExtent),
+            duration: const Duration(milliseconds: 120),
+            curve: Curves.easeOutCubic,
+          );
         }
       }
     } else {
-      // If category changed and reset to 0, jump cashier to 0
+      // If category changed and reset to 0, smoothly scroll cashier to 0
       if (widget.posCtrl.scrollOffset == 0.0 &&
           _scrollController.hasClients &&
           _scrollController.offset > 0.0) {
-        _scrollController.jumpTo(0.0);
+        _scrollController.animateTo(
+          0.0,
+          duration: const Duration(milliseconds: 150),
+          curve: Curves.easeOutCubic,
+        );
       }
     }
   }
@@ -170,6 +178,7 @@ class _ProductGridState extends State<ProductGrid> {
 
                       return GridView.builder(
                         controller: _scrollController,
+                        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
                         padding: const EdgeInsets.all(12),
                         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                           crossAxisCount: layout.crossAxisCount,
@@ -185,7 +194,24 @@ class _ProductGridState extends State<ProductGrid> {
                             currency: currency,
                             onTap: widget.isCustomerDisplay
                                 ? () {}
-                                : () => cart.addProduct(product),
+                                : () {
+                                    final added = cart.addProduct(product);
+                                    if (!added && context.mounted) {
+                                      ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            product.stockQuantity <= 0
+                                                ? '${product.name} is OUT OF STOCK'
+                                                : 'Cannot add more. Only ${product.stockQuantity} in stock.',
+                                          ),
+                                          backgroundColor: const Color(0xFFDC2626),
+                                          duration: const Duration(seconds: 2),
+                                          behavior: SnackBarBehavior.floating,
+                                        ),
+                                      );
+                                    }
+                                  },
                           );
                         },
                       );

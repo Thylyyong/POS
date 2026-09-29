@@ -13,6 +13,7 @@ import 'package:share_plus/share_plus.dart';
 import '../models/order_model.dart';
 import '../models/store_settings_model.dart';
 import 'printer_service.dart';
+import 'thermal_image_helper.dart';
 
 class PdfReceiptFileInfo {
   final String fileName;
@@ -159,6 +160,7 @@ class PdfReceiptService {
     bool isPaid = true,
     bool showQr = true,
     bool isReprint = false,
+    bool isForRealPrint = false,
   }) async {
     final doc = pw.Document();
 
@@ -174,19 +176,35 @@ class PdfReceiptService {
     final leftMargin = settings.printerMarginLeft * PdfPageFormat.mm;
     final rightMargin = settings.printerMarginRight * PdfPageFormat.mm;
 
-    final logoBytes = await _loadLogoBytes(settings);
+    final rawLogoBytes = await _loadLogoBytes(settings);
     pw.MemoryImage? logoImage;
-    if (logoBytes != null && logoBytes.isNotEmpty) {
+    if (rawLogoBytes != null && rawLogoBytes.isNotEmpty) {
       try {
-        logoImage = pw.MemoryImage(logoBytes);
+        final Uint8List effectiveLogoBytes =
+            (isForRealPrint && settings.monochromeLogoOnRealPrint)
+                ? ThermalImageHelper.convertToMonochromeLogoBytes(
+                    rawLogoBytes,
+                    threshold: 210,
+                    targetWidth: is80mm ? 384 : 260,
+                  )
+                : rawLogoBytes;
+        logoImage = pw.MemoryImage(effectiveLogoBytes);
       } catch (_) {}
     }
 
-    final qrBytes = await _loadQrBytes(settings);
+    final rawQrBytes = await _loadQrBytes(settings);
     pw.MemoryImage? qrImage;
-    if (qrBytes != null && qrBytes.isNotEmpty) {
+    if (rawQrBytes != null && rawQrBytes.isNotEmpty) {
       try {
-        qrImage = pw.MemoryImage(qrBytes);
+        final Uint8List effectiveQrBytes =
+            (isForRealPrint && settings.monochromeLogoOnRealPrint)
+                ? ThermalImageHelper.convertToMonochromeLogoBytes(
+                    rawQrBytes,
+                    threshold: 210,
+                    targetWidth: is80mm ? 384 : 260,
+                  )
+                : rawQrBytes;
+        qrImage = pw.MemoryImage(effectiveQrBytes);
       } catch (_) {}
     }
 
@@ -703,11 +721,18 @@ class PdfReceiptService {
     final leftMargin = settings.printerMarginLeft * PdfPageFormat.mm;
     final rightMargin = settings.printerMarginRight * PdfPageFormat.mm;
 
-    final logoBytes = await _loadLogoBytes(settings);
+    final rawLogoBytes = await _loadLogoBytes(settings);
     pw.MemoryImage? logoImage;
-    if (logoBytes != null && logoBytes.isNotEmpty) {
+    if (rawLogoBytes != null && rawLogoBytes.isNotEmpty) {
       try {
-        logoImage = pw.MemoryImage(logoBytes);
+        final Uint8List effectiveLogoBytes = settings.monochromeLogoOnRealPrint
+            ? ThermalImageHelper.convertToMonochromeLogoBytes(
+                rawLogoBytes,
+                threshold: 210,
+                targetWidth: is80mm ? 384 : 260,
+              )
+            : rawLogoBytes;
+        logoImage = pw.MemoryImage(effectiveLogoBytes);
       } catch (_) {}
     }
 
@@ -811,45 +836,47 @@ class PdfReceiptService {
 
     final fileName = 'Receipt_${order.receiptNo}.pdf';
     final dateFolder = DateFormat('yyyy-MM-dd').format(order.createdAt);
-    String appDocPath = '';
     String? downloadsPath;
 
-    // 1. App Documents Directory
+    // Save directly to device background storage (Downloads/POS_Receipts), not in app folder
     try {
-      final appDir = await getApplicationDocumentsDirectory();
-      final sep = Platform.isWindows ? '\\' : '/';
-      final targetDir = Directory(
-        '${appDir.path}${sep}POS_Receipts$sep$dateFolder',
-      );
-      if (!await targetDir.exists()) {
-        await targetDir.create(recursive: true);
-      }
-      final file = File('${targetDir.path}$sep$fileName');
-      await file.writeAsBytes(pdfBytes, flush: true);
-      appDocPath = file.path;
-    } catch (_) {}
-
-    // Public Downloads are intentionally not used on Android; receipts can
-    // contain customer and payment information.
-    if (Platform.isWindows) {
-      try {
+      Directory? targetDir;
+      if (Platform.isWindows) {
         final downloadsDir = await getDownloadsDirectory();
         if (downloadsDir != null) {
-          final targetDir = Directory(
+          targetDir = Directory(
             '${downloadsDir.path}\\POS_Receipts\\$dateFolder',
           );
-          if (!await targetDir.exists()) {
-            await targetDir.create(recursive: true);
-          }
-          final file = File('${targetDir.path}\\$fileName');
-          await file.writeAsBytes(pdfBytes, flush: true);
-          downloadsPath = file.path;
         }
-      } catch (_) {}
-    }
+      } else if (Platform.isAndroid) {
+        final androidDownload = Directory(
+          '/storage/emulated/0/Download/POS_Receipts/$dateFolder',
+        );
+        if (await androidDownload.parent.exists()) {
+          targetDir = androidDownload;
+        } else {
+          final externalDir = await getExternalStorageDirectory();
+          if (externalDir != null) {
+            targetDir = Directory(
+              '${externalDir.path}/POS_Receipts/$dateFolder',
+            );
+          }
+        }
+      }
+
+      if (targetDir != null) {
+        if (!await targetDir.exists()) {
+          await targetDir.create(recursive: true);
+        }
+        final sep = Platform.isWindows ? '\\' : '/';
+        final file = File('${targetDir.path}$sep$fileName');
+        await file.writeAsBytes(pdfBytes, flush: true);
+        downloadsPath = file.path;
+      }
+    } catch (_) {}
 
     return PdfReceiptSaveResult(
-      appDocPath: appDocPath,
+      appDocPath: downloadsPath ?? '',
       downloadsPath: downloadsPath,
     );
   }
@@ -877,6 +904,7 @@ class PdfReceiptService {
         settings: settings,
         isPaid: isPaid,
         isReprint: isReprint,
+        isForRealPrint: true,
       );
 
       final docName = isPaid

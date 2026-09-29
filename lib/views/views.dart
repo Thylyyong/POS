@@ -1,9 +1,12 @@
 export 'accounting/profit_loss_screen.dart';
+export 'advertising/advertising_screen.dart';
+export 'advertising/manage_promotions_dialog.dart';
 export 'cashier/cashier_main_layout.dart';
 export 'customer_display/customer_main_view.dart';
 export 'customer_display/customer_presentation_view.dart';
 export 'dashboard/dashboard_screen.dart';
 export 'history/receipt_history_screen.dart';
+export 'portal/owner_portal_screen.dart';
 export 'products/category_screen.dart';
 export 'products/product_list_screen.dart';
 export 'register/cash_in_out_dialog.dart';

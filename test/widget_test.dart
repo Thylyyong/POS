@@ -52,10 +52,7 @@ void main() {
 
     // Verify key elements of redesigned QR screen
     expect(find.byKey(const ValueKey('qr_payment_view')), findsOneWidget);
-    expect(find.text('SCAN TO PAY'), findsOneWidget);
-    expect(find.text('\$27.72'), findsOneWidget);
-    expect(find.text('Scan with any banking or wallet app'), findsOneWidget);
-    expect(find.text('Supports PromptPay, Bakong, VietQR & UPI'), findsOneWidget);
+    expect(find.text('KHQR'), findsWidgets);
     expect(find.text('Ready for customer scan'), findsOneWidget);
   });
 

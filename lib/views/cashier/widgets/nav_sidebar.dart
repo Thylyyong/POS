@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../../app_config.dart';
+import '../../../controllers/auth_controller.dart';
 import '../../../core/theme/sprite_icons.dart';
 import '../../../widgets/app_svg_icon.dart';
+import '../../portal/owner_portal_screen.dart';
+import '../../advertising/advertising_screen.dart';
 
 enum CashierNavTab {
   pos,
@@ -53,6 +57,9 @@ class _NavSidebarState extends State<NavSidebar> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthController>();
+    final isOwner = auth.isOwner || auth.isMainBoss || auth.isSubBoss;
+
     return Container(
       width: 112,
       decoration: const BoxDecoration(
@@ -61,12 +68,12 @@ class _NavSidebarState extends State<NavSidebar> {
       ),
       child: Column(
         children: [
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           const Text(
             'OMNI POS',
             style: TextStyle(
               color: ColorTheme.primary400,
-              fontSize: 14,
+              fontSize: 13.5,
               fontWeight: FontWeight.w900,
               letterSpacing: 0.5,
             ),
@@ -75,29 +82,39 @@ class _NavSidebarState extends State<NavSidebar> {
             'Enterprise',
             style: TextStyle(
               color: ColorTheme.neutral500,
-              fontSize: 10,
+              fontSize: 9.5,
               fontWeight: FontWeight.w600,
             ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 12),
           const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
 
-          // ── Nav Items ───────────────────────────────────────────────────
+          // ── Nav Items (ALL TABS FOR BOSS) ─────────────────────────────
           Expanded(
             child: ListView(
               padding: EdgeInsets.zero,
               children: [
-                // 1. Register / POS
+                // 1. Dashboard (Shown for Boss / Owner)
+                if (isOwner)
+                  _NavItem(
+                    tab: CashierNavTab.dashboard,
+                    iconData: Icons.dashboard_customize_rounded,
+                    label: 'Dashboard',
+                    isSelected: widget.currentTab == CashierNavTab.dashboard,
+                    onTap: () => widget.onTabChanged(CashierNavTab.dashboard),
+                  ),
+
+                // 2. POS
                 _NavItem(
                   tab: CashierNavTab.pos,
                   spriteIcon: SpriteIcons.pos,
-                  label: 'Register',
+                  label: 'POS',
                   isSelected: widget.currentTab == CashierNavTab.pos,
                   onTap: () => widget.onTabChanged(CashierNavTab.pos),
                 ),
 
-                // 2. Tables
+                // 3. Tables
                 _NavItem(
                   tab: CashierNavTab.tables,
                   spriteIcon: SpriteIcons.table,
@@ -106,10 +123,10 @@ class _NavSidebarState extends State<NavSidebar> {
                   onTap: () => widget.onTabChanged(CashierNavTab.tables),
                 ),
 
-                // 3. Menu Accordion with sleek sub-items
+                // 4. Menu Accordion with sleek sub-items
                 _buildMenuAccordion(),
 
-                // 4. Receipts History
+                // 5. Receipts History
                 _NavItem(
                   tab: CashierNavTab.history,
                   spriteIcon: SpriteIcons.history,
@@ -118,44 +135,117 @@ class _NavSidebarState extends State<NavSidebar> {
                   onTap: () => widget.onTabChanged(CashierNavTab.history),
                 ),
 
-                // 5. Odoo Accounting (Profit & Loss)
-                _NavItem(
-                  tab: CashierNavTab.accounting,
-                  spriteIcon: SpriteIcons.accounting,
-                  label: 'P&L Acct',
-                  isSelected: widget.currentTab == CashierNavTab.accounting,
-                  onTap: () => widget.onTabChanged(CashierNavTab.accounting),
-                ),
+                // 6. Accounting (P&L Reports - Shown for Boss / Owner)
+                if (isOwner)
+                  _NavItem(
+                    tab: CashierNavTab.accounting,
+                    iconData: Icons.account_balance_rounded,
+                    label: 'Accounting',
+                    isSelected: widget.currentTab == CashierNavTab.accounting,
+                    onTap: () => widget.onTabChanged(CashierNavTab.accounting),
+                  ),
 
-                // 6. Analytics Dashboard
+                // 7. Hardware & Settings
                 _NavItem(
-                  tab: CashierNavTab.dashboard,
-                  spriteIcon: SpriteIcons.dashboard,
-                  label: 'Analytics',
-                  isSelected: widget.currentTab == CashierNavTab.dashboard,
-                  onTap: () => widget.onTabChanged(CashierNavTab.dashboard),
+                  tab: CashierNavTab.settings,
+                  spriteIcon: SpriteIcons.settings,
+                  label: 'Settings',
+                  isSelected: widget.currentTab == CashierNavTab.settings,
+                  onTap: () => widget.onTabChanged(CashierNavTab.settings),
                 ),
               ],
             ),
           ),
 
-          // ── Settings pinned at bottom ───────────────────────────────────
+          // ── Bottom Quick Navigation ───────────────────────────────────
           const Divider(height: 1, thickness: 1, color: Color(0xFFF1F5F9)),
-          const SizedBox(height: 6),
-          _NavItem(
-            tab: CashierNavTab.settings,
-            spriteIcon: SpriteIcons.settings,
-            label: 'Settings',
-            isSelected: widget.currentTab == CashierNavTab.settings,
-            onTap: () => widget.onTabChanged(CashierNavTab.settings),
+          const SizedBox(height: 4),
+          if (isOwner)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              child: InkWell(
+                onTap: () {
+                  Navigator.of(context).pushReplacement(
+                    PageRouteBuilder(
+                      transitionDuration: const Duration(milliseconds: 300),
+                      pageBuilder: (_, _, _) => const OwnerPortalScreen(),
+                      transitionsBuilder: (_, animation, _, child) =>
+                          FadeTransition(opacity: animation, child: child),
+                    ),
+                  );
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF0F172A).withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.apps_rounded, size: 16, color: Color(0xFF0F172A)),
+                      SizedBox(height: 2),
+                      Text(
+                        'Portal',
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF0F172A),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            child: InkWell(
+              onTap: () {
+                Navigator.of(context).pushReplacement(
+                  PageRouteBuilder(
+                    transitionDuration: const Duration(milliseconds: 300),
+                    pageBuilder: (_, _, _) => const AdvertisingScreen(),
+                    transitionsBuilder: (_, animation, _, child) =>
+                        FadeTransition(opacity: animation, child: child),
+                  ),
+                );
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.tv_rounded, size: 16, color: Color(0xFF64748B)),
+                    SizedBox(height: 2),
+                    Text(
+                      'Idle / Ads',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 8),
         ],
       ),
     );
   }
 
   Widget _buildMenuAccordion() {
+    final isMenuSelected = isMenuCatalogActive;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       child: Column(
@@ -171,47 +261,55 @@ class _NavSidebarState extends State<NavSidebar> {
                 widget.onTabChanged(CashierNavTab.products);
               }
             },
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 140),
               curve: Curves.easeInOut,
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 3),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
               decoration: BoxDecoration(
-                color: isMenuCatalogActive
+                color: isMenuSelected
                     ? const Color(0xFF0D9488)
                     : (_isMenuExpanded ? const Color(0xFFF0FDFA) : Colors.transparent),
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: isMenuCatalogActive
+                  color: isMenuSelected
                       ? const Color(0xFF0D9488)
                       : (_isMenuExpanded ? const Color(0xFF99F6E4) : Colors.transparent),
                   width: 1,
                 ),
               ),
-              child: Row(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(
-                    'Menu',
-                    style: TextStyle(
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.bold,
-                      color: isMenuCatalogActive
-                          ? Colors.white
-                          : (_isMenuExpanded ? const Color(0xFF0D9488) : const Color(0xFF334155)),
-                    ),
+                  AppSvgIcon.sprite(
+                    SpriteIcons.menu,
+                    size: 20,
+                    color: isMenuSelected
+                        ? Colors.white
+                        : (_isMenuExpanded ? const Color(0xFF0D9488) : const Color(0xFF475569)),
                   ),
-                  const SizedBox(width: 4),
-                  AnimatedRotation(
-                    duration: const Duration(milliseconds: 200),
-                    turns: _isMenuExpanded ? 0.5 : 0.0,
-                    child: AppSvgIcon.sprite(
-                      SpriteIcons.arrowDown,
-                      size: 13,
-                      color: isMenuCatalogActive
-                          ? Colors.white
-                          : (_isMenuExpanded ? const Color(0xFF0D9488) : const Color(0xFF64748B)),
-                    ),
+                  const SizedBox(height: 5),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Menu',
+                        style: TextStyle(
+                          fontSize: 11.5,
+                          fontWeight: (isMenuSelected || _isMenuExpanded)
+                              ? FontWeight.w700
+                              : FontWeight.w600,
+                          color: isMenuSelected
+                              ? Colors.white
+                              : (_isMenuExpanded ? const Color(0xFF0D9488) : const Color(0xFF334155)),
+                          letterSpacing: 0.2,
+                          height: 1.15,
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -316,14 +414,16 @@ class _SubNavItem extends StatelessWidget {
 
 class _NavItem extends StatelessWidget {
   final CashierNavTab tab;
-  final String spriteIcon;
+  final String? spriteIcon;
+  final IconData? iconData;
   final String label;
   final bool isSelected;
   final VoidCallback onTap;
 
   const _NavItem({
     required this.tab,
-    required this.spriteIcon,
+    this.spriteIcon,
+    this.iconData,
     required this.label,
     required this.isSelected,
     required this.onTap,
@@ -348,11 +448,18 @@ class _NavItem extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              AppSvgIcon.sprite(
-                spriteIcon,
-                size: 20,
-                color: isSelected ? Colors.white : const Color(0xFF475569),
-              ),
+              if (spriteIcon != null)
+                AppSvgIcon.sprite(
+                  spriteIcon!,
+                  size: 20,
+                  color: isSelected ? Colors.white : const Color(0xFF475569),
+                )
+              else if (iconData != null)
+                Icon(
+                  iconData,
+                  size: 20,
+                  color: isSelected ? Colors.white : const Color(0xFF475569),
+                ),
               const SizedBox(height: 5),
               Text(
                 label,

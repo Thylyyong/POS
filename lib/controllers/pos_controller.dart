@@ -170,18 +170,31 @@ class PosController extends ChangeNotifier {
     _syncMenuToCfd();
   }
 
-  void _syncMenuToCfd() {
-    _presentationService.sendMenuToCustomerDisplay(
-      categories: _categories.map((c) => c.toMap()).toList(),
-      subcategories: _subcategories.map((s) => s.toMap()).toList(),
-      products: _products.map((p) => p.toMap()).toList(),
-    );
-    _presentationService.syncPosNavigation(
-      selectedCategoryId: _selectedCategoryId,
-      selectedSubcategoryId: _selectedSubcategoryId,
-      searchQuery: _searchQuery,
-      scrollOffset: _scrollOffset,
-    );
+  int _menuVersion = 0;
+  int get menuVersion => _menuVersion;
+
+  Future<void> _syncMenuToCfd() async {
+    try {
+      final allProducts = await _productDao.getAllProducts();
+      await _presentationService.sendMenuToCustomerDisplay(
+        categories: _categories.map((c) => c.toMap()).toList(),
+        subcategories: _subcategories.map((s) => s.toMap()).toList(),
+        products: allProducts.map((p) => p.toMap()).toList(),
+      );
+      await _presentationService.syncPosNavigation(
+        selectedCategoryId: _selectedCategoryId,
+        selectedSubcategoryId: _selectedSubcategoryId,
+        searchQuery: _searchQuery,
+        scrollOffset: _scrollOffset,
+        menuVersion: _menuVersion,
+      );
+    } catch (_) {}
+  }
+
+  /// Explicitly broadcast menu changes (including new/edited product images) to CDS
+  Future<void> broadcastMenuUpdate() async {
+    _menuVersion++;
+    await _syncMenuToCfd();
   }
 
   // ── Selection & Live CFD Synchronization ──────────────────────────────────
@@ -446,6 +459,9 @@ class PosController extends ChangeNotifier {
     String branchId = 'store_a',
     double cashTendered = 0.0,
     TableController? tableController,
+    String userId = 'usr_cashier',
+    String userName = 'Staff Cashier',
+    String userRole = 'CASHIER',
   }) async {
     if (cart.items.isEmpty) return null;
 
@@ -500,6 +516,20 @@ class PosController extends ChangeNotifier {
         action: isExistingPending ? 'PENDING_ORDER_PAID' : 'INITIAL_PRINT',
       );
 
+      // Automatic Stock Deduction upon sales processing
+      try {
+        await _productDao.deductStockForOrderItems(
+          items: items,
+          orderId: savedOrder.id,
+          receiptNo: savedOrder.receiptNo,
+          userId: userId,
+          userName: userName,
+          userRole: userRole,
+        );
+        // Refresh products cache so real-time inventory displays immediately update
+        await loadProducts();
+      } catch (_) {}
+
       if (cart.tableId != null) {
         await _tableDao.freeTable(cart.tableId!);
       }
@@ -518,25 +548,25 @@ class PosController extends ChangeNotifier {
       );
       _lastReceiptSaveResult = saveResult;
 
-      // 2b. Auto-save receipt as PDF file to app docs + Downloads
-      final pdfResult = await _pdfReceiptService.saveReceiptPdf(
-        order: savedOrder,
-        settings: settings,
-      );
-
-      final loggedPath = pdfResult.appDocPath.isNotEmpty
-          ? pdfResult.appDocPath
-          : (pdfResult.downloadsPath ?? saveResult.appDocPath);
-
-      if (loggedPath.isNotEmpty) {
-        await _orderDao.logReceiptAction(
-          receiptNo: savedOrder.receiptNo,
-          orderId: savedOrder.id,
-          action: 'PDF_SAVED',
-          isSuccess: true,
-          receiptFilePath: loggedPath,
-        );
-      }
+      // 2b. Auto-save receipt as PDF to device background storage (non-blocking)
+      _pdfReceiptService
+          .saveReceiptPdf(
+            order: savedOrder,
+            settings: settings,
+          )
+          .then((pdfResult) async {
+            final loggedPath = pdfResult.downloadsPath ?? pdfResult.appDocPath;
+            if (loggedPath.isNotEmpty) {
+              await _orderDao.logReceiptAction(
+                receiptNo: savedOrder.receiptNo,
+                orderId: savedOrder.id,
+                action: 'PDF_SAVED',
+                isSuccess: true,
+                receiptFilePath: loggedPath,
+              );
+            }
+          })
+          .catchError((_) {});
 
       // 2. Hardware: kick cash drawer / print paid receipt
       if (settings.autoPrintOnPayment) {

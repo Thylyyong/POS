@@ -547,17 +547,17 @@ class _ModernCategoryCard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
                     ),
-                    icon: const AppSvgIcon(AssetTheme.plus, size: 14, color: Color(0xFF0F172A)),
+                    icon: AppSvgIcon(AssetTheme.plus, size: 14, color: Color(0xFF0F172A)),
                     label: const Text('Add Subcategory', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
                   ),
                   const SizedBox(width: 6),
                   IconButton(
-                    icon: const AppSvgIcon(AssetTheme.files, size: 18, color: Color(0xFF64748B)),
+                    icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF64748B)),
                     tooltip: 'Edit Category Name',
                     onPressed: onEditCategory,
                   ),
                   IconButton(
-                    icon: const AppSvgIcon(AssetTheme.bin, size: 18, color: Color(0xFF94A3B8)),
+                    icon: AppSvgIcon(AssetTheme.bin, size: 18, color: Color(0xFF94A3B8)),
                     tooltip: 'Delete Category',
                     onPressed: onDeleteCategory,
                   ),
@@ -645,29 +645,6 @@ class _ModernCategoryCard extends StatelessWidget {
                             ),
                           );
                         }),
-                        InkWell(
-                          onTap: onAddSubcategory,
-                          borderRadius: BorderRadius.circular(8),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF1F5F9),
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFCBD5E1), style: BorderStyle.solid),
-                            ),
-                            child: const Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                AppSvgIcon(AssetTheme.plus, size: 14, color: Color(0xFF0F172A)),
-                                SizedBox(width: 4),
-                                Text(
-                                  'Add Subcategory',
-                                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
                       ],
                     ),
             ),

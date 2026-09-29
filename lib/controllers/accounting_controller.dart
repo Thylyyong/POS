@@ -131,6 +131,45 @@ class AccountingController extends ChangeNotifier {
     return expense;
   }
 
+  /// Delete an operating expense
+  Future<void> deleteExpense(String id) async {
+    await _dao.deleteExpense(id);
+    await loadReport(branchId: _selectedBranch, period: _selectedPeriod);
+  }
+
+  // ── Expense Categories Management ──────────────────────────────────────────
+
+  List<String> _expenseCategories = [
+    'General Operating',
+    'Staff Wages / Payroll',
+    'Electricity & Water',
+    'Store Supplies & Paper',
+    'Facility Rent',
+  ];
+  List<String> get expenseCategories => _expenseCategories;
+
+  Future<void> loadExpenseCategories() async {
+    _expenseCategories = await _dao.getExpenseCategories();
+    notifyListeners();
+  }
+
+  Future<void> addExpenseCategory(String category) async {
+    final trimmed = category.trim();
+    if (trimmed.isEmpty || _expenseCategories.contains(trimmed)) return;
+    _expenseCategories.add(trimmed);
+    await _dao.saveExpenseCategories(_expenseCategories);
+    notifyListeners();
+  }
+
+  Future<void> deleteExpenseCategory(String category) async {
+    _expenseCategories.remove(category);
+    if (_expenseCategories.isEmpty) {
+      _expenseCategories = ['General Operating'];
+    }
+    await _dao.saveExpenseCategories(_expenseCategories);
+    notifyListeners();
+  }
+
   /// Update Hybrid Franchise Settlement terms
   Future<void> saveHybridConfig(HybridSettlementConfigModel config) async {
     await _dao.saveHybridConfig(config);

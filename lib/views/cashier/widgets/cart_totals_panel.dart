@@ -9,6 +9,7 @@ import '../../../controllers/table_controller.dart';
 import '../../../models/order_model.dart';
 import '../../../models/store_settings_model.dart';
 import '../../../widgets/custom_dialogs.dart';
+import '../../../widgets/payment_method_selection_dialog.dart';
 import '../../../core/theme/asset_theme.dart';
 import '../../../core/theme/sprite_icons.dart';
 import '../../../widgets/app_svg_icon.dart';
@@ -227,12 +228,28 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
     );
   }
 
+  void _showPaymentMethodDialog() {
+    final cart = context.read<CartController>();
+    final settings = context.read<SettingsController>().settings;
+    final khrAmount = (cart.totalAmount * settings.usdToKhrRate).round();
+
+    PaymentMethodSelectionDialog.show(
+      context,
+      orderNumber: cart.orderNumber ?? '0011',
+      totalAmountUsd: cart.totalAmount,
+      totalAmountKhr: khrAmount,
+      onSelectCash: _handleCashCheckout,
+      onSelectAbaKhqr: _handleQrCheckout,
+    );
+  }
+
   Future<void> _handleCashCheckout() async {
     if (_isProcessing) return;
     final cart = context.read<CartController>();
     final posCtrl = context.read<PosController>();
     final settings = context.read<SettingsController>().settings;
-    final branchId = context.read<AuthController>().currentBranchId;
+    final auth = context.read<AuthController>();
+    final branchId = auth.currentBranchId;
     final tableCtrl = context.read<TableController>();
 
     final tendered = await showDialog<double>(
@@ -259,6 +276,9 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
         paymentMethod: PaymentMethod.cash,
         cashTendered: tendered,
         tableController: tableCtrl,
+        userId: auth.currentUser.id,
+        userName: auth.currentUser.displayName,
+        userRole: auth.currentUser.role.name,
       );
       if (order != null && mounted) {
         _showReceiptPreview(order, settings, posCtrl);
@@ -273,7 +293,8 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
     final cart = context.read<CartController>();
     final posCtrl = context.read<PosController>();
     final settings = context.read<SettingsController>().settings;
-    final branchId = context.read<AuthController>().currentBranchId;
+    final auth = context.read<AuthController>();
+    final branchId = auth.currentBranchId;
     final tableCtrl = context.read<TableController>();
 
     final qrPayload =
@@ -309,6 +330,9 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
         branchId: branchId,
         paymentMethod: PaymentMethod.qr,
         tableController: tableCtrl,
+        userId: auth.currentUser.id,
+        userName: auth.currentUser.displayName,
+        userRole: auth.currentUser.role.name,
       );
       if (order != null && mounted) {
         _showReceiptPreview(order, settings, posCtrl);
@@ -770,63 +794,32 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
               ),
             ),
 
-            // Row 1: Payment buttons: "CASH PAY" and "QR CODE"
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0F766E),
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: const Color(0xFF0F766E)
-                            .withValues(alpha: 0.35),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        elevation: 0,
-                      ),
-                      onPressed: !_isProcessing ? _handleCashCheckout : null,
-                      icon: const AppSvgIcon.sprite(SpriteIcons.cash, size: 21, color: Colors.white),
-                      label: const Text(
-                        'CASH PAY',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
+            // Primary Action: "PAY NOW" (prompts Cash vs ABA KHQR)
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0F766E),
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: const Color(0xFF0F766E)
+                      .withValues(alpha: 0.35),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: 0,
+                ),
+                onPressed: !_isProcessing ? _showPaymentMethodDialog : null,
+                icon: const AppSvgIcon.sprite(SpriteIcons.wallet, size: 20, color: Colors.white),
+                label: const Text(
+                  'PAY NOW',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    letterSpacing: 0.5,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: SizedBox(
-                    height: 48,
-                    child: ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0D9488),
-                        foregroundColor: Colors.white,
-                        disabledBackgroundColor: const Color(0xFF0D9488)
-                            .withValues(alpha: 0.35),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        elevation: 0,
-                      ),
-                      onPressed: !_isProcessing ? _handleQrCheckout : null,
-                      icon: const AppSvgIcon.sprite(SpriteIcons.khqr, size: 21, color: Colors.white),
-                      label: const Text(
-                        'QR CODE',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
             const SizedBox(height: 8),
 
@@ -920,63 +913,34 @@ class _CartTotalsPanelState extends State<CartTotalsPanel> {
             ),
             const SizedBox(height: 8),
 
-            // Row 2: Cash & QR Payment buttons (Immediate Pay)
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: 44,
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF0F766E),
-                        backgroundColor: const Color(0xFFF0FDFA),
-                        side: const BorderSide(color: Color(0xFF0F766E)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      onPressed: !isEmpty && !_isProcessing
-                          ? _handleCashCheckout
-                          : null,
-                      icon: const AppSvgIcon.sprite(SpriteIcons.cash, size: 19, color: Color(0xFF0F766E)),
-                      label: const Text(
-                        'CASH PAY',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
+            // Row 2: Immediate Pay Action -> "PAY NOW"
+            SizedBox(
+              width: double.infinity,
+              height: 46,
+              child: ElevatedButton.icon(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0F766E),
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: const Color(0xFF0F766E)
+                      .withValues(alpha: 0.35),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  elevation: 0,
+                ),
+                onPressed: !isEmpty && !_isProcessing
+                    ? _showPaymentMethodDialog
+                    : null,
+                icon: const AppSvgIcon.sprite(SpriteIcons.wallet, size: 20, color: Colors.white),
+                label: const Text(
+                  'PAY NOW',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    letterSpacing: 0.5,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: SizedBox(
-                    height: 44,
-                    child: OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF0D9488),
-                        backgroundColor: const Color(0xFFF0FDFA),
-                        side: const BorderSide(color: Color(0xFF0D9488)),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      onPressed: !isEmpty && !_isProcessing
-                          ? _handleQrCheckout
-                          : null,
-                      icon: const AppSvgIcon.sprite(SpriteIcons.khqr, size: 19, color: Color(0xFF0D9488)),
-                      label: const Text(
-                        'QR CODE',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ],
         ],

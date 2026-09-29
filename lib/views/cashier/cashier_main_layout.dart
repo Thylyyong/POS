@@ -75,7 +75,7 @@ class _CashierMainLayoutState extends State<CashierMainLayout> {
 
             Expanded(
               child: isPosTab
-                  // ── POS tab: no sidebar, top bar + full-width cashier layout ──
+                  // ── POS Register: 100% full-width Odoo single page (NO sidebar) ──
                   ? Column(
                       children: [
                         TopHeaderBar(onNavigate: _navigateToTab),
@@ -107,7 +107,7 @@ class _CashierMainLayoutState extends State<CashierMainLayout> {
                         ),
                       ],
                     )
-                  // ── Other tabs: light sidebar + sub-screen ─────────────────
+                  // ── All other tabs: Left NavSidebar showing ALL tabs + Screen (Old UI Style) ──
                   : Row(
                       children: [
                         NavSidebar(
@@ -119,11 +119,10 @@ class _CashierMainLayoutState extends State<CashierMainLayout> {
                             duration: const Duration(milliseconds: 200),
                             switchInCurve: Curves.easeOut,
                             switchOutCurve: Curves.easeIn,
-                            transitionBuilder: (child, animation) =>
-                                FadeTransition(
-                                  opacity: animation,
-                                  child: child,
-                                ),
+                            transitionBuilder: (child, animation) => FadeTransition(
+                              opacity: animation,
+                              child: child,
+                            ),
                             child: KeyedSubtree(
                               key: ValueKey(_currentTab),
                               child: _buildView(_currentTab),
@@ -142,24 +141,30 @@ class _CashierMainLayoutState extends State<CashierMainLayout> {
   Widget _buildView(CashierNavTab tab) {
     switch (tab) {
       case CashierNavTab.pos:
-        // This case is handled above; won't be reached normally
         return const SizedBox.shrink();
+
+      case CashierNavTab.dashboard:
+        return const DashboardScreen();
+
       case CashierNavTab.tables:
         return TableManagementScreen(
           onSwitchToPos: () => _navigateToTab(CashierNavTab.pos),
         );
-      case CashierNavTab.products:
-        return const ProductListScreen();
-      case CashierNavTab.categories:
-        return const CategoryScreen();
+
       case CashierNavTab.history:
         return ReceiptHistoryScreen(
           onSwitchToPos: () => _navigateToTab(CashierNavTab.pos),
         );
+
+      case CashierNavTab.products:
+        return const ProductListScreen();
+
+      case CashierNavTab.categories:
+        return const CategoryScreen();
+
       case CashierNavTab.accounting:
         return const ProfitLossScreen();
-      case CashierNavTab.dashboard:
-        return const DashboardScreen();
+
       case CashierNavTab.settings:
         return const StoreSettingsScreen();
     }

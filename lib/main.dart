@@ -97,23 +97,26 @@ class CartSettingsSync extends StatelessWidget {
     );
     final cart = context.read<CartController>();
 
+    final effectiveTaxRate = settings.enableTax ? settings.defaultTaxRate : 0.0;
     final hasTaxMismatch =
-        (cart.taxRate - settings.defaultTaxRate).abs() > 0.0001;
+        (cart.taxRate - effectiveTaxRate).abs() > 0.0001;
     final hasCurrencyMismatch = cart.currencySymbol != settings.currencySymbol;
 
     if (hasTaxMismatch || hasCurrencyMismatch) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final currentSettings = context.read<SettingsController>().settings;
         final currentCart = context.read<CartController>();
+        final targetTaxRate =
+            currentSettings.enableTax ? currentSettings.defaultTaxRate : 0.0;
         final taxMismatch =
-            (currentCart.taxRate - currentSettings.defaultTaxRate).abs() >
+            (currentCart.taxRate - targetTaxRate).abs() >
             0.0001;
         final currencyMismatch =
             currentCart.currencySymbol != currentSettings.currencySymbol;
 
         if (taxMismatch || currencyMismatch) {
           currentCart.updateConfig(
-            taxRate: currentSettings.defaultTaxRate,
+            taxRate: targetTaxRate,
             currencySymbol: currentSettings.currencySymbol,
           );
         }
@@ -148,7 +151,7 @@ class CashierApp extends StatelessWidget {
             ),
           );
         },
-        home: const SplashScreen(),
+        home: const AdvertisingScreen(),
       ),
     );
   }

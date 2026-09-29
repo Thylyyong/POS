@@ -1,9 +1,11 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart';
+import 'package:provider/provider.dart';
 import '../app_config.dart';
+import '../controllers/settings_controller.dart';
 import '../core/theme/asset_theme.dart';
+import '../models/store_settings_model.dart';
+import 'aba_khqr_card.dart';
 import 'app_svg_icon.dart';
 
 class CashPaymentDialog extends StatefulWidget {
@@ -390,21 +392,26 @@ class _QrPaymentDialogState extends State<QrPaymentDialog> {
     final currency = widget.currencySymbol;
     final minutes = (_secondsRemaining ~/ 60).toString().padLeft(2, '0');
     final seconds = (_secondsRemaining % 60).toString().padLeft(2, '0');
-    final hasImage = widget.qrImagePath != null &&
-        widget.qrImagePath!.isNotEmpty &&
-        File(widget.qrImagePath!).existsSync();
+
+    StoreSettingsModel? settings;
+    try {
+      settings = context.read<SettingsController>().settings;
+    } catch (_) {}
+    final storeName = settings?.storeName.isNotEmpty == true ? settings!.storeName : 'CA POS';
+    final rate = settings?.usdToKhrRate ?? 4000.0;
+    final khrAmount = (widget.totalAmount * rate).round();
 
     return Dialog(
       backgroundColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: ConstrainedBox(
         constraints: BoxConstraints(
           maxWidth: 380,
-          maxHeight: MediaQuery.of(context).size.height * 0.88,
+          maxHeight: MediaQuery.of(context).size.height * 0.90,
         ),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -415,11 +422,11 @@ class _QrPaymentDialogState extends State<QrPaymentDialog> {
                 children: [
                   const Row(
                     children: [
-                      AppSvgIcon(AssetTheme.searchQR, color: Color(0xFF0F172A), size: 20),
+                      AppSvgIcon(AssetTheme.searchQR, color: Color(0xFF0F172A), size: 18),
                       SizedBox(width: 8),
                       Text(
-                        'Customer QR Payment',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                        'ABA KHQR Payment',
+                        style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                       ),
                     ],
                   ),
@@ -437,62 +444,22 @@ class _QrPaymentDialogState extends State<QrPaymentDialog> {
               ),
               const SizedBox(height: 12),
 
-              // Amount Display Card
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('TOTAL DUE:', style: TextStyle(color: Color(0xFF64748B), fontWeight: FontWeight.bold, fontSize: 11.5)),
-                    Text(
-                      '$currency${widget.totalAmount.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
-                    ),
-                  ],
+              // ABA PAY KHQR Card Template
+              Center(
+                child: AbaKhqrCard(
+                  storeName: storeName,
+                  amount: widget.totalAmount,
+                  khrAmount: khrAmount,
+                  currencySymbol: currency,
+                  qrData: widget.qrPayload,
+                  qrImagePath: widget.qrImagePath,
+                  qrSize: 150.0,
+                  cardWidth: 280.0,
+                  showLogoHeader: true,
+                  showFooter: true,
                 ),
               ),
               const SizedBox(height: 12),
-
-              // Dynamic QR Code or Uploaded Static QR Image Container
-              Center(
-                child: Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.04),
-                        blurRadius: 10,
-                        spreadRadius: 1,
-                      ),
-                    ],
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: hasImage
-                      ? ClipRRect(
-                          borderRadius: BorderRadius.circular(8),
-                          child: Image.file(
-                            File(widget.qrImagePath!),
-                            width: 160,
-                            height: 160,
-                            fit: BoxFit.contain,
-                          ),
-                        )
-                      : QrImageView(
-                          data: widget.qrPayload,
-                          version: QrVersions.auto,
-                          size: 140.0,
-                          backgroundColor: Colors.white,
-                        ),
-                ),
-              ),
-              const SizedBox(height: 10),
 
               // Countdown Timer
               Row(

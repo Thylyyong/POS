@@ -193,93 +193,95 @@ class _ReceiptPreviewDialogState extends State<ReceiptPreviewDialog> {
                       ),
                     ],
                   ),
-                  // Mode Toggle Tabs: Bill (No QR) vs Bill (QR) vs Paid Receipt
-                  Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(8),
+                  // Mode Toggle Tabs: If already paid, show Paid status badge (no option to choose Bill QR / No QR)
+                  if (_isPaid || widget.order.status == OrderStatus.completed || widget.initialIsPaid == true)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3.5,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0D9488),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check_circle_outline, color: Colors.white, size: 12),
+                          SizedBox(width: 4),
+                          Text(
+                            'Paid Receipt',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Container(
+                      padding: const EdgeInsets.all(2),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          InkWell(
+                            onTap: () => setState(() => _mode = ReceiptMode.unpaidNoQr),
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 3.5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _mode == ReceiptMode.unpaidNoQr
+                                    ? const Color(0xFF0D9488)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'No QR',
+                                style: TextStyle(
+                                  color: _mode == ReceiptMode.unpaidNoQr ? Colors.white : Colors.white70,
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 2),
+                          InkWell(
+                            onTap: () => setState(() => _mode = ReceiptMode.unpaidQr),
+                            borderRadius: BorderRadius.circular(6),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 3.5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: _mode == ReceiptMode.unpaidQr
+                                    ? const Color(0xFF0D9488)
+                                    : Colors.transparent,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                'Bill (QR)',
+                                style: TextStyle(
+                                  color: _mode == ReceiptMode.unpaidQr ? Colors.white : Colors.white70,
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        InkWell(
-                          onTap: () => setState(() => _mode = ReceiptMode.unpaidNoQr),
-                          borderRadius: BorderRadius.circular(6),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 3.5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _mode == ReceiptMode.unpaidNoQr
-                                  ? const Color(0xFF0D9488)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              'No QR',
-                              style: TextStyle(
-                                color: _mode == ReceiptMode.unpaidNoQr ? Colors.white : Colors.white70,
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        InkWell(
-                          onTap: () => setState(() => _mode = ReceiptMode.unpaidQr),
-                          borderRadius: BorderRadius.circular(6),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 3.5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _mode == ReceiptMode.unpaidQr
-                                  ? const Color(0xFF0D9488)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              'Bill (QR)',
-                              style: TextStyle(
-                                color: _mode == ReceiptMode.unpaidQr ? Colors.white : Colors.white70,
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 2),
-                        InkWell(
-                          onTap: () => setState(() => _mode = ReceiptMode.paid),
-                          borderRadius: BorderRadius.circular(6),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 3.5,
-                            ),
-                            decoration: BoxDecoration(
-                              color: _mode == ReceiptMode.paid
-                                  ? const Color(0xFF0D9488)
-                                  : Colors.transparent,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              'Paid',
-                              style: TextStyle(
-                                color: _mode == ReceiptMode.paid ? Colors.white : Colors.white70,
-                                fontSize: 9.5,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
                   IconButton(
                     icon: const AppSvgIcon(
                       AssetTheme.close,

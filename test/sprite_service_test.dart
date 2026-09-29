@@ -27,8 +27,7 @@ void main() {
         icons[id.substring(5)] = standaloneSvg;
       }
     }
-
-    print('Extracted ${icons.length} mappings (full & short IDs)');
+ 
     expect(icons.containsKey('icon-pos'), isTrue);
     expect(icons.containsKey('pos'), isTrue);
     expect(icons.containsKey('icon-cash'), isTrue);

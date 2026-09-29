@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:provider/provider.dart';
 
 import '../../../controllers/cart_controller.dart';
 import '../../../controllers/settings_controller.dart';
+import '../../../core/product_image_helper.dart';
 import '../../../core/theme/asset_theme.dart';
-import '../../../core/theme/sprite_icons.dart';
 import '../../../widgets/app_svg_icon.dart';
 import '../../../widgets/cart_item_action_dialog.dart';
 
@@ -21,6 +22,12 @@ class CartItemTile extends StatelessWidget {
     );
     final cart = context.read<CartController>();
 
+    final imgProvider = ProductImageHelper.resolveImageProvider(
+      imagePath: item.product.imagePath,
+      productName: item.product.name,
+      categoryId: item.product.categoryId,
+    );
+
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -30,6 +37,36 @@ class CartItemTile extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              // Product Image Thumbnail (Shows full bottle/item without cropping)
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(6),
+                  border: Border.all(color: const Color(0xFFE2E8F0), width: 0.5),
+                ),
+                padding: const EdgeInsets.all(2),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: Image(
+                    image: imgProvider,
+                    fit: BoxFit.contain,
+                    alignment: Alignment.center,
+                    errorBuilder: (_, error, stack) => Image.asset(
+                      ProductImageHelper.getDefaultAssetFor(
+                        productName: item.product.name,
+                        categoryId: item.product.categoryId,
+                      ),
+                      fit: BoxFit.contain,
+                      alignment: Alignment.center,
+                      errorBuilder: (_, error2, stack2) => const SizedBox.shrink(),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+
               // Product Name & Unit Price (Click to open Numpad / Price / Void)
               Expanded(
                 child: InkWell(
@@ -58,12 +95,7 @@ class CartItemTile extends StatelessWidget {
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            const SizedBox(width: 4),
-                            const AppSvgIcon.sprite(
-                              SpriteIcons.edit,
-                              size: 15,
-                              color: Color(0xFF94A3B8),
-                            ),
+                            
                           ],
                         ),
                         const SizedBox(height: 2),
@@ -93,12 +125,16 @@ class CartItemTile extends StatelessWidget {
                     InkWell(
                       onTap: () => cart.decrementQuantity(index),
                       borderRadius: BorderRadius.circular(6),
-                      child: const Padding(
-                        padding: EdgeInsets.all(6),
-                        child: AppSvgIcon(
+                      child: Padding(
+                        padding: const EdgeInsets.all(6),
+                        child: SvgPicture.asset(
                           AssetTheme.minus,
-                          size: 15,
-                          color: Color(0xFF475569),
+                          width: 15,
+                          height: 15,
+                          colorFilter: const ColorFilter.mode(
+                            Color(0xFF475569),
+                            BlendMode.srcIn,
+                          ),
                         ),
                       ),
                     ),

@@ -11,6 +11,7 @@ class SpriteIcons {
 
   // Navigation & Core App
   static const pos = 'icon-pos';
+  static const menu = 'icon-menu';
   static const tables = 'icon-table';
   static const products = 'icon-box-v2';
   static const categories = 'icon-category-v2';
@@ -50,7 +51,7 @@ class SpriteIcons {
   static const filter = 'icon-filter';
   static const plus = 'icon-plus';
   static const plusV2 = 'icon-plus-v2';
-  static const minus = 'icon-arrow-down';
+  static const minus = 'icon-minus-v2';
   static const close = 'icon-x';
   static const check = 'icon-check';
   static const checkCircle = 'icon-check-circle';

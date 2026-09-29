@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:sqflite/sqflite.dart';
 
 import '../models/accounting_model.dart';
@@ -38,6 +40,53 @@ class AccountingDao {
       conflictAlgorithm: ConflictAlgorithm.replace,
     );
     return expense;
+  }
+
+  /// Delete an expense by ID
+  Future<void> deleteExpense(String id) async {
+    final db = await _dbHelper.database;
+    await db.delete('expenses', where: 'id = ?', whereArgs: [id]);
+  }
+
+  /// Get custom expense categories list
+  Future<List<String>> getExpenseCategories() async {
+    final db = await _dbHelper.database;
+    final rows = await db.query(
+      'settings',
+      where: 'key = ?',
+      whereArgs: ['expense_categories'],
+      limit: 1,
+    );
+    if (rows.isNotEmpty && rows.first['value'] != null) {
+      try {
+        final List<dynamic> list = jsonDecode(rows.first['value'] as String);
+        final result = list
+            .map((e) => e.toString().trim())
+            .where((s) => s.isNotEmpty)
+            .toList();
+        if (result.isNotEmpty) return result;
+      } catch (_) {}
+    }
+    return [
+      'General Operating',
+      'Staff Wages / Payroll',
+      'Electricity & Water',
+      'Store Supplies & Paper',
+      'Facility Rent',
+    ];
+  }
+
+  /// Save custom expense categories list
+  Future<void> saveExpenseCategories(List<String> categories) async {
+    final db = await _dbHelper.database;
+    await db.insert(
+      'settings',
+      {
+        'key': 'expense_categories',
+        'value': jsonEncode(categories),
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
   }
 
   /// Get expenses for a specific branch and date range
