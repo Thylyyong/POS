@@ -51,6 +51,8 @@ dependencies:
   sqlite3_flutter_libs: ^0.6.0+eol
   flutter_svg: ^2.0.16
   http: ^1.6.0
+  video_player: ^2.14.0
+  video_player_win: ^3.3.0
 
 dev_dependencies:
   flutter_test:
@@ -61,6 +63,8 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: false
+  image_path: "assets/images/ca.png"
+  image_path_android: "assets/images/ca.png"
   windows:
     generate: true
     image_path: "assets/images/ca.ico"

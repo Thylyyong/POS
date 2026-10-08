@@ -5,7 +5,7 @@ import 'package:sqflite/sqflite.dart';
 
 class DbHelper {
   static const String _dbName = 'omni_pos.db';
-  static const int _dbVersion = 7;
+  static const int _dbVersion = 9;
 
   static DbHelper? _instance;
   static Database? _database;
@@ -39,6 +39,33 @@ class DbHelper {
   FutureOr<void> _onOpen(Database db) async {
     await _ensureProductImages(db);
     await _ensureStockSchema(db);
+    await _ensureUsersLockColumn(db); // Safely add is_locked if missing
+    await _ensureOrdersColumns(db); // Safely add cashier_id, cashier_name if missing
+    await _ensureModifiersColumn(db); // Safely add modifiers_json if missing
+  }
+
+  /// Adds modifiers_json to products table if missing
+  Future<void> _ensureModifiersColumn(Database db) async {
+    try {
+      await db.execute('ALTER TABLE products ADD COLUMN modifiers_json TEXT');
+    } catch (_) {}
+  }
+
+  /// Adds cashier_id and cashier_name to orders table if they don't exist yet (safe for old DBs)
+  Future<void> _ensureOrdersColumns(Database db) async {
+    try {
+      await db.execute('ALTER TABLE orders ADD COLUMN cashier_id TEXT');
+    } catch (_) {}
+    try {
+      await db.execute('ALTER TABLE orders ADD COLUMN cashier_name TEXT');
+    } catch (_) {}
+  }
+
+  /// Adds is_locked column to users table if it doesn't exist yet (safe for old DBs)
+  Future<void> _ensureUsersLockColumn(Database db) async {
+    try {
+      await db.execute('ALTER TABLE users ADD COLUMN is_locked INTEGER NOT NULL DEFAULT 0');
+    } catch (_) {} // Column already exists — ignore
   }
 
   /// Automatically ensures stock_quantity column and stock_audit_logs table exist
@@ -128,7 +155,8 @@ class DbHelper {
         id TEXT PRIMARY KEY,
         name TEXT NOT NULL,
         pin_code TEXT NOT NULL,
-        role TEXT NOT NULL
+        role TEXT NOT NULL,
+        is_locked INTEGER NOT NULL DEFAULT 0
       )
     ''');
 
@@ -213,6 +241,8 @@ class DbHelper {
         change_amount REAL DEFAULT 0.0,
         status TEXT NOT NULL DEFAULT 'COMPLETED',
         kitchen_status TEXT NOT NULL DEFAULT 'PENDING',
+        cashier_id TEXT,
+        cashier_name TEXT,
         created_at TEXT NOT NULL
       )
     ''');
@@ -440,6 +470,12 @@ class DbHelper {
           'ALTER TABLE orders ADD COLUMN order_type TEXT DEFAULT "DINE_IN"',
         );
       } catch (_) {}
+      try {
+        await db.execute('ALTER TABLE orders ADD COLUMN cashier_id TEXT');
+      } catch (_) {}
+      try {
+        await db.execute('ALTER TABLE orders ADD COLUMN cashier_name TEXT');
+      } catch (_) {}
 
       await db.execute('''
         CREATE TABLE IF NOT EXISTS daily_reports (
@@ -622,6 +658,9 @@ class DbHelper {
           'CREATE INDEX IF NOT EXISTS idx_stock_audit_created ON stock_audit_logs (created_at)',
         );
       } catch (_) {}
+    }
+    if (oldVersion < 9) {
+      await _ensureOrdersColumns(db);
     }
   }
 

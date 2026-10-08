@@ -11,6 +11,7 @@ class RegisterController extends ChangeNotifier {
 
   RegisterSessionModel? _activeSession;
   RegisterSessionModel? get activeSession => _activeSession;
+  RegisterSessionModel? get currentSession => _activeSession;
 
   List<CashMovementModel> _activeMovements = [];
   List<CashMovementModel> get activeMovements => _activeMovements;
@@ -50,7 +51,7 @@ class RegisterController extends ChangeNotifier {
     required String branchName,
     required String cashierId,
     required String cashierName,
-    bool kickDrawer = true,
+    bool kickDrawer = false,
   }) async {
     _isLoading = true;
     notifyListeners();

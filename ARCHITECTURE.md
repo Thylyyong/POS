@@ -42,7 +42,8 @@ lib/
 │   ├── pdf_receipt_service.dart     # PDF Generation & Direct Print
 │   ├── excel_export_service.dart    # Analytics Excel Export (.xlsx)
 │   ├── receipt_file_service.dart    # Receipt Markdown Archive Generator
-│   └── barcode_service.dart         # Hardware USB Barcode Scanner Handler
+│   └── 
+    barcode_service.dart         # Hardware USB Barcode Scanner Handler
 │
 ├── views/                           # Feature UI Screens
 │   ├── views.dart                   # Barrel export

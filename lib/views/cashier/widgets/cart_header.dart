@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../app_config.dart';
 import '../../../controllers/cart_controller.dart';
+import '../../../controllers/register_controller.dart';
 import '../../../core/theme/asset_theme.dart';
 import '../../../core/theme/sprite_icons.dart';
 import '../../../widgets/app_svg_icon.dart';
@@ -25,6 +26,7 @@ class CartHeader extends StatelessWidget {
     );
     final isEmpty = context.select<CartController, bool>((c) => c.isEmpty);
     final cart = context.watch<CartController>();
+    final register = context.watch<RegisterController>();
 
     final tableName =
         cart.tableNumber ??
@@ -89,6 +91,36 @@ class CartHeader extends StatelessWidget {
                         ),
                       ),
                     ),
+                    if (!register.isSessionOpen) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 2.5,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFEF2F2),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: const Color(0xFFFECACA)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.lock_clock_rounded, size: 12, color: Color(0xFFDC2626)),
+                            SizedBox(width: 3),
+                            Text(
+                              'CLOSED',
+                              style: TextStyle(
+                                color: Color(0xFFDC2626),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 9.5,
+                                letterSpacing: 0.3,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     if (cart.isConfirmedPending) ...[
                       const SizedBox(width: 6),
                       Container(

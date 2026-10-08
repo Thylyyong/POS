@@ -19,8 +19,21 @@ void main() {
         home: CustomerPresentationView(),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
     expect(find.byType(CustomerPresentationView), findsOneWidget);
+
+    // Trigger an active order payload to verify customer display cart summary and totals
+    PresentationService().sendToCustomerDisplay(
+      PresentationPayload(
+        state: CfdScreenState.cartActive,
+        items: [
+          {'productName': 'Test Item', 'quantity': 1, 'totalPrice': 5.0}
+        ],
+        totalAmount: 5.0,
+        currencySymbol: '\$',
+      ),
+    );
+    await tester.pump(const Duration(milliseconds: 500));
     expect(find.text('TOTAL DUE'), findsOneWidget);
   });
 
@@ -37,7 +50,7 @@ void main() {
         home: CustomerPresentationView(),
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
 
     // Trigger QR payment payload
     PresentationService().sendToCustomerDisplay(
@@ -48,7 +61,7 @@ void main() {
         currencySymbol: '\$',
       ),
     );
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 500));
 
     // Verify key elements of redesigned QR screen
     expect(find.byKey(const ValueKey('qr_payment_view')), findsOneWidget);

@@ -19,6 +19,7 @@ import '../../widgets/app_logo_widget.dart';
 import '../../widgets/image_picker_dialog.dart';
 import '../../widgets/printer_diagnostics_dialog.dart';
 import '../../widgets/floating_customer_display_modal.dart';
+import '../../widgets/promo_media_player.dart';
 import '../../core/theme/asset_theme.dart';
 import '../../core/theme/sprite_icons.dart';
 import '../../widgets/app_svg_icon.dart';
@@ -26,8 +27,10 @@ import '../../database/db_helper.dart';
 import '../../services/database_import_service.dart';
 import '../../services/thermal_image_helper.dart';
 import '../../models/store_settings_model.dart';
+import '../../models/user_model.dart';
 import '../advertising/advertising_screen.dart';
 import '../splash/splash_screen.dart';
+import 'staff_management_screen.dart';
 
 class StoreSettingsScreen extends StatefulWidget {
   const StoreSettingsScreen({super.key});
@@ -78,6 +81,8 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
   late List<String> _promoBanners;
   late int _promoAutoPlaySeconds;
   late bool _cfdShowAdsWhenIdle;
+  late String _promoMediaFit;
+  late String _cfdIdleMode;
 
   @override
   void initState() {
@@ -122,6 +127,8 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
     );
     _promoAutoPlaySeconds = s.promoAutoPlaySeconds;
     _cfdShowAdsWhenIdle = s.cfdShowAdsWhenIdle;
+    _promoMediaFit = s.promoMediaFit;
+    _cfdIdleMode = s.cfdIdleMode;
 
     _scanPrinters();
   }
@@ -220,143 +227,189 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
-      body: Column(
-        children: [
-          // Header Bar
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Row(
-                  children: [
-                    AppSvgIcon(
-                      AssetTheme.setting,
-                      color: Color(0xFF0F172A),
-                      size: 24,
-                    ),
-                    SizedBox(width: 10),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Settings',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            // Header Bar
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Row(
+                    children: [
+                      AppSvgIcon(
+                        AssetTheme.setting,
+                        color: Color(0xFF0F172A),
+                        size: 24,
+                      ),
+                      SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Settings',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0F172A),
+                            ),
+                          ),
+                          Text(
+                            'Store profile, hardware, and preferences',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF64748B),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF0D9488),
+                          side: const BorderSide(
+                            color: Color(0xFF0D9488),
+                            width: 1.5,
+                          ),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        Text(
-                          'Store profile, hardware, and preferences',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF64748B),
+                        onPressed: () => _confirmLogout(context),
+                        icon: const AppSvgIcon.sprite(
+                          SpriteIcons.refresh,
+                          size: 18,
+                          color: Color(0xFF0D9488),
+                        ),
+                        label: const Text(
+                          'Switch Role / Logout',
+                          style: TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      if (context.watch<AuthController>().isOwner) ...[
+                        const SizedBox(width: 10),
+                        OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF7C3AED),
+                            side: const BorderSide(
+                              color: Color(0xFF7C3AED),
+                              width: 1.5,
+                            ),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => const StaffManagementScreen(),
+                              ),
+                            );
+                          },
+                          icon: const Icon(
+                            Icons.people_alt_rounded,
+                            size: 18,
+                            color: Color(0xFF7C3AED),
+                          ),
+                          label: const Text(
+                            'Staff Management',
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                         ),
                       ],
-                    ),
-                  ],
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: const Color(0xFF0D9488),
-                        side: const BorderSide(color: Color(0xFF0D9488), width: 1.5),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
+                      const SizedBox(width: 10),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF0D9488),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          elevation: 0,
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
+                        onPressed: _isSaving
+                            ? null
+                            : () => _saveSettings(context),
+                        icon: const AppSvgIcon(
+                          AssetTheme.files,
+                          size: 18,
+                          color: Colors.white,
+                        ),
+                        label: Text(
+                          _isSaving ? 'Saving...' : 'Save Settings',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
                         ),
                       ),
-                      onPressed: () => _confirmLogout(context),
-                      icon: const AppSvgIcon.sprite(
-                        SpriteIcons.refresh,
-                        size: 18,
-                        color: Color(0xFF0D9488),
-                      ),
-                      label: const Text(
-                        'Switch Role / Logout',
-                        style: TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF0D9488),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        elevation: 0,
-                      ),
-                      onPressed: _isSaving ? null : () => _saveSettings(context),
-                      icon: const AppSvgIcon(
-                        AssetTheme.files,
-                        size: 18,
-                        color: Colors.white,
-                      ),
-                      label: Text(
-                        _isSaving ? 'Saving...' : 'Save Settings',
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
 
-          // Settings Form (Constrained to 75% of screen width)
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
-              child: Center(
-                child: FractionallySizedBox(
-                  widthFactor: 0.75,
-                  child: Form(
-                    key: _formKey,
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final isNarrow = constraints.maxWidth < 950;
-                        if (isNarrow) {
-                          return Column(
+            // Settings Form (Constrained to 75% of screen width)
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 24,
+                ),
+                child: Center(
+                  child: FractionallySizedBox(
+                    widthFactor: 0.75,
+                    child: Form(
+                      key: _formKey,
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          final isNarrow = constraints.maxWidth < 950;
+                          if (isNarrow) {
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildColumn1(),
+                                const SizedBox(height: 20),
+                                _buildColumn2(),
+                              ],
+                            );
+                          }
+                          return Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              _buildColumn1(),
-                              const SizedBox(height: 20),
-                              _buildColumn2(),
+                              Expanded(flex: 5, child: _buildColumn1()),
+                              const SizedBox(width: 20),
+                              Expanded(flex: 5, child: _buildColumn2()),
                             ],
                           );
-                        }
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(flex: 5, child: _buildColumn1()),
-                            const SizedBox(width: 20),
-                            Expanded(flex: 5, child: _buildColumn2()),
-                          ],
-                        );
-                      },
+                        },
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -433,9 +486,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                             color: Color(0xFF0F172A),
                           ),
                           label: Text(
-                            _hasLogo
-                                ? 'Change Logo'
-                                : 'Upload Logo',
+                            _hasLogo ? 'Change Logo' : 'Upload Logo',
                             style: const TextStyle(fontSize: 12.5),
                           ),
                         ),
@@ -540,7 +591,9 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                     child: TextFormField(
                       controller: _taxCtrl,
                       enabled: _enableTax,
-                      keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
                       decoration: InputDecoration(
                         labelText: 'Tax Rate (%)',
                         hintText: '10.0',
@@ -558,20 +611,31 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
               ),
               const SizedBox(height: 8),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  color: _enableTax ? const Color(0xFFF0FDF4) : const Color(0xFFF8FAFC),
+                  color: _enableTax
+                      ? const Color(0xFFF0FDF4)
+                      : const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                    color: _enableTax ? const Color(0xFFBBF7D0) : const Color(0xFFE2E8F0),
+                    color: _enableTax
+                        ? const Color(0xFFBBF7D0)
+                        : const Color(0xFFE2E8F0),
                   ),
                 ),
                 child: Row(
                   children: [
                     Icon(
-                      _enableTax ? Icons.check_circle_outline : Icons.cancel_outlined,
+                      _enableTax
+                          ? Icons.check_circle_outline
+                          : Icons.cancel_outlined,
                       size: 20,
-                      color: _enableTax ? const Color(0xFF16A34A) : const Color(0xFF94A3B8),
+                      color: _enableTax
+                          ? const Color(0xFF16A34A)
+                          : const Color(0xFF94A3B8),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -579,11 +643,15 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            _enableTax ? 'Sales Tax Enabled' : 'Sales Tax Disabled',
+                            _enableTax
+                                ? 'Sales Tax Enabled'
+                                : 'Sales Tax Disabled',
                             style: TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.bold,
-                              color: _enableTax ? const Color(0xFF15803D) : const Color(0xFF475569),
+                              color: _enableTax
+                                  ? const Color(0xFF15803D)
+                                  : const Color(0xFF475569),
                             ),
                           ),
                           Text(
@@ -592,7 +660,9 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                                 : 'Tax is turned off (0% charged to customer)',
                             style: TextStyle(
                               fontSize: 11,
-                              color: _enableTax ? const Color(0xFF166534) : const Color(0xFF64748B),
+                              color: _enableTax
+                                  ? const Color(0xFF166534)
+                                  : const Color(0xFF64748B),
                             ),
                           ),
                         ],
@@ -804,7 +874,11 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                             height: 12,
                             child: CircularProgressIndicator(strokeWidth: 2),
                           )
-                        : const AppSvgIcon.sprite(SpriteIcons.refresh, size: 14, color: Color(0xFF0D9488)),
+                        : const AppSvgIcon.sprite(
+                            SpriteIcons.refresh,
+                            size: 14,
+                            color: Color(0xFF0D9488),
+                          ),
                     label: const Text('Rescan', style: TextStyle(fontSize: 11)),
                   ),
                 ],
@@ -976,7 +1050,10 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
               if (Platform.isWindows) ...[
                 const SizedBox(height: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   decoration: BoxDecoration(
                     color: _sumatraExecutablePath != null
                         ? const Color(0xFFF0FDF4)
@@ -1058,7 +1135,11 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                       children: [
                         const Row(
                           children: [
-                            Icon(Icons.image_outlined, size: 18, color: Color(0xFF0D9488)),
+                            Icon(
+                              Icons.image_outlined,
+                              size: 18,
+                              color: Color(0xFF0D9488),
+                            ),
                             SizedBox(width: 8),
                             Text(
                               'Print Logo on Receipt',
@@ -1098,7 +1179,8 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                               children: [
                                 const Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         'Thermal B&W Logo (Real Device)',
@@ -1122,8 +1204,9 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                                 Switch(
                                   value: _monochromeLogoOnRealPrint,
                                   activeTrackColor: const Color(0xFF0D9488),
-                                  onChanged: (val) =>
-                                      setState(() => _monochromeLogoOnRealPrint = val),
+                                  onChanged: (val) => setState(
+                                    () => _monochromeLogoOnRealPrint = val,
+                                  ),
                                 ),
                               ],
                             ),
@@ -1586,23 +1669,20 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
             ),
             subtitle: const Text(
               'Display promotional slideshow fullscreen on customer-facing display when no order is active',
-              style: TextStyle(
-                fontSize: 11.5,
-                color: Color(0xFF64748B),
-              ),
+              style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
             ),
             onChanged: (val) {
               setState(() => _cfdShowAdsWhenIdle = val);
+              _persistAndBroadcastPromoMedia(showToast: false);
             },
           ),
           const Divider(height: 20, color: Color(0xFFE2E8F0)),
           const SizedBox(height: 8),
 
-          // Speed selector & Add button
           Row(
             children: [
               const Text(
-                'Slide Speed:',
+                'Idle Mode:',
                 style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
@@ -1618,40 +1698,171 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                   border: Border.all(color: const Color(0xFFCBD5E1)),
                 ),
                 child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    value: _promoAutoPlaySeconds,
+                  child: DropdownButton<String>(
+                    value: _cfdIdleMode,
                     isDense: true,
                     items: const [
-                      DropdownMenuItem(value: 3, child: Text('3s - Fast')),
-                      DropdownMenuItem(value: 5, child: Text('5s - Standard')),
-                      DropdownMenuItem(value: 8, child: Text('8s - Relaxed')),
-                      DropdownMenuItem(value: 10, child: Text('10s - Slow')),
-                      DropdownMenuItem(value: 15, child: Text('15s - Extended')),
+                      DropdownMenuItem(
+                        value: 'slideshow',
+                        child: Text('Slideshow'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'welcome',
+                        child: Text('Welcome'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'mirror',
+                        child: Text('Mirror POS'),
+                      ),
                     ],
                     onChanged: (val) {
-                      if (val != null) setState(() => _promoAutoPlaySeconds = val);
+                      if (val == null) return;
+                      setState(() => _cfdIdleMode = val);
+                      _persistAndBroadcastPromoMedia(showToast: false);
                     },
                   ),
                 ),
               ),
-              const Spacer(),
+            ],
+          ),
+          const SizedBox(height: 12),
+
+          // Speed selector & Add button
+          Wrap(
+            spacing: 14,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            alignment: WrapAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Slide Speed:',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF334155),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: _promoAutoPlaySeconds,
+                        isDense: true,
+                        items: const [
+                          DropdownMenuItem(
+                            value: 2,
+                            child: Text('2s - 2-Second Live'),
+                          ),
+                          DropdownMenuItem(value: 3, child: Text('3s - Fast')),
+                          DropdownMenuItem(
+                            value: 5,
+                            child: Text('5s - Standard'),
+                          ),
+                          DropdownMenuItem(
+                            value: 8,
+                            child: Text('8s - Relaxed'),
+                          ),
+                          DropdownMenuItem(
+                            value: 10,
+                            child: Text('10s - Slow'),
+                          ),
+                          DropdownMenuItem(
+                            value: 15,
+                            child: Text('15s - Extended'),
+                          ),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() => _promoAutoPlaySeconds = val);
+                            _persistAndBroadcastPromoMedia(showToast: false);
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    'Media Fit:',
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF334155),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFCBD5E1)),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<String>(
+                        value: _promoMediaFit,
+                        isDense: true,
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'cover',
+                            child: Text('Full Screen (Cover)'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'fill',
+                            child: Text('Stretch (Fill)'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'contain',
+                            child: Text('Fit (Blur Borders)'),
+                          ),
+                        ],
+                        onChanged: (val) {
+                          if (val != null) {
+                            setState(() => _promoMediaFit = val);
+                            _persistAndBroadcastPromoMedia(showToast: false);
+                          }
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
               ElevatedButton.icon(
                 onPressed: () async {
                   final pickedPath = await ImagePickerDialog.pickImage(
                     context,
                     title: 'Add Promotion Image / Media',
+                    allowVideo: true,
                   );
                   if (pickedPath != null && pickedPath.trim().isNotEmpty) {
                     setState(() {
                       _promoBanners.add(pickedPath.trim());
                     });
+                    await _persistAndBroadcastPromoMedia();
                   }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0D9488),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 9,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   elevation: 0,
                 ),
                 icon: const Icon(Icons.add_photo_alternate_rounded, size: 16),
@@ -1688,8 +1899,12 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                 separatorBuilder: (context, index) => const SizedBox(width: 10),
                 itemBuilder: (ctx, idx) {
                   final path = _promoBanners[idx];
-                  final isFile = File(path).existsSync();
-                  final isAsset = path.startsWith('assets/');
+                  final isVid = PromoMediaPlayer.isVideo(path);
+                  final cleanPath = PromoMediaPlayer.sanitizePath(path);
+                  final isAsset =
+                      cleanPath.startsWith('assets/') ||
+                      cleanPath.startsWith('lib/assets/');
+                  final isFile = !isAsset && File(cleanPath).existsSync();
 
                   return Stack(
                     children: [
@@ -1702,24 +1917,76 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                           border: Border.all(color: const Color(0xFFCBD5E1)),
                         ),
                         clipBehavior: Clip.antiAlias,
-                        child: isFile
-                            ? Image.file(File(path), fit: BoxFit.cover)
-                            : (isAsset
-                                ? Image.asset(path, fit: BoxFit.cover)
-                                : Image.network(
-                                    path,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) => const Center(
-                                      child: Icon(Icons.broken_image, color: Colors.white54),
+                        child: isVid
+                            ? Center(
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(
+                                      Icons.play_circle_filled_rounded,
+                                      color: Color(0xFF38BDF8),
+                                      size: 36,
                                     ),
-                                  )),
+                                    const SizedBox(height: 4),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                      ),
+                                      child: Text(
+                                        path
+                                            .split(
+                                              Platform.isWindows ? '\\' : '/',
+                                            )
+                                            .last,
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : (isFile
+                                  ? Image.file(
+                                      File(cleanPath),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (_, _, _) => Image.asset(
+                                        PromoMediaPlayer.getFallbackAsset(idx),
+                                        fit: BoxFit.cover,
+                                      ),
+                                    )
+                                  : (isAsset
+                                        ? Image.asset(
+                                            cleanPath.replaceAll('\\', '/'),
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (_, _, _) => Image.asset(
+                                              PromoMediaPlayer.getFallbackAsset(
+                                                idx,
+                                              ),
+                                              fit: BoxFit.cover,
+                                            ),
+                                          )
+                                        : Image.asset(
+                                            PromoMediaPlayer.getFallbackAsset(
+                                              idx,
+                                            ),
+                                            fit: BoxFit.cover,
+                                          ))),
                       ),
                       // Slide index chip
                       Positioned(
                         bottom: 6,
                         left: 6,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.black.withValues(alpha: 0.65),
                             borderRadius: BorderRadius.circular(4),
@@ -1739,10 +2006,11 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                         top: 6,
                         right: 6,
                         child: InkWell(
-                          onTap: () {
+                          onTap: () async {
                             setState(() {
                               _promoBanners.removeAt(idx);
                             });
+                            await _persistAndBroadcastPromoMedia();
                           },
                           child: Container(
                             padding: const EdgeInsets.all(4),
@@ -1772,22 +2040,54 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
 
           const SizedBox(height: 12),
 
-          // Action row: Reset defaults & Preview
+          // Action row: Reset defaults, Sync to Display & Preview
           Row(
             children: [
               TextButton.icon(
-                onPressed: () {
+                onPressed: () async {
                   setState(() {
-                    _promoBanners = List<String>.from(StoreSettingsModel.defaultPromoBanners);
+                    _promoBanners = List<String>.from(
+                      StoreSettingsModel.defaultPromoBanners,
+                    );
                   });
+                  await _persistAndBroadcastPromoMedia();
                 },
-                icon: const Icon(Icons.restart_alt_rounded, size: 16, color: Color(0xFF64748B)),
+                icon: const Icon(
+                  Icons.restart_alt_rounded,
+                  size: 16,
+                  color: Color(0xFF64748B),
+                ),
                 label: const Text(
                   'Reset Defaults',
                   style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
                 ),
               ),
               const Spacer(),
+              ElevatedButton.icon(
+                onPressed: () => _persistAndBroadcastPromoMedia(),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0F172A),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  elevation: 0,
+                ),
+                icon: const Icon(
+                  Icons.sync_rounded,
+                  size: 16,
+                  color: Color(0xFF38BDF8),
+                ),
+                label: const Text(
+                  'Sync to Display',
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ),
+              const SizedBox(width: 8),
               OutlinedButton.icon(
                 onPressed: () {
                   Navigator.of(context).push(
@@ -1799,8 +2099,13 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF0D9488),
                   side: const BorderSide(color: Color(0xFF0D9488)),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
                 icon: const Icon(Icons.fullscreen_rounded, size: 16),
                 label: const Text(
@@ -1813,6 +2118,67 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _persistAndBroadcastPromoMedia({bool showToast = true}) async {
+    try {
+      PaintingBinding.instance.imageCache.clear();
+      PaintingBinding.instance.imageCache.clearLiveImages();
+
+      final ctrl = context.read<SettingsController>();
+      final cart = context.read<CartController>();
+      final updated = ctrl.settings.copyWith(
+        promoBanners: _promoBanners,
+        promoAutoPlaySeconds: _promoAutoPlaySeconds,
+        promoMediaFit: _promoMediaFit,
+        cfdShowAdsWhenIdle: _cfdShowAdsWhenIdle,
+        cfdIdleMode: _cfdIdleMode,
+      );
+
+      await ctrl.updateSettings(updated);
+
+      await PresentationService().sendToCustomerDisplay(
+        PresentationPayload(
+          state: cart.items.isEmpty
+              ? CfdScreenState.idle
+              : CfdScreenState.cartActive,
+          items: cart.items.map((i) => i.toPresentationMap()).toList(),
+          subtotal: cart.subtotal,
+          discountAmount: cart.discountAmount,
+          taxAmount: cart.taxAmount,
+          totalAmount: cart.totalAmount,
+          currencySymbol: cart.currencySymbol,
+          cfdShowAdsWhenIdle: _cfdShowAdsWhenIdle,
+          cfdIdleMode: _cfdIdleMode,
+          promoBanners: _promoBanners,
+          promoAutoPlaySeconds: _promoAutoPlaySeconds,
+          promoMediaFit: _promoMediaFit,
+          storeName: updated.storeName,
+          storeAddress: updated.storeAddress,
+          logoPath: updated.logoPath,
+        ),
+      );
+
+      if (mounted && showToast) {
+        ScaffoldMessenger.of(context).removeCurrentSnackBar();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+                SizedBox(width: 8),
+                Text('Promotional media synced to Customer Display!'),
+              ],
+            ),
+            backgroundColor: Color(0xFF0D9488),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      debugPrint('[Settings] Error syncing promo media: $e');
+    }
   }
 
   Widget _buildColumn2() {
@@ -2182,9 +2548,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                             color: Color(0xFF0F172A),
                           ),
                           label: Text(
-                            _hasQrImage
-                                ? 'Change QR Image'
-                                : 'Upload QR Image',
+                            _hasQrImage ? 'Change QR Image' : 'Upload QR Image',
                             style: const TextStyle(
                               fontSize: 12.5,
                               color: Color(0xFF0F172A),
@@ -2271,7 +2635,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                   ),
                   SizedBox(width: 8),
                   Text(
-                    'Security & PIN',
+                    'Security & Staff PIN Management',
                     style: TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
@@ -2280,23 +2644,154 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                   ),
                 ],
               ),
+              const SizedBox(height: 6),
+              const Text(
+                'Every login and register close requires entering a 4-digit PIN followed by manual confirmation. Change staff and owner PIN codes below.',
+                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+              ),
               const SizedBox(height: 14),
+
+              // Staff & Owner PIN List Cards
+              Consumer<AuthController>(
+                builder: (context, authCtrl, _) {
+                  final users = authCtrl.allUsers.isNotEmpty
+                      ? authCtrl.allUsers
+                      : AuthController.defaultUsers;
+                  return Column(
+                    children: users.map((u) {
+                      final isOwner = u.isOwner;
+                      final isChef = u.role == UserRole.chef;
+                      final roleBadge = isOwner
+                          ? 'Owner (Boss)'
+                          : (isChef ? 'Kitchen Chef' : 'Staff Cashier');
+                      final badgeColor = isOwner
+                          ? const Color(0xFF7C3AED)
+                          : (isChef
+                                ? const Color(0xFFF59E0B)
+                                : const Color(0xFF0D9488));
+                      final defaultHint = isOwner
+                          ? 'Default: 9999 • Closes Register & Unlocks Admin'
+                          : (isChef
+                                ? 'Default: 5555 • Kitchen Display'
+                                : 'Default: 1234 • POS Terminal');
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 16,
+                              backgroundColor: badgeColor.withValues(
+                                alpha: 0.12,
+                              ),
+                              child: Icon(
+                                isOwner
+                                    ? Icons.admin_panel_settings_rounded
+                                    : Icons.person_rounded,
+                                size: 18,
+                                color: badgeColor,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(
+                                        u.displayName,
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 13,
+                                          color: Color(0xFF0F172A),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 6,
+                                          vertical: 2,
+                                        ),
+                                        decoration: BoxDecoration(
+                                          color: badgeColor.withValues(
+                                            alpha: 0.1,
+                                          ),
+                                          borderRadius: BorderRadius.circular(
+                                            6,
+                                          ),
+                                          border: Border.all(
+                                            color: badgeColor.withValues(
+                                              alpha: 0.3,
+                                            ),
+                                          ),
+                                        ),
+                                        child: Text(
+                                          roleBadge,
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            color: badgeColor,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    defaultHint,
+                                    style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFF64748B),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            OutlinedButton.icon(
+                              onPressed: () => _showPinChangeDialog(
+                                context,
+                                initialUserId: u.id,
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: const Color(0xFF0D9488),
+                                side: const BorderSide(
+                                  color: Color(0xFFCBD5E1),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
+                                visualDensity: VisualDensity.compact,
+                              ),
+                              icon: const Icon(Icons.key_rounded, size: 14),
+                              label: const Text(
+                                'Change PIN',
+                                style: TextStyle(fontSize: 12),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
+                  );
+                },
+              ),
+
+              const SizedBox(height: 10),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
                 children: [
-                  OutlinedButton.icon(
-                    onPressed: () => _showPinChangeDialog(
-                      context,
-                      initialUserId: 'usr_owner',
-                    ),
-                    icon: const AppSvgIcon(
-                      AssetTheme.verify,
-                      size: 18,
-                      color: Color(0xFF0D9488),
-                    ),
-                    label: const Text('Change PIN'),
-                  ),
                   ElevatedButton.icon(
                     onPressed: () => _confirmLogout(context),
                     style: ElevatedButton.styleFrom(
@@ -2374,7 +2869,11 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
               const SizedBox(height: 8),
               const Text(
                 'Import SQL scripts (.sql) or SQLite database files (.db, .sqlite) to restore data, or export backups.',
-                style: TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.35),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF64748B),
+                  height: 1.35,
+                ),
               ),
               const SizedBox(height: 16),
               Wrap(
@@ -2386,14 +2885,26 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF0D9488),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 11,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                       elevation: 0,
                     ),
-                    icon: const Icon(Icons.file_upload_outlined, size: 18, color: Colors.white),
+                    icon: const Icon(
+                      Icons.file_upload_outlined,
+                      size: 18,
+                      color: Colors.white,
+                    ),
                     label: const Text(
                       'Import SQL Database (.sql / .db)',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12.5,
+                      ),
                     ),
                   ),
                   OutlinedButton.icon(
@@ -2401,13 +2912,25 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF0F172A),
                       side: const BorderSide(color: Color(0xFFCBD5E1)),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 11,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                    icon: const Icon(Icons.download_rounded, size: 18, color: Color(0xFF0D9488)),
+                    icon: const Icon(
+                      Icons.download_rounded,
+                      size: 18,
+                      color: Color(0xFF0D9488),
+                    ),
                     label: const Text(
                       'Export SQL Script (.sql)',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                   OutlinedButton.icon(
@@ -2415,13 +2938,25 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF0F172A),
                       side: const BorderSide(color: Color(0xFFCBD5E1)),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 11,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
                     ),
-                    icon: const Icon(Icons.save_as_outlined, size: 18, color: Color(0xFF0F172A)),
+                    icon: const Icon(
+                      Icons.save_as_outlined,
+                      size: 18,
+                      color: Color(0xFF0F172A),
+                    ),
                     label: const Text(
                       'Backup Database (.db)',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 12),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                 ],
@@ -2477,7 +3012,11 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
               const SizedBox(height: 8),
               const Text(
                 'Permanently clears all sales transactions, order history, custom catalog, and restores factory defaults.',
-                style: TextStyle(fontSize: 12, color: Color(0xFF7F1D1D), height: 1.35),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Color(0xFF7F1D1D),
+                  height: 1.35,
+                ),
               ),
               const SizedBox(height: 16),
               ElevatedButton.icon(
@@ -2647,19 +3186,12 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
         ),
         child: const Row(
           children: [
-            Icon(
-              Icons.info_outline,
-              size: 18,
-              color: Color(0xFF64748B),
-            ),
+            Icon(Icons.info_outline, size: 18, color: Color(0xFF64748B)),
             SizedBox(width: 10),
             Expanded(
               child: Text(
                 'Customer-facing display is disabled in portrait kiosk mode.',
-                style: TextStyle(
-                  fontSize: 11.5,
-                  color: Color(0xFF64748B),
-                ),
+                style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
               ),
             ),
           ],
@@ -2720,10 +3252,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
             ),
             subtitle: const Text(
               'Mirror cart, total, and QR payment in real time',
-              style: TextStyle(
-                fontSize: 11.5,
-                color: Color(0xFF64748B),
-              ),
+              style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
             ),
             value: _cfdEnabled,
             activeThumbColor: const Color(0xFF0D9488),
@@ -2766,10 +3295,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                     ? () => FloatingCustomerDisplayModal.show(context)
                     : null,
                 icon: const Icon(Icons.preview_outlined, size: 16),
-                label: const Text(
-                  'Preview',
-                  style: TextStyle(fontSize: 12),
-                ),
+                label: const Text('Preview', style: TextStyle(fontSize: 12)),
               ),
               const SizedBox(width: 8),
 
@@ -2789,8 +3315,8 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                 ),
                 onPressed: _cfdEnabled
                     ? () async {
-                        final launched =
-                            await PresentationService().launchSecondaryWindow();
+                        final launched = await PresentationService()
+                            .launchSecondaryWindow();
                         if (mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
@@ -2808,10 +3334,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                 icon: const Icon(Icons.open_in_new, size: 16),
                 label: const Text(
                   'Open Screen',
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -2998,17 +3521,17 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                 await settingsCtrl.updateAdminPin(newPin);
               }
 
-              final roleName = selectedUserId == 'usr_owner'
-                  ? 'Owner (Boss)'
-                  : 'Staff Cashier';
+              final targetUser = authCtrl.allUsers.firstWhere(
+                (u) => u.id == selectedUserId,
+                orElse: () => authCtrl.currentUser,
+              );
+              final roleName = targetUser.displayName;
 
               if (dialogContext.mounted) Navigator.of(dialogContext).pop();
               if (mounted) {
                 ScaffoldMessenger.of(this.context).showSnackBar(
                   SnackBar(
-                    content: Text(
-                      'PIN updated successfully for $roleName',
-                    ),
+                    content: Text('PIN updated successfully for $roleName'),
                     backgroundColor: const Color(0xFF0D9488),
                   ),
                 );
@@ -3046,6 +3569,11 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
               );
             }
 
+            final authCtrl = context.read<AuthController>();
+            final usersList = authCtrl.allUsers.isNotEmpty
+                ? authCtrl.allUsers
+                : AuthController.defaultUsers;
+
             return AlertDialog(
               title: const Text('Change Security PIN'),
               content: SizedBox(
@@ -3054,6 +3582,45 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
+                    // User / Staff Selector
+                    DropdownButtonFormField<String>(
+                      initialValue: usersList.any((u) => u.id == selectedUserId)
+                          ? selectedUserId
+                          : usersList.first.id,
+                      decoration: const InputDecoration(
+                        labelText: 'Select Staff / Account',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.badge_rounded,
+                          size: 20,
+                          color: Color(0xFF0D9488),
+                        ),
+                      ),
+                      items: usersList.map((u) {
+                        final isOwner = u.isOwner;
+                        final isChef = u.role == UserRole.chef;
+                        final badge = isOwner
+                            ? 'Owner (Boss)'
+                            : (isChef ? 'Kitchen Chef' : 'Staff Cashier');
+                        return DropdownMenuItem(
+                          value: u.id,
+                          child: Text('${u.displayName} ($badge)'),
+                        );
+                      }).toList(),
+                      onChanged: (newId) {
+                        if (newId != null) {
+                          setDialogState(() {
+                            selectedUserId = newId;
+                            error = null;
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 14),
 
                     SegmentedButton<bool>(
                       segments: const [
@@ -3116,10 +3683,7 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                   onPressed: () => Navigator.of(dialogContext).pop(),
                   child: const Text('Cancel'),
                 ),
-                FilledButton(
-                  onPressed: submit,
-                  child: const Text('Save PIN'),
-                ),
+                FilledButton(onPressed: submit, child: const Text('Save PIN')),
               ],
             );
           },
@@ -3244,7 +3808,11 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                     color: const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: const Icon(Icons.remove, size: 14, color: Color(0xFF0F172A)),
+                  child: const Icon(
+                    Icons.remove,
+                    size: 14,
+                    color: Color(0xFF0F172A),
+                  ),
                 ),
               ),
               Text(
@@ -3266,7 +3834,11 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                     color: const Color(0xFFF1F5F9),
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  child: const Icon(Icons.add, size: 14, color: Color(0xFF0F172A)),
+                  child: const Icon(
+                    Icons.add,
+                    size: 14,
+                    color: Color(0xFF0F172A),
+                  ),
                 ),
               ),
             ],
@@ -3305,8 +3877,9 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
           style: TextStyle(
             fontSize: 11,
             fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
-            color:
-                isSelected ? const Color(0xFF0D9488) : const Color(0xFF64748B),
+            color: isSelected
+                ? const Color(0xFF0D9488)
+                : const Color(0xFF64748B),
           ),
         ),
       ),
@@ -3351,18 +3924,24 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
           printerMarginTop: _printerMarginTop,
           printerMarginBottom: _printerMarginBottom,
           printerMarginLeft: _printerMarginLeft,
-          printerMarginRight: _printerMarginRight,
           promoBanners: _promoBanners,
           promoAutoPlaySeconds: _promoAutoPlaySeconds,
           cfdShowAdsWhenIdle: _cfdShowAdsWhenIdle,
+          promoMediaFit: _promoMediaFit,
         );
+
+        PaintingBinding.instance.imageCache.clear();
+        PaintingBinding.instance.imageCache.clearLiveImages();
 
         await context.read<SettingsController>().updateSettings(updated);
         if (!mounted) return;
 
+        PresentationService().syncStoreSettings(updated);
         PresentationService().sendToCustomerDisplay(
           PresentationPayload(
-            state: cart.items.isEmpty ? CfdScreenState.idle : CfdScreenState.cartActive,
+            state: cart.items.isEmpty
+                ? CfdScreenState.idle
+                : CfdScreenState.cartActive,
             items: cart.items.map((i) => i.toPresentationMap()).toList(),
             subtotal: cart.subtotal,
             discountAmount: cart.discountAmount,
@@ -3370,6 +3949,12 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
             totalAmount: cart.totalAmount,
             currencySymbol: cart.currencySymbol,
             cfdShowAdsWhenIdle: _cfdShowAdsWhenIdle,
+            promoBanners: _promoBanners,
+            promoAutoPlaySeconds: _promoAutoPlaySeconds,
+            promoMediaFit: _promoMediaFit,
+            storeName: updated.storeName,
+            storeAddress: updated.storeAddress,
+            logoPath: updated.logoPath,
           ),
         );
 
@@ -3447,18 +4032,21 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
             const SizedBox(height: 8),
             const Text(
               'Would you like to logout and return to the login screen to switch operator role?',
-              style: TextStyle(
-                fontSize: 13,
-                color: Color(0xFF475569),
-              ),
+              style: TextStyle(fontSize: 13, color: Color(0xFF475569)),
             ),
           ],
         ),
-        actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        actionsPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 16,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF64748B)),
+            ),
           ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
@@ -3479,7 +4067,11 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                 (route) => false,
               );
             },
-            icon: const Icon(Icons.logout_rounded, size: 18, color: Colors.white),
+            icon: const Icon(
+              Icons.logout_rounded,
+              size: 18,
+              color: Colors.white,
+            ),
             label: const Text(
               'Logout & Switch',
               style: TextStyle(fontWeight: FontWeight.bold),
@@ -3560,11 +4152,26 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                     ),
                   ),
                   SizedBox(height: 6),
-                  Text('• All completed and pending orders', style: TextStyle(fontSize: 11.5, color: Color(0xFF7F1D1D))),
-                  Text('• All sales revenue and item sales reports', style: TextStyle(fontSize: 11.5, color: Color(0xFF7F1D1D))),
-                  Text('• Cash drawer register sessions and logs', style: TextStyle(fontSize: 11.5, color: Color(0xFF7F1D1D))),
-                  Text('• Custom products, categories & dining tables', style: TextStyle(fontSize: 11.5, color: Color(0xFF7F1D1D))),
-                  Text('• Store configuration and custom PINs', style: TextStyle(fontSize: 11.5, color: Color(0xFF7F1D1D))),
+                  Text(
+                    '• All completed and pending orders',
+                    style: TextStyle(fontSize: 11.5, color: Color(0xFF7F1D1D)),
+                  ),
+                  Text(
+                    '• All sales revenue and item sales reports',
+                    style: TextStyle(fontSize: 11.5, color: Color(0xFF7F1D1D)),
+                  ),
+                  Text(
+                    '• Cash drawer register sessions and logs',
+                    style: TextStyle(fontSize: 11.5, color: Color(0xFF7F1D1D)),
+                  ),
+                  Text(
+                    '• Custom products, categories & dining tables',
+                    style: TextStyle(fontSize: 11.5, color: Color(0xFF7F1D1D)),
+                  ),
+                  Text(
+                    '• Store configuration and custom PINs',
+                    style: TextStyle(fontSize: 11.5, color: Color(0xFF7F1D1D)),
+                  ),
                   SizedBox(height: 6),
                   Text(
                     'Default factory data and standard admin login will be restored.',
@@ -3580,26 +4187,42 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
             const SizedBox(height: 12),
             const Text(
               '⚠️ This operation cannot be undone. Are you ready to proceed?',
-              style: TextStyle(fontSize: 12, color: Color(0xFFDC2626), fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 12,
+                color: Color(0xFFDC2626),
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
-        actionsPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        actionsPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 16,
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Color(0xFF64748B)),
+            ),
           ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFDC2626),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
               elevation: 0,
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
-            icon: const Icon(Icons.delete_forever_rounded, size: 18, color: Colors.white),
+            icon: const Icon(
+              Icons.delete_forever_rounded,
+              size: 18,
+              color: Colors.white,
+            ),
             label: const Text(
               'Yes, Reset Everything',
               style: TextStyle(fontWeight: FontWeight.bold),
@@ -3622,7 +4245,10 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
             children: [
               CircularProgressIndicator(color: Color(0xFFDC2626)),
               SizedBox(width: 20),
-              Text('Resetting database...', style: TextStyle(fontWeight: FontWeight.w600)),
+              Text(
+                'Resetting database...',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
             ],
           ),
         ),
@@ -3697,13 +4323,16 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
           ? file.uri.pathSegments.last
           : 'database.sql';
       final fileSizeBytes = await file.length();
-      final isBinaryDb = fileName.endsWith('.db') || fileName.endsWith('.sqlite') || fileName.endsWith('.sqlite3');
+      final isBinaryDb =
+          fileName.endsWith('.db') ||
+          fileName.endsWith('.sqlite') ||
+          fileName.endsWith('.sqlite3');
 
       final formattedSize = fileSizeBytes < 1024
           ? '$fileSizeBytes B'
           : (fileSizeBytes < 1024 * 1024
-              ? '${(fileSizeBytes / 1024).toStringAsFixed(1)} KB'
-              : '${(fileSizeBytes / (1024 * 1024)).toStringAsFixed(2)} MB');
+                ? '${(fileSizeBytes / 1024).toStringAsFixed(1)} KB'
+                : '${(fileSizeBytes / (1024 * 1024)).toStringAsFixed(2)} MB');
 
       if (!mounted) return;
 
@@ -3713,7 +4342,9 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
         barrierDismissible: false,
         builder: (ctx) => AlertDialog(
           backgroundColor: Colors.white,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           title: Row(
             children: [
               Container(
@@ -3761,7 +4392,11 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.description_outlined, size: 16, color: Color(0xFF0D9488)),
+                        const Icon(
+                          Icons.description_outlined,
+                          size: 16,
+                          color: Color(0xFF0D9488),
+                        ),
                         const SizedBox(width: 6),
                         Expanded(
                           child: Text(
@@ -3779,7 +4414,10 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                     const SizedBox(height: 6),
                     Text(
                       'Size: $formattedSize • Type: ${isBinaryDb ? "SQLite Database (.db)" : "SQL Script (.sql)"}',
-                      style: const TextStyle(fontSize: 11.5, color: Color(0xFF64748B)),
+                      style: const TextStyle(
+                        fontSize: 11.5,
+                        color: Color(0xFF64748B),
+                      ),
                     ),
                   ],
                 ),
@@ -3795,14 +4433,21 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.info_outline, size: 16, color: Color(0xFFB45309)),
+                    const Icon(
+                      Icons.info_outline,
+                      size: 16,
+                      color: Color(0xFFB45309),
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         isBinaryDb
                             ? 'Your current database will be automatically backed up before restoring.'
                             : 'SQL statements will be executed on the active database in a safe transaction.',
-                        style: const TextStyle(fontSize: 11, color: Color(0xFF92400E)),
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: Color(0xFF92400E),
+                        ),
                       ),
                     ),
                   ],
@@ -3813,17 +4458,25 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(false),
-              child: const Text('Cancel', style: TextStyle(color: Color(0xFF64748B))),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: Color(0xFF64748B)),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF0D9488),
                 foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
                 elevation: 0,
               ),
               onPressed: () => Navigator.of(ctx).pop(true),
-              child: const Text('Confirm Import', style: TextStyle(fontWeight: FontWeight.bold)),
+              child: const Text(
+                'Confirm Import',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ],
         ),
@@ -3842,7 +4495,10 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
               children: [
                 CircularProgressIndicator(color: Color(0xFF0D9488)),
                 SizedBox(width: 20),
-                Text('Importing database...', style: TextStyle(fontWeight: FontWeight.w600)),
+                Text(
+                  'Importing database...',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
               ],
             ),
           ),
@@ -3900,7 +4556,9 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
           context: context,
           builder: (ctx) => AlertDialog(
             backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             title: Row(
               children: [
                 Container(
@@ -3918,7 +4576,11 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                 const SizedBox(width: 12),
                 const Text(
                   'Import Completed!',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A),
+                  ),
                 ),
               ],
             ),
@@ -3928,32 +4590,59 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
               children: [
                 Text(
                   importResult.message,
-                  style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                  style: const TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF0F172A),
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Text(
                   'Executed in ${importResult.duration.inMilliseconds} ms from $fileName (${importResult.formattedFileSize}).',
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF64748B),
+                  ),
                 ),
                 if (importResult.tablesAffected.isNotEmpty) ...[
                   const SizedBox(height: 10),
                   const Text(
                     'Tables Updated / Verified:',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF334155)),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF334155),
+                    ),
                   ),
                   const SizedBox(height: 6),
                   Wrap(
                     spacing: 6,
                     runSpacing: 6,
-                    children: importResult.tablesAffected.take(12).map((t) => Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF1F5F9),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: const Color(0xFFCBD5E1)),
-                      ),
-                      child: Text(t, style: const TextStyle(fontSize: 11, fontFamily: 'monospace')),
-                    )).toList(),
+                    children: importResult.tablesAffected
+                        .take(12)
+                        .map(
+                          (t) => Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF1F5F9),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(
+                                color: const Color(0xFFCBD5E1),
+                              ),
+                            ),
+                            child: Text(
+                              t,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontFamily: 'monospace',
+                              ),
+                            ),
+                          ),
+                        )
+                        .toList(),
                   ),
                 ],
               ],
@@ -3963,11 +4652,16 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF0D9488),
                   foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                   elevation: 0,
                 ),
                 onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('OK', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text(
+                  'OK',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           ),
@@ -3978,15 +4672,23 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
           context: context,
           builder: (ctx) => AlertDialog(
             backgroundColor: Colors.white,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
             title: const Row(
               children: [
                 Icon(Icons.error_outline, color: Color(0xFFDC2626), size: 24),
                 SizedBox(width: 10),
-                Text('Import Failed', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                Text(
+                  'Import Failed',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                ),
               ],
             ),
-            content: Text(importResult.message, style: const TextStyle(fontSize: 13)),
+            content: Text(
+              importResult.message,
+              style: const TextStyle(fontSize: 13),
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(),
@@ -4018,7 +4720,10 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
             children: [
               CircularProgressIndicator(color: Color(0xFF0D9488)),
               SizedBox(width: 20),
-              Text('Exporting SQL database dump...', style: TextStyle(fontWeight: FontWeight.w600)),
+              Text(
+                'Exporting SQL database dump...',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
             ],
           ),
         ),
@@ -4034,7 +4739,11 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+              const Icon(
+                Icons.check_circle_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
               const SizedBox(width: 8),
               Expanded(child: Text('SQL Dump exported: ${file.path}')),
             ],
@@ -4071,7 +4780,10 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
             children: [
               CircularProgressIndicator(color: Color(0xFF0D9488)),
               SizedBox(width: 20),
-              Text('Backing up database file...', style: TextStyle(fontWeight: FontWeight.w600)),
+              Text(
+                'Backing up database file...',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
             ],
           ),
         ),
@@ -4087,7 +4799,11 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
         SnackBar(
           content: Row(
             children: [
-              const Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
+              const Icon(
+                Icons.check_circle_rounded,
+                color: Colors.white,
+                size: 18,
+              ),
               const SizedBox(width: 8),
               Expanded(child: Text('Database backup saved: ${file.path}')),
             ],
@@ -4138,8 +4854,9 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
 
     final monoBytes = ThermalImageHelper.convertToMonochromeLogoBytes(
       rawBytes,
-      threshold: 210,
-      targetWidth: _isPaperSize80mm ? 260 : 180,
+      threshold: 180,
+      targetWidth: _isPaperSize80mm ? 288 : 192,
+      useDithering: true,
     );
 
     if (!mounted) return;
@@ -4153,7 +4870,10 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
           children: [
             Icon(Icons.print_outlined, color: Color(0xFF0D9488), size: 22),
             SizedBox(width: 10),
-            Text('Thermal B&W Logo Preview', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            Text(
+              'Thermal B&W Logo Preview',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
           ],
         ),
         content: Column(
@@ -4161,7 +4881,11 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
           children: [
             const Text(
               'Physical thermal printers cannot print colors or grayscale. Below is the 1-bit high-contrast Black & White rendering that will be burned by the printer head onto the paper roll.',
-              style: TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.35),
+              style: TextStyle(
+                fontSize: 12,
+                color: Color(0xFF64748B),
+                height: 1.35,
+              ),
             ),
             const SizedBox(height: 16),
             Row(
@@ -4169,7 +4893,14 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
               children: [
                 Column(
                   children: [
-                    const Text('Original Logo', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF475569))),
+                    const Text(
+                      'Original Logo',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF475569),
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Container(
                       width: 110,
@@ -4184,10 +4915,20 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                     ),
                   ],
                 ),
-                const Icon(Icons.arrow_forward_rounded, color: Color(0xFF94A3B8)),
+                const Icon(
+                  Icons.arrow_forward_rounded,
+                  color: Color(0xFF94A3B8),
+                ),
                 Column(
                   children: [
-                    const Text('Thermal Head (B&W)', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Color(0xFF0D9488))),
+                    const Text(
+                      'Thermal Head (B&W)',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0D9488),
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Container(
                       width: 110,
@@ -4198,7 +4939,10 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(color: Colors.black45, width: 1.5),
                         boxShadow: [
-                          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 6),
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.08),
+                            blurRadius: 6,
+                          ),
                         ],
                       ),
                       child: Image.memory(monoBytes, fit: BoxFit.contain),
@@ -4218,11 +4962,19 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
               child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.check_circle_outline, size: 14, color: Color(0xFF059669)),
+                  Icon(
+                    Icons.check_circle_outline,
+                    size: 14,
+                    color: Color(0xFF059669),
+                  ),
                   SizedBox(width: 6),
                   Text(
                     'Solid 100% black dots • 0% fade • Full logo visibility',
-                    style: TextStyle(fontSize: 11, color: Color(0xFF065F46), fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: Color(0xFF065F46),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
@@ -4234,7 +4986,9 @@ class _StoreSettingsScreenState extends State<StoreSettingsScreen> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF0D9488),
               foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
             ),
             onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('Close'),

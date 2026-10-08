@@ -46,6 +46,8 @@ class StoreSettingsModel {
   final List<String> promoBanners; // Promotional image/video paths for idle advertising screen
   final int promoAutoPlaySeconds; // Auto-advance interval for advertising slides
   final bool cfdShowAdsWhenIdle; // Show fullscreen promotional ads on customer display when idle
+  final String promoMediaFit; // 'cover' (Full Screen, Default), 'fill' (Stretch to Full Screen), 'contain' (Fit Center with Ambient Blur)
+  final String cfdIdleMode; // 'slideshow' (Advertising slides), 'welcome' (Only Logo & Welcome), 'mirror' (Mirror Live POS/Cart)
 
   static const List<String> defaultPromoBanners = [
     'assets/images/asian_mains.png',
@@ -76,7 +78,7 @@ class StoreSettingsModel {
     this.printerProfile = 'epson',
     this.usdToKhrRate = 4000.0,
     this.showKhrDualCurrency = true,
-    this.printerIpOrAddress = '192.168.1.100',
+    this.printerIpOrAddress = '',
     this.selectedPrinterName = '',
     this.deviceProfile = 'auto',
     this.qrPayloadTemplate = '',
@@ -93,6 +95,8 @@ class StoreSettingsModel {
     this.promoBanners = defaultPromoBanners,
     this.promoAutoPlaySeconds = 5,
     this.cfdShowAdsWhenIdle = true,
+    this.promoMediaFit = 'cover',
+    this.cfdIdleMode = 'slideshow',
   });
 
   bool verifyAdminPin(String pin) {
@@ -153,6 +157,8 @@ class StoreSettingsModel {
       'promo_banners': jsonEncode(promoBanners),
       'promo_autoplay_seconds': promoAutoPlaySeconds.toString(),
       'cfd_show_ads_when_idle': cfdShowAdsWhenIdle ? '1' : '0',
+      'promo_media_fit': promoMediaFit,
+      'cfd_idle_mode': cfdIdleMode,
     };
   }
 
@@ -198,7 +204,9 @@ class StoreSettingsModel {
       usdToKhrRate:
           double.tryParse(map['usd_to_khr_rate'] ?? '4000.0') ?? 4000.0,
       showKhrDualCurrency: (map['show_khr_dual_currency'] ?? '1') == '1',
-      printerIpOrAddress: map['printer_ip_or_address'] ?? '192.168.1.100',
+      printerIpOrAddress: (map['printer_ip_or_address'] == '192.168.1.100' || map['printer_ip_or_address'] == null)
+          ? ''
+          : map['printer_ip_or_address']!,
       selectedPrinterName: map['selected_printer_name'] ?? '',
       deviceProfile: map['device_profile'] ?? 'auto',
       qrPayloadTemplate: sanitizedQr,
@@ -221,6 +229,8 @@ class StoreSettingsModel {
       promoBanners: promoBannersList,
       promoAutoPlaySeconds: int.tryParse(map['promo_autoplay_seconds'] ?? '5') ?? 5,
       cfdShowAdsWhenIdle: (map['cfd_show_ads_when_idle'] ?? '1') == '1',
+      promoMediaFit: (map['promo_media_fit'] == 'contain') ? 'cover' : (map['promo_media_fit'] ?? 'cover'),
+      cfdIdleMode: map['cfd_idle_mode'] ?? 'slideshow',
     );
   }
 
@@ -263,6 +273,8 @@ class StoreSettingsModel {
     List<String>? promoBanners,
     int? promoAutoPlaySeconds,
     bool? cfdShowAdsWhenIdle,
+    String? promoMediaFit,
+    String? cfdIdleMode,
   }) {
     return StoreSettingsModel(
       storeName: storeName ?? this.storeName,
@@ -301,6 +313,8 @@ class StoreSettingsModel {
       promoBanners: promoBanners ?? this.promoBanners,
       promoAutoPlaySeconds: promoAutoPlaySeconds ?? this.promoAutoPlaySeconds,
       cfdShowAdsWhenIdle: cfdShowAdsWhenIdle ?? this.cfdShowAdsWhenIdle,
+      promoMediaFit: promoMediaFit ?? this.promoMediaFit,
+      cfdIdleMode: cfdIdleMode ?? this.cfdIdleMode,
     );
   }
 }

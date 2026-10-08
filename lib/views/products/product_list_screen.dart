@@ -14,6 +14,7 @@ import '../../widgets/stock_adjustment_dialog.dart';
 import '../../widgets/stock_audit_logs_dialog.dart';
 import '../../core/theme/asset_theme.dart';
 import '../../widgets/app_svg_icon.dart';
+import '../../models/product_variant_model.dart';
 
 class ProductListScreen extends StatefulWidget {
   const ProductListScreen({super.key});
@@ -46,8 +47,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
     setState(() => _isLoading = false);
   }
 
-  List<Product> get _filteredProducts {
+  List<Product> _getFilteredProducts(bool isOwner) {
     return _allProducts.where((p) {
+      // Staff / Cashier role can ONLY see available products (in-stock with stock > 0)
+      if (!isOwner && (!p.inStock || p.stockQuantity <= 0)) {
+        return false;
+      }
       final matchesCategory =
           _filterCategoryId == 'ALL' || p.categoryId == _filterCategoryId;
       final matchesQuery =
@@ -60,9 +65,12 @@ class _ProductListScreenState extends State<ProductListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthController>();
+    final isOwner = auth.isOwner;
     final settingsCtrl = context.watch<SettingsController>();
     final posCtrl = context.read<PosController>();
     final currency = settingsCtrl.settings.currencySymbol;
+    final displayProducts = _getFilteredProducts(isOwner);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -77,18 +85,18 @@ class _ProductListScreenState extends State<ProductListScreen> {
             ),
             child: Row(
               children: [
-                const Row(
+                Row(
                   children: [
-                    AppSvgIcon(
+                    const AppSvgIcon(
                       AssetTheme.box,
                       color: Color(0xFF0F172A),
                       size: 24,
                     ),
-                    SizedBox(width: 10),
+                    const SizedBox(width: 10),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'Product & SKU Catalog',
                           style: TextStyle(
                             color: Color(0xFF0F172A),
@@ -97,8 +105,10 @@ class _ProductListScreenState extends State<ProductListScreen> {
                           ),
                         ),
                         Text(
-                          'Manage menu items, photos, prices, barcodes and stock',
-                          style: TextStyle(
+                          isOwner
+                              ? 'Manage menu items, photos, prices, barcodes and stock'
+                              : 'Available menu items, prices and stock inventory',
+                          style: const TextStyle(
                             color: Color(0xFF64748B),
                             fontSize: 11.5,
                           ),
@@ -152,46 +162,48 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: const Color(0xFF0F172A),
-                    side: const BorderSide(color: Color(0xFFCBD5E1)),
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                  ),
-                  onPressed: () => StockAuditLogsDialog.show(context),
-                  icon: const Icon(Icons.history_edu_rounded, size: 16, color: Color(0xFF0F172A)),
-                  label: const Text(
-                    'Audit Logs & Waste',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0D9488),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
+                if (isOwner) ...[
+                  const SizedBox(width: 10),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF0F172A),
+                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                     ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+                    onPressed: () => StockAuditLogsDialog.show(context),
+                    icon: const Icon(Icons.history_edu_rounded, size: 16, color: Color(0xFF0F172A)),
+                    label: const Text(
+                      'Audit Logs & Waste',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12.5),
                     ),
-                    elevation: 0,
                   ),
-                  onPressed: () => _checkManagerAndShowAddEdit(null),
-                  icon: const AppSvgIcon(
-                    AssetTheme.plus,
-                    size: 16,
-                    color: Colors.white,
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0D9488),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      elevation: 0,
+                    ),
+                    onPressed: () => _checkManagerAndShowAddEdit(null),
+                    icon: const AppSvgIcon(
+                      AssetTheme.plus,
+                      size: 16,
+                      color: Colors.white,
+                    ),
+                    label: const Text(
+                      'Add Product',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
                   ),
-                  label: const Text(
-                    'Add Product',
-                    style: TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
+                ],
               ],
             ),
           ),
@@ -220,19 +232,19 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       color: ColorTheme.buttonPrimary,
                     ),
                   )
-                : _filteredProducts.isEmpty
+                : displayProducts.isEmpty
                 ? const Center(
                     child: Text(
-                      'No products found',
+                      'No available products found',
                       style: TextStyle(color: Color(0xFF94A3B8), fontSize: 15),
                     ),
                   )
                 : ListView.separated(
                     padding: const EdgeInsets.all(20),
-                    itemCount: _filteredProducts.length,
+                    itemCount: displayProducts.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 10),
                     itemBuilder: (context, index) {
-                      final product = _filteredProducts[index];
+                      final product = displayProducts[index];
                       final category = _categories.firstWhere(
                         (c) => c.id == product.categoryId,
                         orElse: () => Category(id: '', name: 'Uncategorized'),
@@ -370,13 +382,14 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  Text(
-                                    'Cost: $currency${product.cost.toStringAsFixed(2)}',
-                                    style: const TextStyle(
-                                      color: ColorTheme.neutral600,
-                                      fontSize: 11,
+                                  if (isOwner)
+                                    Text(
+                                      'Cost: $currency${product.cost.toStringAsFixed(2)}',
+                                      style: const TextStyle(
+                                        color: ColorTheme.neutral600,
+                                        fontSize: 11,
+                                      ),
                                     ),
-                                  ),
                                 ],
                               ),
                             ),
@@ -436,55 +449,57 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 8),
+                            if (isOwner) ...[
+                              const SizedBox(width: 8),
 
-                            // Stock Adjustment & Waste Logging Button
-                            OutlinedButton.icon(
-                              style: OutlinedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
-                                side: const BorderSide(color: Color(0xFFCBD5E1)),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              ),
-                              icon: const Icon(Icons.tune_rounded, size: 14, color: Color(0xFF0D9488)),
-                              label: const Text(
-                                'Stock & Waste',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF0D9488),
+                              // Stock Adjustment & Waste Logging Button
+                              OutlinedButton.icon(
+                                style: OutlinedButton.styleFrom(
+                                  padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                                  side: const BorderSide(color: Color(0xFFCBD5E1)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                icon: const Icon(Icons.tune_rounded, size: 14, color: Color(0xFF0D9488)),
+                                label: const Text(
+                                  'Stock & Waste',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF0D9488),
+                                  ),
+                                ),
+                                onPressed: () => StockAdjustmentDialog.show(
+                                  context,
+                                  product: product,
+                                  onSaved: _loadData,
                                 ),
                               ),
-                              onPressed: () => StockAdjustmentDialog.show(
-                                context,
-                                product: product,
-                                onSaved: _loadData,
-                              ),
-                            ),
-                            const SizedBox(width: 4),
+                              const SizedBox(width: 4),
 
-                            // Actions (Edit Photo & Info, Delete)
-                            IconButton(
-                              icon: const Icon(
-                                Icons.edit_outlined,
-                                color: Color(0xFF64748B),
-                                size: 18,
+                              // Actions (Edit Photo & Info, Delete)
+                              IconButton(
+                                icon: const Icon(
+                                  Icons.edit_outlined,
+                                  color: Color(0xFF64748B),
+                                  size: 18,
+                                ),
+                                tooltip: 'Edit Item & Photo',
+                                onPressed: () =>
+                                    _checkManagerAndShowAddEdit(product),
                               ),
-                              tooltip: 'Edit Item & Photo',
-                              onPressed: () =>
-                                  _checkManagerAndShowAddEdit(product),
-                            ),
-                            IconButton(
-                              icon: const AppSvgIcon(
-                                AssetTheme.bin,
-                                color: AppConfig.accentRose,
-                                size: 18,
+                              IconButton(
+                                icon: const AppSvgIcon(
+                                  AssetTheme.bin,
+                                  color: AppConfig.accentRose,
+                                  size: 18,
+                                ),
+                                tooltip: 'Delete Item',
+                                onPressed: () => _checkManagerAndDelete(
+                                  product,
+                                  posCtrl,
+                                ),
                               ),
-                              tooltip: 'Delete Item',
-                              onPressed: () => _checkManagerAndDelete(
-                                product,
-                                posCtrl,
-                              ),
-                            ),
+                            ],
                           ],
                         ),
                       );
@@ -576,6 +591,17 @@ class _ProductListScreenState extends State<ProductListScreen> {
     String? selectedSubcatId = existing?.subcategoryId;
     bool inStock = existing?.inStock ?? true;
     String? localImagePath = existing?.imagePath;
+
+    final initialVariantConfig = existing != null
+        ? existing.variantConfig
+        : const ProductVariantConfig(isEnabled: false);
+    bool hasVariants = initialVariantConfig.isEnabled;
+    bool hasSugar = initialVariantConfig.hasSugar;
+    bool hasIce = initialVariantConfig.hasIce;
+    bool hasSpicy = initialVariantConfig.hasSpicy;
+    List<ProductVariantGroup> customGroups =
+        List.from(initialVariantConfig.customGroups);
+    List<ProductAddon> addons = List.from(initialVariantConfig.addons);
 
     showDialog(
       context: context,
@@ -934,6 +960,375 @@ class _ProductListScreenState extends State<ProductListScreen> {
                         ),
                       ],
                     ),
+
+                    const SizedBox(height: 16),
+                    const Divider(color: Color(0xFFE2E8F0)),
+                    const SizedBox(height: 10),
+
+                    // ── Variants & Options Master Section ──
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: hasVariants
+                            ? const Color(0xFF0D9488).withValues(alpha: 0.05)
+                            : const Color(0xFFF8FAFC),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: hasVariants
+                              ? const Color(0xFF0D9488).withValues(alpha: 0.35)
+                              : const Color(0xFFE2E8F0),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: hasVariants
+                                  ? const Color(0xFF0D9488)
+                                  : const Color(0xFFE2E8F0),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(
+                              Icons.tune_rounded,
+                              size: 18,
+                              color: hasVariants ? Colors.white : const Color(0xFF64748B),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Product Has Variants & Options',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: Color(0xFF0F172A),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  hasVariants
+                                      ? 'Enabled: Cashier can choose options/add-ons before adding to cart'
+                                      : 'Disabled: Simple standard item, directly added to cart with 1 click',
+                                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Switch(
+                            value: hasVariants,
+                            activeThumbColor: const Color(0xFF0D9488),
+                            onChanged: (val) =>
+                                setDialogState(() => hasVariants = val),
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    if (hasVariants) ...[
+                      const SizedBox(height: 14),
+
+                      // Section A: Quick Presets (Sugar, Ice, Spicy)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Column(
+                          children: [
+                            SwitchListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('Sugar Level Options', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                              subtitle: const Text('Normal Sugar (100%), Less Sugar (50%), No Sugar (0%)', style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B))),
+                              value: hasSugar,
+                              activeThumbColor: const Color(0xFF0D9488),
+                              onChanged: (val) => setDialogState(() => hasSugar = val),
+                            ),
+                            const Divider(height: 6),
+                            SwitchListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('Ice Level Options', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                              subtitle: const Text('Normal Ice, Less Ice, No Ice', style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B))),
+                              value: hasIce,
+                              activeThumbColor: const Color(0xFF0D9488),
+                              onChanged: (val) => setDialogState(() => hasIce = val),
+                            ),
+                            const Divider(height: 6),
+                            SwitchListTile(
+                              dense: true,
+                              contentPadding: EdgeInsets.zero,
+                              title: const Text('Spiciness Level Options', style: TextStyle(fontSize: 12.5, fontWeight: FontWeight.w600)),
+                              subtitle: const Text('Not Spicy, Normal Spicy, Extra Spicy', style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B))),
+                              value: hasSpicy,
+                              activeThumbColor: const Color(0xFF0D9488),
+                              onChanged: (val) => setDialogState(() => hasSpicy = val),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 14),
+
+                      // Section B: Custom Variant Option Groups (e.g. Size, Flavor, Milk Type, Temperature)
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Custom Variant Groups',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                              Text(
+                                'e.g. Size (Small, Large), Flavor, Milk Type',
+                                style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                              ),
+                            ],
+                          ),
+                          TextButton.icon(
+                            onPressed: () {
+                              setDialogState(() {
+                                customGroups.add(ProductVariantGroup(
+                                  id: 'grp_${DateTime.now().microsecondsSinceEpoch}',
+                                  name: 'New Option Group',
+                                  options: const [],
+                                ));
+                              });
+                            },
+                            icon: const Icon(Icons.add_circle_outline, size: 16, color: Color(0xFF0D9488)),
+                            label: const Text(
+                              '+ Add Option Group',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF0D9488),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+
+                      if (customGroups.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: const Text(
+                            'No custom option groups yet. Tap "+ Add Option Group" to add Size, Milk, Flavor, etc.',
+                            style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                          ),
+                        )
+                      else
+                        ...customGroups.asMap().entries.map((entry) {
+                          final gIdx = entry.key;
+                          final group = entry.value;
+                          return Container(
+                            key: ValueKey(group.id),
+                            margin: const EdgeInsets.only(bottom: 8),
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      flex: 3,
+                                      child: TextFormField(
+                                        initialValue: group.name,
+                                        decoration: const InputDecoration(
+                                          labelText: 'Group Name',
+                                          hintText: 'e.g. Size, Temperature, Milk',
+                                          isDense: true,
+                                          border: InputBorder.none,
+                                        ),
+                                        style: const TextStyle(fontSize: 12.5, fontWeight: FontWeight.bold),
+                                        onChanged: (val) {
+                                          customGroups[gIdx] = group.copyWith(name: val.trim());
+                                        },
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
+                                      onPressed: () {
+                                        setDialogState(() {
+                                          customGroups.removeAt(gIdx);
+                                        });
+                                      },
+                                      tooltip: 'Remove Group',
+                                    ),
+                                  ],
+                                ),
+                                const Divider(height: 6),
+                                TextFormField(
+                                  initialValue: group.options.join(', '),
+                                  decoration: const InputDecoration(
+                                    labelText: 'Options / Choices (separated by comma)',
+                                    hintText: 'e.g. Small, Medium, Large',
+                                    isDense: true,
+                                    border: InputBorder.none,
+                                  ),
+                                  style: const TextStyle(fontSize: 12, color: Color(0xFF0F766E), fontWeight: FontWeight.w600),
+                                  onChanged: (val) {
+                                    final opts = val.split(',').map((e) => e.trim()).where((e) => e.isNotEmpty).toList();
+                                    customGroups[gIdx] = group.copyWith(
+                                      options: opts,
+                                      defaultOption: opts.isNotEmpty ? opts.first : null,
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+
+                      const SizedBox(height: 12),
+
+                      // Section C: Add-ons with Extra Charge
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Add-on Extras (Extra Charge)',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0F172A),
+                                ),
+                              ),
+                              Text(
+                                'e.g. Extra Cheese (+\$0.50), Extra Size (+\$0.75)',
+                                style: TextStyle(fontSize: 10.5, color: Color(0xFF64748B)),
+                              ),
+                            ],
+                          ),
+                          TextButton.icon(
+                            onPressed: () {
+                              setDialogState(() {
+                                addons.add(ProductAddon(
+                                  id: 'addon_${DateTime.now().microsecondsSinceEpoch}',
+                                  name: 'Extra Option',
+                                  price: 0.50,
+                                ));
+                              });
+                            },
+                            icon: const Icon(Icons.add_circle_outline, size: 16, color: Color(0xFF0D9488)),
+                            label: const Text(
+                              '+ Add Extra',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF0D9488),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+
+                      if (addons.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFC),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFFE2E8F0)),
+                          ),
+                          child: const Text(
+                            'No extra add-ons configured. Tap "+ Add Extra" to add Extra Cheese, Extra Size, etc.',
+                            style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+                          ),
+                        )
+                      else
+                        ...addons.asMap().entries.map((entry) {
+                          final idx = entry.key;
+                          final addon = entry.value;
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF8FAFC),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: TextFormField(
+                                    initialValue: addon.name,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Add-on Name',
+                                      isDense: true,
+                                      border: InputBorder.none,
+                                    ),
+                                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                    onChanged: (val) {
+                                      addons[idx] = addon.copyWith(name: val.trim());
+                                    },
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  flex: 2,
+                                  child: TextFormField(
+                                    initialValue: addon.price.toStringAsFixed(2),
+                                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Extra Price (\$)',
+                                      prefixText: '\$ ',
+                                      isDense: true,
+                                      border: InputBorder.none,
+                                    ),
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      color: Color(0xFF0D9488),
+                                    ),
+                                    onChanged: (val) {
+                                      final p = double.tryParse(val.trim()) ?? 0.0;
+                                      addons[idx] = addon.copyWith(price: p);
+                                    },
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, size: 18, color: Color(0xFFEF4444)),
+                                  onPressed: () {
+                                    setDialogState(() {
+                                      addons.removeAt(idx);
+                                    });
+                                  },
+                                  tooltip: 'Remove Add-on',
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                    ],
+
                     const SizedBox(height: 20),
                     Row(
                       children: [
@@ -960,6 +1355,21 @@ class _ProductListScreenState extends State<ProductListScreen> {
                               final stockQty =
                                   int.tryParse(stockCtrl.text.trim()) ?? 50;
 
+                              final variantConfig = ProductVariantConfig(
+                                isEnabled: hasVariants,
+                                hasSugar: hasSugar,
+                                hasIce: hasIce,
+                                hasSpicy: hasSpicy,
+                                customGroups: customGroups
+                                    .where((g) =>
+                                        g.name.trim().isNotEmpty &&
+                                        g.options.isNotEmpty)
+                                    .toList(),
+                                addons: addons
+                                    .where((a) => a.name.trim().isNotEmpty)
+                                    .toList(),
+                              );
+
                               final product = Product(
                                 id:
                                     existing?.id ??
@@ -978,6 +1388,9 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                 imagePath: localImagePath,
                                 inStock: inStock && stockQty > 0,
                                 stockQuantity: stockQty,
+                                modifiersJson: hasVariants
+                                    ? variantConfig.toJson()
+                                    : '{"is_enabled":false}',
                               );
 
                               try {
@@ -1010,6 +1423,8 @@ class _ProductListScreenState extends State<ProductListScreen> {
                                   }
                                 }
 
+                                PaintingBinding.instance.imageCache.clear();
+                                PaintingBinding.instance.imageCache.clearLiveImages();
                                 await _loadData();
                                 await posCtrl.loadProducts();
                                 await posCtrl.loadCategories();

@@ -39,7 +39,7 @@ class DashboardController extends ChangeNotifier {
   DashboardDateFilter _selectedFilter = DashboardDateFilter.today;
   DashboardDateFilter get selectedFilter => _selectedFilter;
 
-  String _selectedBranch = 'store_a';
+  String _selectedBranch = 'all';
   String get selectedBranch => _selectedBranch;
 
   DateTime? _customStartDate;

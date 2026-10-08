@@ -12,6 +12,7 @@ import '../dashboard/dashboard_screen.dart';
 import '../history/receipt_history_screen.dart';
 import '../products/category_screen.dart';
 import '../products/product_list_screen.dart';
+import '../settings/staff_management_screen.dart';
 import '../settings/store_settings_screen.dart';
 import '../tables/table_management_screen.dart';
 import 'widgets/cart_panel.dart';
@@ -40,7 +41,8 @@ class _CashierMainLayoutState extends State<CashierMainLayout> {
     final isAdminTab =
         tab == CashierNavTab.dashboard ||
         tab == CashierNavTab.settings ||
-        tab == CashierNavTab.accounting;
+        tab == CashierNavTab.accounting ||
+        tab == CashierNavTab.staff;
 
     if (isAdminTab) {
       final authCtrl = context.read<AuthController>();
@@ -67,7 +69,9 @@ class _CashierMainLayoutState extends State<CashierMainLayout> {
       canPop: false,
       child: Scaffold(
         backgroundColor: const Color(0xFFF8FAFC),
-        body: Column(
+        body: SafeArea(
+          bottom: false,
+          child: Column(
           children: [
             // Global error banners
             _SettingsErrorBanner(),
@@ -135,7 +139,8 @@ class _CashierMainLayoutState extends State<CashierMainLayout> {
           ],
         ),
       ),
-    );
+    ),
+  );
   }
 
   Widget _buildView(CashierNavTab tab) {
@@ -164,6 +169,11 @@ class _CashierMainLayoutState extends State<CashierMainLayout> {
 
       case CashierNavTab.accounting:
         return const ProfitLossScreen();
+
+      case CashierNavTab.staff:
+        return StaffManagementScreen(
+          onBack: () => _navigateToTab(CashierNavTab.pos),
+        );
 
       case CashierNavTab.settings:
         return const StoreSettingsScreen();

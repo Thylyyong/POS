@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../app_config.dart';
+import '../../controllers/auth_controller.dart';
 import '../../controllers/cart_controller.dart';
 import '../../controllers/pos_controller.dart';
 import '../../controllers/settings_controller.dart';
@@ -39,7 +40,27 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
 
   Future<void> _loadData() async {
     setState(() => _isLoading = true);
-    final orders = await _orderDao.getOrders(searchQuery: _searchQuery, limit: 100);
+    final auth = context.read<AuthController>();
+
+    List<OrderModel> orders;
+    if (auth.isOwner || auth.isAdminAuthenticated) {
+      // Owner / Admin: see ALL orders
+      orders = await _orderDao.getOrders(searchQuery: _searchQuery, limit: 200);
+    } else {
+      // Cashier: only their own COMPLETED orders + ALL PENDING orders
+      final allOrders = await _orderDao.getOrders(searchQuery: _searchQuery, limit: 200);
+      final cashierId = auth.currentUser.id;
+      final cashierName = auth.currentUser.displayName.toLowerCase().trim();
+      orders = allOrders.where((o) {
+        // Pending orders: visible to everyone (they need to serve the table)
+        if (o.status == OrderStatus.pending) return true;
+        // Completed/paid: only show if this cashier processed it
+        if (o.cashierId == cashierId) return true;
+        if (o.cashierName != null && o.cashierName!.toLowerCase().trim() == cashierName) return true;
+        return false;
+      }).toList();
+    }
+
     if (mounted) {
       setState(() {
         _orders = orders;
@@ -51,9 +72,11 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
   @override
   Widget build(BuildContext context) {
     final settingsCtrl = context.watch<SettingsController>();
+    final auth = context.watch<AuthController>();
     final posCtrl = context.read<PosController>();
     final settings = settingsCtrl.settings;
     final currency = settings.currencySymbol;
+    final isCashierMode = !auth.isOwner && !auth.isAdminAuthenticated;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF8FAFC),
@@ -125,6 +148,41 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
             ),
           ),
 
+          // ── RBAC Cashier-Mode Banner ──────────────────────────────────────
+          if (isCashierMode)
+            Container(
+              margin: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFFBEB),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFFCD34D)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline_rounded, size: 16, color: Color(0xFFD97706)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: RichText(
+                      text: const TextSpan(
+                        style: TextStyle(fontSize: 12, color: Color(0xFF92400E)),
+                        children: [
+                          TextSpan(
+                            text: 'Restricted View: ',
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          TextSpan(
+                            text: 'You can see your own completed orders and all pending orders. '
+                                'Contact the Owner for full history access.',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
           // Sub-Bar: Order Summary
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
@@ -147,9 +205,24 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                       const AppSvgIcon(AssetTheme.files, size: 14, color: Color(0xFF0F766E)),
                       const SizedBox(width: 6),
                       Text(
-                        'Total Orders: ${_orders.length}',
+                        isCashierMode
+                            ? 'My Orders: ${_orders.length}'
+                            : 'Total Orders: ${_orders.length}',
                         style: const TextStyle(
                           color: Color(0xFF0F172A),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Container(width: 1, height: 14, color: const Color(0xFFCBD5E1)),
+                      const SizedBox(width: 12),
+                      Text(
+                        isCashierMode
+                            ? 'My Sales: $currency${_orders.where((o) => o.status == OrderStatus.completed).fold<double>(0.0, (sum, o) => sum + o.totalAmount).toStringAsFixed(2)}'
+                            : 'Total Sales: $currency${_orders.where((o) => o.status == OrderStatus.completed).fold<double>(0.0, (sum, o) => sum + o.totalAmount).toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          color: Color(0xFF0F766E),
                           fontWeight: FontWeight.bold,
                           fontSize: 12,
                         ),
@@ -157,6 +230,25 @@ class _ReceiptHistoryScreenState extends State<ReceiptHistoryScreen> {
                     ],
                   ),
                 ),
+                if (isCashierMode) ...[
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0D9488).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFF0D9488).withValues(alpha: 0.3)),
+                    ),
+                    child: Text(
+                      'Cashier: ${auth.currentUser.displayName} (Personal Sales Only)',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF0D9488),
+                      ),
+                    ),
+                  ),
+                ],
                 const Spacer(),
                 const Text(
                   'Receipts saved to device background Downloads/POS_Receipts',

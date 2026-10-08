@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../../app_config.dart';
 import '../../../controllers/auth_controller.dart';
+import '../../../controllers/settings_controller.dart';
 import '../../../core/theme/sprite_icons.dart';
+import '../../../widgets/app_logo_widget.dart';
 import '../../../widgets/app_svg_icon.dart';
 import '../../portal/owner_portal_screen.dart';
 import '../../advertising/advertising_screen.dart';
@@ -15,6 +18,7 @@ enum CashierNavTab {
   history,
   accounting,
   dashboard,
+  staff,
   settings,
 }
 
@@ -38,7 +42,8 @@ class _NavSidebarState extends State<NavSidebar> {
   @override
   void initState() {
     super.initState();
-    _isMenuExpanded = widget.currentTab == CashierNavTab.products ||
+    _isMenuExpanded =
+        widget.currentTab == CashierNavTab.products ||
         widget.currentTab == CashierNavTab.categories;
   }
 
@@ -59,31 +64,53 @@ class _NavSidebarState extends State<NavSidebar> {
   Widget build(BuildContext context) {
     final auth = context.watch<AuthController>();
     final isOwner = auth.isOwner || auth.isMainBoss || auth.isSubBoss;
+    final storeName = context.select<SettingsController, String>(
+      (controller) => controller.settings.storeName,
+    );
+    final logoPath = context.select<SettingsController, String?>(
+      (controller) => controller.settings.logoPath,
+    );
 
     return Container(
-      width: 112,
+      width: 128,
       decoration: const BoxDecoration(
         color: ColorTheme.cardBg,
-        border: Border(right: BorderSide(color: ColorTheme.neutral300, width: 1)),
+        border: Border(
+          right: BorderSide(color: ColorTheme.neutral300, width: 1),
+        ),
       ),
       child: Column(
         children: [
-          const SizedBox(height: 14),
-          const Text(
-            'OMNI POS',
-            style: TextStyle(
-              color: ColorTheme.primary400,
-              fontSize: 13.5,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 0.5,
+          const SizedBox(height: 12),
+          AppLogoWidget(logoPath: logoPath, size: 34, borderRadius: 8),
+          const SizedBox(height: 5),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 5),
+            child: Text(
+              storeName.trim().isEmpty ? 'Store' : storeName.trim(),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: ColorTheme.primary500,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.2,
+              ),
             ),
           ),
-          const Text(
-            'Enterprise',
-            style: TextStyle(
-              color: ColorTheme.neutral500,
-              fontSize: 9.5,
-              fontWeight: FontWeight.w600,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 5),
+            child: Text(
+              auth.currentBranchName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: ColorTheme.neutral500,
+                fontSize: 9.5,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -145,7 +172,17 @@ class _NavSidebarState extends State<NavSidebar> {
                     onTap: () => widget.onTabChanged(CashierNavTab.accounting),
                   ),
 
-                // 7. Hardware & Settings
+                // 7. Staff Management (Owner only)
+                if (isOwner)
+                  _NavItem(
+                    tab: CashierNavTab.staff,
+                    iconData: Icons.people_alt_rounded,
+                    label: 'Staff',
+                    isSelected: widget.currentTab == CashierNavTab.staff,
+                    onTap: () => widget.onTabChanged(CashierNavTab.staff),
+                  ),
+
+                // 8. Hardware & Settings
                 _NavItem(
                   tab: CashierNavTab.settings,
                   spriteIcon: SpriteIcons.settings,
@@ -177,7 +214,10 @@ class _NavSidebarState extends State<NavSidebar> {
                 borderRadius: BorderRadius.circular(8),
                 child: Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 4),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 6,
+                    horizontal: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFF0F172A).withValues(alpha: 0.05),
                     borderRadius: BorderRadius.circular(8),
@@ -185,7 +225,11 @@ class _NavSidebarState extends State<NavSidebar> {
                   child: const Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.apps_rounded, size: 16, color: Color(0xFF0F172A)),
+                      Icon(
+                        Icons.apps_rounded,
+                        size: 16,
+                        color: Color(0xFF0F172A),
+                      ),
                       SizedBox(height: 2),
                       Text(
                         'Portal',
@@ -270,12 +314,16 @@ class _NavSidebarState extends State<NavSidebar> {
               decoration: BoxDecoration(
                 color: isMenuSelected
                     ? const Color(0xFF0D9488)
-                    : (_isMenuExpanded ? const Color(0xFFF0FDFA) : Colors.transparent),
+                    : (_isMenuExpanded
+                          ? const Color(0xFFF0FDFA)
+                          : Colors.transparent),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
                   color: isMenuSelected
                       ? const Color(0xFF0D9488)
-                      : (_isMenuExpanded ? const Color(0xFF99F6E4) : Colors.transparent),
+                      : (_isMenuExpanded
+                            ? const Color(0xFF99F6E4)
+                            : Colors.transparent),
                   width: 1,
                 ),
               ),
@@ -288,7 +336,9 @@ class _NavSidebarState extends State<NavSidebar> {
                     size: 20,
                     color: isMenuSelected
                         ? Colors.white
-                        : (_isMenuExpanded ? const Color(0xFF0D9488) : const Color(0xFF475569)),
+                        : (_isMenuExpanded
+                              ? const Color(0xFF0D9488)
+                              : const Color(0xFF475569)),
                   ),
                   const SizedBox(height: 5),
                   Row(
@@ -304,7 +354,9 @@ class _NavSidebarState extends State<NavSidebar> {
                               : FontWeight.w600,
                           color: isMenuSelected
                               ? Colors.white
-                              : (_isMenuExpanded ? const Color(0xFF0D9488) : const Color(0xFF334155)),
+                              : (_isMenuExpanded
+                                    ? const Color(0xFF0D9488)
+                                    : const Color(0xFF334155)),
                           letterSpacing: 0.2,
                           height: 1.15,
                         ),
@@ -319,8 +371,9 @@ class _NavSidebarState extends State<NavSidebar> {
           // ── Clean Sub-Items: Products & Category ───────────────────────
           AnimatedCrossFade(
             duration: const Duration(milliseconds: 180),
-            crossFadeState:
-                _isMenuExpanded ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            crossFadeState: _isMenuExpanded
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
             firstChild: const SizedBox.shrink(),
             secondChild: Padding(
               padding: const EdgeInsets.only(top: 5),
@@ -378,7 +431,9 @@ class _SubNavItem extends StatelessWidget {
           color: isSelected ? const Color(0xFF0D9488) : const Color(0xFFF1F5F9),
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isSelected ? const Color(0xFF0D9488) : const Color(0xFFE2E8F0),
+            color: isSelected
+                ? const Color(0xFF0D9488)
+                : const Color(0xFFE2E8F0),
             width: 1,
           ),
         ),

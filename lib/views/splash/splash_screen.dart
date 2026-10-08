@@ -24,7 +24,8 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with SingleTickerProviderStateMixin {
-  late UserModel _selectedUser;
+  bool _isOwnerSelected = false;
+  String? _selectedStaffId;
   late AnimationController _animCtrl;
   late Animation<double> _fadeAnim;
   late Animation<Offset> _slideAnim;
@@ -32,7 +33,6 @@ class _SplashScreenState extends State<SplashScreen>
   @override
   void initState() {
     super.initState();
-    _selectedUser = AuthController.screenUsers.last;
     _animCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 800),
@@ -54,12 +54,6 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _promptPinForUser(BuildContext context, UserModel user) {
-    if (!user.isOwner) {
-      final auth = context.read<AuthController>();
-      auth.loginAsCashier();
-      _navigateToLayout(context, CashierNavTab.pos);
-      return;
-    }
     showDialog(
       context: context,
       barrierDismissible: true,
@@ -69,14 +63,18 @@ class _SplashScreenState extends State<SplashScreen>
           final auth = context.read<AuthController>();
           auth.loginWithUserAndPin(user, user.pinCode);
 
-          Navigator.of(context).pushReplacement(
-            PageRouteBuilder(
-              transitionDuration: const Duration(milliseconds: 350),
-              pageBuilder: (_, _, _) => const OwnerPortalScreen(),
-              transitionsBuilder: (_, animation, _, child) =>
-                  FadeTransition(opacity: animation, child: child),
-            ),
-          );
+          if (user.isOwner) {
+            Navigator.of(context).pushReplacement(
+              PageRouteBuilder(
+                transitionDuration: const Duration(milliseconds: 350),
+                pageBuilder: (_, _, _) => const OwnerPortalScreen(),
+                transitionsBuilder: (_, animation, _, child) =>
+                    FadeTransition(opacity: animation, child: child),
+              ),
+            );
+          } else {
+            _navigateToLayout(context, CashierNavTab.pos);
+          }
         },
       ),
     );
@@ -95,9 +93,24 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthController>();
     final settingsCtrl = context.watch<SettingsController>();
     final storeName = settingsCtrl.settings.storeName;
     final logoPath = settingsCtrl.settings.logoPath;
+
+    final staffUsers = auth.allUsers.where((u) => !u.isOwner).toList();
+    final ownerUsers = auth.allUsers.where((u) => u.isOwner).toList();
+    final ownerUser = ownerUsers.isNotEmpty ? ownerUsers.first : AuthController.defaultUsers.first;
+    final defaultStaff = staffUsers.isNotEmpty ? staffUsers.first : AuthController.defaultUsers.last;
+
+    if (_selectedStaffId == null || !staffUsers.any((u) => u.id == _selectedStaffId)) {
+      _selectedStaffId = staffUsers.isNotEmpty ? staffUsers.first.id : defaultStaff.id;
+    }
+
+    final activeStaff = staffUsers.firstWhere(
+      (u) => u.id == _selectedStaffId,
+      orElse: () => defaultStaff,
+    );
 
     final isKiosk = DeviceProfile.isKiosk(
       context,
@@ -267,7 +280,7 @@ class _SplashScreenState extends State<SplashScreen>
                                   child: InkWell(
                                     onTap: () {
                                       setState(() {
-                                        _selectedUser = AuthController.screenUsers.last;
+                                        _isOwnerSelected = false;
                                       });
                                     },
                                     borderRadius: BorderRadius.circular(14),
@@ -275,17 +288,17 @@ class _SplashScreenState extends State<SplashScreen>
                                       duration: const Duration(milliseconds: 160),
                                       padding: EdgeInsets.all(isKiosk ? 18 : 14),
                                       decoration: BoxDecoration(
-                                        color: !_selectedUser.isOwner
+                                        color: !_isOwnerSelected
                                             ? const Color(0xFF0D9488)
                                             : const Color(0xFFF8FAFC),
                                         borderRadius: BorderRadius.circular(14),
                                         border: Border.all(
-                                          color: !_selectedUser.isOwner
+                                          color: !_isOwnerSelected
                                               ? const Color(0xFF0D9488)
                                               : const Color(0xFFE2E8F0),
-                                          width: !_selectedUser.isOwner ? 2 : 1.2,
+                                          width: !_isOwnerSelected ? 2 : 1.2,
                                         ),
-                                        boxShadow: !_selectedUser.isOwner
+                                        boxShadow: !_isOwnerSelected
                                             ? [
                                                 BoxShadow(
                                                   color: const Color(0xFF0D9488).withValues(alpha: 0.25),
@@ -301,7 +314,7 @@ class _SplashScreenState extends State<SplashScreen>
                                           Icon(
                                             Icons.point_of_sale_rounded,
                                             size: isKiosk ? 30 : 24,
-                                            color: !_selectedUser.isOwner
+                                            color: !_isOwnerSelected
                                                 ? Colors.white
                                                 : const Color(0xFF0D9488),
                                           ),
@@ -312,12 +325,11 @@ class _SplashScreenState extends State<SplashScreen>
                                             style: TextStyle(
                                               fontSize: isKiosk ? 16 : 13.5,
                                               fontWeight: FontWeight.bold,
-                                              color: !_selectedUser.isOwner
+                                              color: !_isOwnerSelected
                                                   ? Colors.white
                                                   : const Color(0xFF0F172A),
                                             ),
                                           ),
-                                          
                                         ],
                                       ),
                                     ),
@@ -330,7 +342,7 @@ class _SplashScreenState extends State<SplashScreen>
                                   child: InkWell(
                                     onTap: () {
                                       setState(() {
-                                        _selectedUser = AuthController.screenUsers.first;
+                                        _isOwnerSelected = true;
                                       });
                                     },
                                     borderRadius: BorderRadius.circular(14),
@@ -338,17 +350,17 @@ class _SplashScreenState extends State<SplashScreen>
                                       duration: const Duration(milliseconds: 160),
                                       padding: EdgeInsets.all(isKiosk ? 18 : 14),
                                       decoration: BoxDecoration(
-                                        color: _selectedUser.isOwner
+                                        color: _isOwnerSelected
                                             ? const Color(0xFF0F172A)
                                             : const Color(0xFFF8FAFC),
                                         borderRadius: BorderRadius.circular(14),
                                         border: Border.all(
-                                          color: _selectedUser.isOwner
+                                          color: _isOwnerSelected
                                               ? const Color(0xFF0F172A)
                                               : const Color(0xFFE2E8F0),
-                                          width: _selectedUser.isOwner ? 2 : 1.2,
+                                          width: _isOwnerSelected ? 2 : 1.2,
                                         ),
-                                        boxShadow: _selectedUser.isOwner
+                                        boxShadow: _isOwnerSelected
                                             ? [
                                                 BoxShadow(
                                                   color: Colors.black.withValues(alpha: 0.18),
@@ -364,7 +376,7 @@ class _SplashScreenState extends State<SplashScreen>
                                           Icon(
                                             Icons.admin_panel_settings_rounded,
                                             size: isKiosk ? 30 : 24,
-                                            color: _selectedUser.isOwner
+                                            color: _isOwnerSelected
                                                 ? Colors.white
                                                 : const Color(0xFF64748B),
                                           ),
@@ -375,14 +387,11 @@ class _SplashScreenState extends State<SplashScreen>
                                             style: TextStyle(
                                               fontSize: isKiosk ? 16 : 13.5,
                                               fontWeight: FontWeight.bold,
-                                              color: _selectedUser.isOwner
+                                              color: _isOwnerSelected
                                                   ? Colors.white
                                                   : const Color(0xFF0F172A),
                                             ),
                                           ),
-                                         
-                                          
-                                          
                                         ],
                                       ),
                                     ),
@@ -394,8 +403,8 @@ class _SplashScreenState extends State<SplashScreen>
 
                             // Role Description Subtitle
                             Text(
-                              !_selectedUser.isOwner
-                                  ? 'Instant frontline POS checkout'
+                              !_isOwnerSelected
+                                  ? 'Frontline POS checkout • Staff PIN required'
                                   : 'Full access to POS, P&L Accounting, Reports & Settings',
                               textAlign: TextAlign.center,
                               style: TextStyle(
@@ -403,23 +412,63 @@ class _SplashScreenState extends State<SplashScreen>
                                 color: ColorTheme.neutral600,
                               ),
                             ),
-                            SizedBox(height: isKiosk ? 22 : 16),
+                            const SizedBox(height: 14),
 
-                            // Main Action Login Button
-                            if (!_selectedUser.isOwner)
+                            // Staff Member Selector (if multiple staff exist)
+                            if (!_isOwnerSelected && staffUsers.length > 1) ...[
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: const Color(0xFFCBD5E1)),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<String>(
+                                    value: _selectedStaffId,
+                                    isExpanded: true,
+                                    icon: const Icon(Icons.arrow_drop_down_rounded, color: Color(0xFF0D9488)),
+                                    items: staffUsers.map((u) {
+                                      return DropdownMenuItem<String>(
+                                        value: u.id,
+                                        child: Row(
+                                          children: [
+                                            const Icon(Icons.person_rounded, size: 16, color: Color(0xFF0D9488)),
+                                            const SizedBox(width: 8),
+                                            Text(u.displayName, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                                            if (u.isLocked) ...[
+                                              const SizedBox(width: 8),
+                                              const Text('(Locked)', style: TextStyle(color: Colors.red, fontSize: 11)),
+                                            ],
+                                          ],
+                                        ),
+                                      );
+                                    }).toList(),
+                                    onChanged: (val) {
+                                      if (val != null) {
+                                        setState(() {
+                                          _selectedStaffId = val;
+                                        });
+                                      }
+                                    },
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 14),
+                            ],
+
+                            // Main Action Login Button with PIN required
+                            if (!_isOwnerSelected)
                               ElevatedButton.icon(
-                                onPressed: () {
-                                  final auth = context.read<AuthController>();
-                                  auth.loginAsCashier();
-                                  _navigateToLayout(context, CashierNavTab.pos);
-                                },
+                                onPressed: () =>
+                                    _promptPinForUser(context, activeStaff),
                                 icon: const Icon(
-                                  Icons.bolt_rounded,
-                                  size: 22,
+                                  Icons.lock_outline_rounded,
+                                  size: 20,
                                   color: Colors.white,
                                 ),
                                 label: Text(
-                                  'Login as Staff Cashier ',
+                                  'Enter Staff PIN to Sign In',
                                   style: TextStyle(
                                     fontSize: isKiosk ? 16 : 14,
                                     fontWeight: FontWeight.bold,
@@ -440,14 +489,14 @@ class _SplashScreenState extends State<SplashScreen>
                             else
                               ElevatedButton.icon(
                                 onPressed: () =>
-                                    _promptPinForUser(context, _selectedUser),
+                                    _promptPinForUser(context, ownerUser),
                                 icon: const Icon(
                                   Icons.lock_outline_rounded,
                                   size: 20,
                                   color: Colors.white,
                                 ),
                                 label: Text(
-                                  'Continue with PIN',
+                                  'Enter Owner PIN to Sign In',
                                   style: TextStyle(
                                     fontSize: isKiosk ? 16 : 14,
                                     fontWeight: FontWeight.bold,

@@ -4,7 +4,9 @@ import 'package:provider/provider.dart';
 
 import '../../controllers/settings_controller.dart';
 import '../../models/store_settings_model.dart';
+import '../../services/presentation_service.dart';
 import '../../widgets/image_picker_dialog.dart';
+import '../../widgets/promo_media_player.dart';
 
 /// Modal dialog allowing Store Owner / Admin to manage advertising promo slides
 class ManagePromotionsDialog extends StatefulWidget {
@@ -25,6 +27,7 @@ class ManagePromotionsDialog extends StatefulWidget {
 class _ManagePromotionsDialogState extends State<ManagePromotionsDialog> {
   late List<String> _promoList;
   late int _autoPlaySeconds;
+  late String _promoMediaFit;
   bool _isSaving = false;
 
   @override
@@ -37,12 +40,14 @@ class _ManagePromotionsDialogState extends State<ManagePromotionsDialog> {
           : StoreSettingsModel.defaultPromoBanners,
     );
     _autoPlaySeconds = settings.promoAutoPlaySeconds;
+    _promoMediaFit = (settings.promoMediaFit == 'contain') ? 'cover' : settings.promoMediaFit;
   }
 
   Future<void> _addNewImage() async {
     final pickedPath = await ImagePickerDialog.pickImage(
       context,
-      title: 'Select Promotion Image',
+      title: 'Select Promotion Image / Video',
+      allowVideo: true,
     );
     if (pickedPath != null && pickedPath.trim().isNotEmpty) {
       setState(() {
@@ -59,9 +64,26 @@ class _ManagePromotionsDialogState extends State<ManagePromotionsDialog> {
     final updated = current.copyWith(
       promoBanners: _promoList,
       promoAutoPlaySeconds: _autoPlaySeconds,
+      promoMediaFit: _promoMediaFit,
     );
 
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
     await settingsCtrl.updateSettings(updated);
+
+    // Live broadcast immediately to Customer Display (CFD/CDS)
+    PresentationService().syncStoreSettings(updated);
+    PresentationService().sendToCustomerDisplay(
+      PresentationService().latestPayload.copyWith(
+        promoBanners: _promoList,
+        promoAutoPlaySeconds: _autoPlaySeconds,
+        promoMediaFit: _promoMediaFit,
+        storeName: updated.storeName,
+        storeAddress: updated.storeAddress,
+        logoPath: updated.logoPath,
+      ),
+    );
+
     if (mounted) {
       setState(() => _isSaving = false);
       Navigator.of(context).pop();
@@ -151,6 +173,7 @@ class _ManagePromotionsDialogState extends State<ManagePromotionsDialog> {
                       underline: const SizedBox.shrink(),
                       borderRadius: BorderRadius.circular(10),
                       items: const [
+                        DropdownMenuItem(value: 2, child: Text('2 Seconds (Live Promo)')),
                         DropdownMenuItem(value: 3, child: Text('3 Seconds')),
                         DropdownMenuItem(value: 5, child: Text('5 Seconds')),
                         DropdownMenuItem(value: 8, child: Text('8 Seconds')),
@@ -159,6 +182,45 @@ class _ManagePromotionsDialogState extends State<ManagePromotionsDialog> {
                       ],
                       onChanged: (val) {
                         if (val != null) setState(() => _autoPlaySeconds = val);
+                      },
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              // Controls: Media Display Fit Mode
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Row(
+                      children: [
+                        Icon(Icons.fullscreen_rounded, size: 20, color: Color(0xFF475569)),
+                        SizedBox(width: 8),
+                        Text(
+                          'Media Display Fit:',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF334155)),
+                        ),
+                      ],
+                    ),
+                    DropdownButton<String>(
+                      value: (_promoMediaFit == 'contain') ? 'cover' : _promoMediaFit,
+                      underline: const SizedBox.shrink(),
+                      borderRadius: BorderRadius.circular(10),
+                      items: const [
+                        DropdownMenuItem(value: 'cover', child: Text('Full Screen (Cover)')),
+                        DropdownMenuItem(value: 'fill', child: Text('Stretch to Full (Fill)')),
+                      ],
+                      onChanged: (val) {
+                        if (val != null) setState(() => _promoMediaFit = val);
                       },
                     ),
                   ],
@@ -234,27 +296,47 @@ class _ManagePromotionsDialogState extends State<ManagePromotionsDialog> {
                         ),
                         itemBuilder: (context, index) {
                           final path = _promoList[index];
-                          final isAsset = path.startsWith('assets/');
-                          final isFile = !isAsset && File(path).existsSync();
+                          final isVid = PromoMediaPlayer.isVideo(path);
+                          final cleanPath = PromoMediaPlayer.sanitizePath(path);
+                          final isAsset = cleanPath.startsWith('assets/') || cleanPath.startsWith('lib/assets/');
+                          final isFile = !isAsset && File(cleanPath).existsSync();
 
                           return Stack(
                             fit: StackFit.expand,
                             children: [
                               Container(
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFFF1F5F9),
+                                  color: isVid ? const Color(0xFF0F172A) : const Color(0xFFF1F5F9),
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(color: const Color(0xFFE2E8F0)),
                                 ),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(11),
-                                  child: isAsset
-                                      ? Image.asset(path, fit: BoxFit.cover)
-                                      : (isFile
-                                          ? Image.file(File(path), fit: BoxFit.cover)
-                                          : const Center(
-                                              child: Icon(Icons.broken_image_rounded, color: Color(0xFF94A3B8)),
-                                            )),
+                                  child: isVid
+                                      ? Center(
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              const Icon(Icons.play_circle_filled_rounded, color: Color(0xFF38BDF8), size: 36),
+                                              const SizedBox(height: 4),
+                                              Padding(
+                                                padding: const EdgeInsets.symmetric(horizontal: 6),
+                                                child: Text(
+                                                  path.split(Platform.isWindows ? '\\' : '/').last,
+                                                  style: const TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        )
+                                      : (isAsset
+                                          ? Image.asset(cleanPath.replaceAll('\\', '/'), fit: BoxFit.cover, errorBuilder: (_, _, _) => _fallbackThumb(index))
+                                          : (isFile
+                                              ? Image.file(File(cleanPath), fit: BoxFit.cover, errorBuilder: (_, _, _) => _fallbackThumb(index))
+                                              : _fallbackThumb(index))),
                                 ),
                               ),
 
@@ -343,6 +425,16 @@ class _ManagePromotionsDialogState extends State<ManagePromotionsDialog> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _fallbackThumb(int index) {
+    return Image.asset(
+      PromoMediaPlayer.getFallbackAsset(index),
+      fit: BoxFit.cover,
+      errorBuilder: (_, _, _) => const Center(
+        child: Icon(Icons.broken_image_rounded, color: Color(0xFF94A3B8)),
       ),
     );
   }

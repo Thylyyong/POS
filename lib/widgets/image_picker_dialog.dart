@@ -9,13 +9,22 @@ import 'app_svg_icon.dart';
 
 class ImagePickerDialog extends StatefulWidget {
   final String title;
+  final bool allowVideo;
 
-  const ImagePickerDialog({super.key, this.title = 'Select Product Image'});
+  const ImagePickerDialog({
+    super.key,
+    this.title = 'Select Product Image',
+    this.allowVideo = true,
+  });
 
-  static Future<String?> pickImage(BuildContext context, {String title = 'Select Product Image'}) {
+  static Future<String?> pickImage(
+    BuildContext context, {
+    String title = 'Select Product Image',
+    bool allowVideo = true,
+  }) {
     return showDialog<String>(
       context: context,
-      builder: (_) => ImagePickerDialog(title: title),
+      builder: (_) => ImagePickerDialog(title: title, allowVideo: allowVideo),
     );
   }
 
@@ -67,11 +76,18 @@ class _ImagePickerDialogState extends State<ImagePickerDialog> {
             for (var entity in entities) {
               if (entity is File) {
                 final ext = entity.path.toLowerCase();
-                if (ext.endsWith('.jpg') ||
+                final isImg = ext.endsWith('.jpg') ||
                     ext.endsWith('.jpeg') ||
                     ext.endsWith('.png') ||
                     ext.endsWith('.webp') ||
-                    ext.endsWith('.bmp')) {
+                    ext.endsWith('.bmp');
+                final isVid = widget.allowVideo &&
+                    (ext.endsWith('.mp4') ||
+                        ext.endsWith('.mov') ||
+                        ext.endsWith('.mkv') ||
+                        ext.endsWith('.avi') ||
+                        ext.endsWith('.webm'));
+                if (isImg || isVid) {
                   discovered.add(entity);
                 }
               }
@@ -93,9 +109,12 @@ class _ImagePickerDialogState extends State<ImagePickerDialog> {
 
   Future<void> _pickFromFileManager() async {
     try {
+      final allowed = widget.allowVideo
+          ? ['jpg', 'jpeg', 'png', 'webp', 'bmp', 'gif', 'mp4', 'mov', 'mkv', 'avi', 'webm', 'm4v']
+          : ['jpg', 'jpeg', 'png', 'webp', 'bmp'];
       final result = await FilePicker.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['jpg', 'jpeg', 'png', 'webp', 'bmp'],
+        allowedExtensions: allowed,
       );
 
       if (result.isNotEmpty && result.first.path != null) {
@@ -126,15 +145,42 @@ class _ImagePickerDialogState extends State<ImagePickerDialog> {
   }
 
   Future<String> _saveImageToAppStorage(String sourcePath) async {
-    final appDir = await getApplicationDocumentsDirectory();
-    final imgDir = Directory('${appDir.path}/product_images');
-    if (!await imgDir.exists()) await imgDir.create(recursive: true);
+    final clean = sourcePath.trim();
+    if (clean.isEmpty) return '';
 
-    final ext = sourcePath.split('.').last;
-    final fileName = 'prod_${DateTime.now().millisecondsSinceEpoch}.$ext';
-    final destination = '${imgDir.path}/$fileName';
-    final savedFile = await File(sourcePath).copy(destination);
-    return savedFile.path;
+    // If it's an asset bundled with the app, return path directly (don't attempt filesystem copy)
+    final normalized = clean.replaceAll('\\', '/');
+    if (normalized.startsWith('assets/') ||
+        normalized.startsWith('lib/assets/') ||
+        normalized.contains('assets/images/')) {
+      return normalized;
+    }
+
+    try {
+      final appDir = await getApplicationDocumentsDirectory();
+      final imgDir = Directory('${appDir.path}/product_images');
+      if (!await imgDir.exists()) await imgDir.create(recursive: true);
+
+      // If already in target app storage directory, return as is
+      if (clean.startsWith(imgDir.path)) {
+        return clean;
+      }
+
+      final ext = clean.contains('.') ? clean.split('.').last : 'jpg';
+      final fileName = 'promo_${DateTime.now().millisecondsSinceEpoch}.$ext';
+      final destination = '${imgDir.path}/$fileName';
+
+      final srcFile = File(clean);
+      if (await srcFile.exists()) {
+        final bytes = await srcFile.readAsBytes();
+        final destFile = File(destination);
+        await destFile.writeAsBytes(bytes, flush: true);
+        return destFile.path;
+      }
+    } catch (e) {
+      debugPrint('[ImagePickerDialog] Error saving media to app storage: $e');
+    }
+    return clean;
   }
 
   @override
@@ -295,6 +341,13 @@ class _ImagePickerDialogState extends State<ImagePickerDialog> {
                               final file = _foundImages[index];
                               final fileName = file.path.split(Platform.isWindows ? '\\' : '/').last;
 
+                              final isVid = widget.allowVideo &&
+                                  (fileName.toLowerCase().endsWith('.mp4') ||
+                                      fileName.toLowerCase().endsWith('.mov') ||
+                                      fileName.toLowerCase().endsWith('.mkv') ||
+                                      fileName.toLowerCase().endsWith('.avi') ||
+                                      fileName.toLowerCase().endsWith('.webm'));
+
                               return InkWell(
                                 onTap: () async {
                                   final savedPath = await _saveImageToAppStorage(file.path);
@@ -305,28 +358,55 @@ class _ImagePickerDialogState extends State<ImagePickerDialog> {
                                   decoration: BoxDecoration(
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(color: ColorTheme.neutral300),
-                                    image: DecorationImage(
-                                      image: FileImage(file),
-                                      fit: BoxFit.cover,
-                                    ),
+                                    color: isVid ? const Color(0xFF0F172A) : null,
+                                    image: !isVid
+                                        ? DecorationImage(
+                                            image: FileImage(file),
+                                            fit: BoxFit.cover,
+                                          )
+                                        : null,
                                   ),
-                                  child: Align(
-                                    alignment: Alignment.bottomCenter,
-                                    child: Container(
-                                      width: double.infinity,
-                                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black.withValues(alpha: 0.65),
-                                        borderRadius: const BorderRadius.vertical(bottom: Radius.circular(11)),
+                                  child: Stack(
+                                    fit: StackFit.expand,
+                                    children: [
+                                      if (isVid)
+                                        const Center(
+                                          child: Icon(
+                                            Icons.play_circle_filled_rounded,
+                                            color: AppConfig.accentCyan,
+                                            size: 32,
+                                          ),
+                                        ),
+                                      Align(
+                                        alignment: Alignment.bottomCenter,
+                                        child: Container(
+                                          width: double.infinity,
+                                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withValues(alpha: 0.65),
+                                            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(11)),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              if (isVid) ...[
+                                                const Icon(Icons.videocam_rounded, size: 10, color: AppConfig.accentCyan),
+                                                const SizedBox(width: 3),
+                                              ],
+                                              Expanded(
+                                                child: Text(
+                                                  fileName,
+                                                  style: const TextStyle(color: Colors.white, fontSize: 9.5),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ),
-                                      child: Text(
-                                        fileName,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        textAlign: TextAlign.center,
-                                        style: const TextStyle(color: Colors.white, fontSize: 9),
-                                      ),
-                                    ),
+                                    ],
                                   ),
                                 ),
                               );

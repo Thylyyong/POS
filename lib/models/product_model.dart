@@ -1,3 +1,5 @@
+import 'product_variant_model.dart';
+
 class Category {
   final String id;
   final String name;
@@ -113,6 +115,7 @@ class Product {
   final bool inStock;
   final int stockQuantity;
   final String? colorHex;
+  final String? modifiersJson;
   final DateTime createdAt;
 
   Product({
@@ -128,8 +131,17 @@ class Product {
     this.inStock = true,
     this.stockQuantity = 50,
     this.colorHex,
+    this.modifiersJson,
     DateTime? createdAt,
   }) : createdAt = createdAt ?? DateTime.now();
+
+  ProductVariantConfig get variantConfig => ProductVariantConfig.fromJson(
+        modifiersJson,
+        categoryId: categoryId,
+        productName: name,
+      );
+
+  bool get hasVariants => variantConfig.hasAnyOptions;
 
   Map<String, dynamic> toMap() {
     return {
@@ -145,6 +157,7 @@ class Product {
       'in_stock': (inStock && stockQuantity > 0) ? 1 : 0,
       'stock_quantity': stockQuantity,
       'color_hex': colorHex,
+      'modifiers_json': modifiersJson,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -165,6 +178,7 @@ class Product {
       inStock: stockFlag && qty > 0,
       stockQuantity: qty,
       colorHex: map['color_hex'] as String?,
+      modifiersJson: map['modifiers_json'] as String?,
       createdAt: map['created_at'] != null
           ? DateTime.tryParse(map['created_at'] as String) ?? DateTime.now()
           : DateTime.now(),
@@ -184,6 +198,7 @@ class Product {
     bool? inStock,
     int? stockQuantity,
     String? colorHex,
+    String? modifiersJson,
     DateTime? createdAt,
   }) {
     return Product(
@@ -199,6 +214,7 @@ class Product {
       inStock: inStock ?? this.inStock,
       stockQuantity: stockQuantity ?? this.stockQuantity,
       colorHex: colorHex ?? this.colorHex,
+      modifiersJson: modifiersJson ?? this.modifiersJson,
       createdAt: createdAt ?? this.createdAt,
     );
   }

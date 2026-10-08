@@ -13,9 +13,29 @@ import 'app/custom_scroll_behavior.dart';
 import 'controllers/controllers.dart';
 import 'database/database.dart';
 import 'models/store_settings_model.dart';
+import 'services/presentation_service.dart';
 import 'services/svg_sprite_service.dart';
+
+import 'package:video_player_win/video_player_win_plugin.dart';
+
 import 'views/views.dart';
 import 'widgets/inactivity_auto_lock_wrapper.dart';
+
+enum AppRuntimeMode { staff, customer, owner }
+
+AppRuntimeMode _resolveRuntimeMode(List<String> args) {
+  if (args.contains('--cfd') ||
+      args.contains('--customer-display') ||
+      args.contains('--secondary')) {
+    return AppRuntimeMode.customer;
+  }
+
+  if (args.contains('--owner') || args.contains('--admin')) {
+    return AppRuntimeMode.owner;
+  }
+
+  return AppRuntimeMode.staff;
+}
 
 // ============================================================================
 // 1. PRIMARY CASHIER DISPLAY ENTRY POINT
@@ -30,7 +50,7 @@ void main(List<String> args) async {
     debugPrint('SvgSpriteService init notice: $e');
   }
 
-  // Initialize SQLite FFI for Windows & Linux desktop support
+  // Initialize SQLite FFI and Windows Video Player for Windows desktop support
   if (!kIsWeb && (Platform.isWindows || Platform.isLinux)) {
     try {
       if (Platform.isWindows) {
@@ -39,6 +59,9 @@ void main(List<String> args) async {
         if (File(dllPath).existsSync()) {
           DynamicLibrary.open(dllPath);
         }
+        try {
+          WindowsVideoPlayer.registerWith();
+        } catch (_) {}
       }
       sqfliteFfiInit();
       databaseFactory = databaseFactoryFfi;
@@ -54,20 +77,22 @@ void main(List<String> args) async {
     debugPrint('Database connection notice: $e');
   }
 
+  final runtimeMode = _resolveRuntimeMode(args);
+
   // Check if launched as Secondary Customer-Facing Display (CFD) Window
-  if (args.contains('--cfd') ||
-      args.contains('--customer-display') ||
-      args.contains('--secondary')) {
+  if (runtimeMode == AppRuntimeMode.customer) {
     runApp(
       MultiProvider(
         providers: AppProviders.providers,
-        child: const MaterialApp(
-          title: 'POS Customer Display (CFD)',
-          debugShowCheckedModeBanner: false,
-          scrollBehavior: PosCustomScrollBehavior(),
-          home: CustomerPresentationView(),
-        ),
+        child: const CustomerDisplayApp(),
       ),
+    );
+    return;
+  }
+
+  if (runtimeMode == AppRuntimeMode.owner) {
+    runApp(
+      MultiProvider(providers: AppProviders.providers, child: const OwnerApp()),
     );
     return;
   }
@@ -83,6 +108,17 @@ void main(List<String> args) async {
   runApp(
     MultiProvider(providers: AppProviders.providers, child: const CashierApp()),
   );
+
+  // Automatically launch Customer Display on dual-screen POS hardware on boot
+  if (!kIsWeb && Platform.isAndroid) {
+    Future.delayed(const Duration(milliseconds: 1500), () async {
+      try {
+        await PresentationService().showCustomerDisplay();
+      } catch (e) {
+        debugPrint('[Main] Hardware secondary display boot notice: $e');
+      }
+    });
+  }
 }
 
 class CartSettingsSync extends StatelessWidget {
@@ -98,19 +134,18 @@ class CartSettingsSync extends StatelessWidget {
     final cart = context.read<CartController>();
 
     final effectiveTaxRate = settings.enableTax ? settings.defaultTaxRate : 0.0;
-    final hasTaxMismatch =
-        (cart.taxRate - effectiveTaxRate).abs() > 0.0001;
+    final hasTaxMismatch = (cart.taxRate - effectiveTaxRate).abs() > 0.0001;
     final hasCurrencyMismatch = cart.currencySymbol != settings.currencySymbol;
 
     if (hasTaxMismatch || hasCurrencyMismatch) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         final currentSettings = context.read<SettingsController>().settings;
         final currentCart = context.read<CartController>();
-        final targetTaxRate =
-            currentSettings.enableTax ? currentSettings.defaultTaxRate : 0.0;
+        final targetTaxRate = currentSettings.enableTax
+            ? currentSettings.defaultTaxRate
+            : 0.0;
         final taxMismatch =
-            (currentCart.taxRate - targetTaxRate).abs() >
-            0.0001;
+            (currentCart.taxRate - targetTaxRate).abs() > 0.0001;
         final currencyMismatch =
             currentCart.currencySymbol != currentSettings.currencySymbol;
 
@@ -127,8 +162,8 @@ class CartSettingsSync extends StatelessWidget {
   }
 }
 
-class CashierApp extends StatelessWidget {
-  const CashierApp({super.key});
+class StaffAppShell extends StatelessWidget {
+  const StaffAppShell({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -151,8 +186,47 @@ class CashierApp extends StatelessWidget {
             ),
           );
         },
+        routes: {
+          'secondaryDisplayMain': (_) => const CustomerPresentationView(),
+          '/cfd': (_) => const CustomerPresentationView(),
+        },
         home: const AdvertisingScreen(),
       ),
+    );
+  }
+}
+
+class CashierApp extends StatelessWidget {
+  const CashierApp({super.key});
+
+  @override
+  Widget build(BuildContext context) => const StaffAppShell();
+}
+
+class CustomerDisplayApp extends StatelessWidget {
+  const CustomerDisplayApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'POS Customer Display (CFD)',
+      debugShowCheckedModeBanner: false,
+      scrollBehavior: const PosCustomScrollBehavior(),
+      home: const CustomerPresentationView(),
+    );
+  }
+}
+
+class OwnerApp extends StatelessWidget {
+  const OwnerApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'POS Owner Dashboard',
+      debugShowCheckedModeBanner: false,
+      scrollBehavior: const PosCustomScrollBehavior(),
+      home: const OwnerPortalScreen(),
     );
   }
 }
@@ -163,6 +237,11 @@ class CashierApp extends StatelessWidget {
 @pragma('vm:entry-point')
 void secondaryDisplayMain() {
   WidgetsFlutterBinding.ensureInitialized();
+  if (!kIsWeb && Platform.isWindows) {
+    try {
+      WindowsVideoPlayer.registerWith();
+    } catch (_) {}
+  }
   runApp(
     MultiProvider(
       providers: AppProviders.providers,

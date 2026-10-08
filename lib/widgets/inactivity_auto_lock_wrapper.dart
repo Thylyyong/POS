@@ -126,14 +126,11 @@ class _LockOverlayState extends State<_LockOverlay> {
   bool _hasError = false;
 
   void _onDigit(String digit, String expectedPin) {
-    if (_pin.length < 6) {
+    if (_pin.length < 4) {
       setState(() {
         _pin += digit;
         _hasError = false;
       });
-      if (_pin.length >= expectedPin.length) {
-        _verifyPin(expectedPin);
-      }
     }
   }
 
@@ -154,10 +151,11 @@ class _LockOverlayState extends State<_LockOverlay> {
   }
 
   void _verifyPin(String expectedPin) {
+    if (_pin.length != 4) return;
     // Also accept Master Admin PIN (9999 or 123456)
     if (_pin.trim() == expectedPin.trim() ||
         _pin.trim() == '9999' ||
-        _pin.trim() == '123456') {
+        _pin.trim() == '1234') {
       widget.onUnlocked();
     } else {
       setState(() {
@@ -226,11 +224,11 @@ class _LockOverlayState extends State<_LockOverlay> {
               ),
               const SizedBox(height: 16),
 
-              // PIN Masked Dots
+              // PIN Masked Dots (4 digits)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(
-                  expectedPin.length.clamp(4, 6),
+                  4,
                   (i) => Container(
                     margin: const EdgeInsets.symmetric(horizontal: 6),
                     width: 14,
@@ -261,6 +259,32 @@ class _LockOverlayState extends State<_LockOverlay> {
 
               // Touch Numpad (1-9, CLR, 0, Backspace)
               _buildNumpad(expectedPin),
+
+              const SizedBox(height: 14),
+
+              // Explicit Confirm & Unlock Button (enabled only when 4 digits entered)
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: ElevatedButton.icon(
+                  onPressed: _pin.length == 4 ? () => _verifyPin(expectedPin) : null,
+                  icon: const Icon(Icons.lock_open_rounded, size: 18),
+                  label: const Text(
+                    'Confirm & Unlock',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0D9488),
+                    foregroundColor: Colors.white,
+                    disabledBackgroundColor: const Color(0xFFE2E8F0),
+                    disabledForegroundColor: const Color(0xFF94A3B8),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    elevation: 0,
+                  ),
+                ),
+              ),
 
               const SizedBox(height: 16),
               const Divider(color: Color(0xFFE2E8F0)),

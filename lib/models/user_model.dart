@@ -46,6 +46,7 @@ class UserModel {
   final String? branchId; // 'all', 'store_a', 'store_b'
   final String? branchName;
   final String pinCode;
+  final bool isLocked; // Owner can lock a user to prevent them from logging in
 
   const UserModel({
     required this.id,
@@ -55,7 +56,31 @@ class UserModel {
     this.branchId,
     this.branchName,
     required this.pinCode,
+    this.isLocked = false,
   });
+
+  /// Factory: create a new staff member with a unique generated ID
+  factory UserModel.newStaff({
+    required String displayName,
+    required UserRole role,
+    required String pinCode,
+    String branchId = 'main',
+    String branchName = 'Main Store',
+  }) {
+    final ts = DateTime.now().millisecondsSinceEpoch;
+    final id = 'usr_${role.name}_$ts';
+    final username = displayName.toLowerCase().replaceAll(' ', '_');
+    return UserModel(
+      id: id,
+      username: username,
+      displayName: displayName,
+      role: role,
+      branchId: branchId,
+      branchName: branchName,
+      pinCode: pinCode,
+    );
+  }
+
 
   bool get isOwner => role == UserRole.owner || role == UserRole.mainBoss;
   bool get isMainBoss => isOwner;
@@ -82,6 +107,7 @@ class UserModel {
       'branch_id': branchId,
       'branch_name': branchName,
       'pin_code': pinCode,
+      'is_locked': isLocked ? 1 : 0,
     };
   }
 
@@ -91,12 +117,15 @@ class UserModel {
       'name': displayName,
       'pin_code': pinCode,
       'role': role.displayName,
+      'is_locked': isLocked ? 1 : 0,
     };
   }
 
   factory UserModel.fromMap(Map<String, dynamic> map) {
     final name = (map['name'] ?? map['display_name'] ?? map['username'] ?? '') as String;
     final roleStr = (map['role'] as String? ?? 'CASHIER');
+    final lockedVal = map['is_locked'];
+    final isLocked = lockedVal == 1 || lockedVal == true || lockedVal == '1';
 
     return UserModel(
       id: map['id'] as String,
@@ -106,6 +135,7 @@ class UserModel {
       branchId: map['branch_id'] as String?,
       branchName: map['branch_name'] as String?,
       pinCode: map['pin_code'] as String? ?? '1234',
+      isLocked: isLocked,
     );
   }
 
@@ -117,6 +147,7 @@ class UserModel {
     String? branchId,
     String? branchName,
     String? pinCode,
+    bool? isLocked,
   }) {
     return UserModel(
       id: id ?? this.id,
@@ -126,6 +157,15 @@ class UserModel {
       branchId: branchId ?? this.branchId,
       branchName: branchName ?? this.branchName,
       pinCode: pinCode ?? this.pinCode,
+      isLocked: isLocked ?? this.isLocked,
     );
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is UserModel && runtimeType == other.runtimeType && id == other.id;
+
+  @override
+  int get hashCode => id.hashCode;
 }

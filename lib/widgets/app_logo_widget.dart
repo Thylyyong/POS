@@ -1,5 +1,7 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
+
 import '../core/theme/asset_theme.dart';
 import 'app_svg_icon.dart';
 
@@ -10,6 +12,7 @@ class AppLogoWidget extends StatelessWidget {
   final String? fallbackSvg;
   final IconData? fallbackIcon;
   final List<BoxShadow>? boxShadow;
+  final bool monochrome;
 
   const AppLogoWidget({
     super.key,
@@ -19,6 +22,7 @@ class AppLogoWidget extends StatelessWidget {
     this.fallbackSvg,
     this.fallbackIcon,
     this.boxShadow,
+    this.monochrome = false,
   });
 
   bool get _hasAssetLogo =>
@@ -59,7 +63,7 @@ class AppLogoWidget extends StatelessWidget {
     final imageProvider = _imageProvider;
     final hasImage = imageProvider != null;
 
-    return Container(
+    Widget logo = Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
@@ -72,7 +76,8 @@ class AppLogoWidget extends StatelessWidget {
               )
             : null,
         borderRadius: BorderRadius.circular(borderRadius),
-        boxShadow: boxShadow ??
+        boxShadow:
+            boxShadow ??
             [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.08),
@@ -89,6 +94,8 @@ class AppLogoWidget extends StatelessWidget {
                 width: size,
                 height: size,
                 fit: BoxFit.cover,
+                color: monochrome ? Colors.white : null,
+                colorBlendMode: monochrome ? BlendMode.srcIn : null,
                 errorBuilder: (context, error, stackTrace) {
                   return Container(
                     width: size,
@@ -107,5 +114,14 @@ class AppLogoWidget extends StatelessWidget {
             : _buildFallback(),
       ),
     );
+
+    if (monochrome) {
+      logo = ColorFiltered(
+        colorFilter: const ColorFilter.mode(Colors.white, BlendMode.srcIn),
+        child: logo,
+      );
+    }
+
+    return logo;
   }
 }

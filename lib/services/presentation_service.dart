@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_presentation_display/display.dart';
 import 'package:flutter_presentation_display/flutter_presentation_display.dart';
+import '../models/store_settings_model.dart';
 
 enum CfdScreenState {
   idle,
@@ -51,6 +52,14 @@ class PresentationPayload {
   final double fontSizeScale;
   final int menuVersion;
   final bool? cfdShowAdsWhenIdle;
+  final List<String>? promoBanners;
+  final int? promoAutoPlaySeconds;
+  final String? promoMediaFit;
+  final String? storeName;
+  final String? storeAddress;
+  final String? logoPath;
+  final int? activePromoIndex;
+  final String? cfdIdleMode;
 
   PresentationPayload({
     required this.state,
@@ -74,6 +83,14 @@ class PresentationPayload {
     this.fontSizeScale = 1.0,
     this.menuVersion = 0,
     this.cfdShowAdsWhenIdle,
+    this.promoBanners,
+    this.promoAutoPlaySeconds,
+    this.promoMediaFit,
+    this.storeName,
+    this.storeAddress,
+    this.logoPath,
+    this.activePromoIndex,
+    this.cfdIdleMode,
   });
 
   PresentationPayload copyWith({
@@ -98,6 +115,14 @@ class PresentationPayload {
     double? fontSizeScale,
     int? menuVersion,
     bool? cfdShowAdsWhenIdle,
+    List<String>? promoBanners,
+    int? promoAutoPlaySeconds,
+    String? promoMediaFit,
+    String? storeName,
+    String? storeAddress,
+    String? logoPath,
+    int? activePromoIndex,
+    String? cfdIdleMode,
   }) {
     return PresentationPayload(
       state: state ?? this.state,
@@ -121,6 +146,14 @@ class PresentationPayload {
       fontSizeScale: fontSizeScale ?? this.fontSizeScale,
       menuVersion: menuVersion ?? this.menuVersion,
       cfdShowAdsWhenIdle: cfdShowAdsWhenIdle ?? this.cfdShowAdsWhenIdle,
+      promoBanners: promoBanners ?? this.promoBanners,
+      promoAutoPlaySeconds: promoAutoPlaySeconds ?? this.promoAutoPlaySeconds,
+      promoMediaFit: promoMediaFit ?? this.promoMediaFit,
+      storeName: storeName ?? this.storeName,
+      storeAddress: storeAddress ?? this.storeAddress,
+      logoPath: logoPath ?? this.logoPath,
+      activePromoIndex: activePromoIndex ?? this.activePromoIndex,
+      cfdIdleMode: cfdIdleMode ?? this.cfdIdleMode,
     );
   }
 
@@ -147,6 +180,14 @@ class PresentationPayload {
       'fontSizeScale': fontSizeScale,
       'menuVersion': menuVersion,
       'cfdShowAdsWhenIdle': cfdShowAdsWhenIdle,
+      'promoBanners': promoBanners,
+      'promoAutoPlaySeconds': promoAutoPlaySeconds,
+      'promoMediaFit': promoMediaFit,
+      'storeName': storeName,
+      'storeAddress': storeAddress,
+      'logoPath': logoPath,
+      'activePromoIndex': activePromoIndex,
+      'cfdIdleMode': cfdIdleMode,
     };
   }
 
@@ -176,6 +217,14 @@ class PresentationPayload {
       fontSizeScale: (map['fontSizeScale'] as num?)?.toDouble() ?? 1.0,
       menuVersion: (map['menuVersion'] as num?)?.toInt() ?? 0,
       cfdShowAdsWhenIdle: map['cfdShowAdsWhenIdle'] as bool?,
+      promoBanners: (map['promoBanners'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
+      promoAutoPlaySeconds: (map['promoAutoPlaySeconds'] as num?)?.toInt(),
+      promoMediaFit: map['promoMediaFit'] as String?,
+      storeName: map['storeName'] as String?,
+      storeAddress: map['storeAddress'] as String?,
+      logoPath: map['logoPath'] as String?,
+      activePromoIndex: (map['activePromoIndex'] as num?)?.toInt(),
+      cfdIdleMode: map['cfdIdleMode'] as String?,
     );
   }
 
@@ -258,7 +307,12 @@ class PresentationService {
           return false;
         }
 
-        final targetId = displayId ?? list.first.displayId;
+        // Select secondary display (displayId != 0 is the external/customer monitor)
+        final targetDisplay = list.firstWhere(
+          (d) => d.displayId != null && d.displayId != 0,
+          orElse: () => (list.length > 1 ? list[1] : list.first),
+        );
+        final targetId = displayId ?? targetDisplay.displayId;
         if (targetId == null) return false;
 
         final success = await _displayManager
@@ -281,7 +335,13 @@ class PresentationService {
   Future<bool> hideCustomerDisplay({int? displayId}) async {
     if (!kIsWeb && Platform.isAndroid) {
       try {
-        final targetId = displayId ?? _connectedDisplays.firstOrNull?.displayId;
+        final targetDisplay = _connectedDisplays.firstWhere(
+          (d) => d.displayId != null && d.displayId != 0,
+          orElse: () => (_connectedDisplays.length > 1
+              ? _connectedDisplays[1]
+              : (_connectedDisplays.isNotEmpty ? _connectedDisplays.first : null)) as Display,
+        );
+        final targetId = displayId ?? targetDisplay.displayId;
         if (targetId != null) {
           await _displayManager
               .hideSecondaryDisplay(displayId: targetId)
@@ -300,24 +360,40 @@ class PresentationService {
 
   /// Send Payload to Customer Display (Called from Cashier App)
   Future<void> sendToCustomerDisplay(PresentationPayload payload) async {
-    _latestPayload = payload;
+    // Retain existing store settings & advertising if not explicitly overridden
+    final effectivePayload = payload.copyWith(
+      promoBanners: payload.promoBanners ?? _latestPayload.promoBanners,
+      promoAutoPlaySeconds: payload.promoAutoPlaySeconds ?? _latestPayload.promoAutoPlaySeconds,
+      promoMediaFit: payload.promoMediaFit ?? _latestPayload.promoMediaFit,
+      cfdShowAdsWhenIdle: payload.cfdShowAdsWhenIdle ?? _latestPayload.cfdShowAdsWhenIdle,
+      storeName: payload.storeName ?? _latestPayload.storeName,
+      storeAddress: payload.storeAddress ?? _latestPayload.storeAddress,
+      logoPath: payload.logoPath ?? _latestPayload.logoPath,
+      activePromoIndex: payload.activePromoIndex ?? _latestPayload.activePromoIndex,
+      gridTemplate: payload.gridTemplate.isNotEmpty ? payload.gridTemplate : _latestPayload.gridTemplate,
+      fontSizeScale: payload.fontSizeScale != 1.0 ? payload.fontSizeScale : _latestPayload.fontSizeScale,
+      menuVersion: payload.menuVersion != 0 ? payload.menuVersion : _latestPayload.menuVersion,
+      cfdIdleMode: payload.cfdIdleMode ?? _latestPayload.cfdIdleMode,
+    );
+
+    _latestPayload = effectivePayload;
 
     // 1. Emit to in-process stream
-    _payloadStreamController.add(payload);
+    _payloadStreamController.add(effectivePayload);
 
     // 2. Persist to IPC file for desktop multi-window synchronization
     if (!kIsWeb) {
       try {
         final tempDir = Directory.systemTemp;
         final file = File('${tempDir.path}/omni_pos_cfd_state.json');
-        await file.writeAsString(payload.toJson(), flush: true);
+        await file.writeAsString(effectivePayload.toJson(), flush: true);
       } catch (_) {}
     }
 
     // 3. Transfer via Android hardware presentation display bridge
     if (!kIsWeb && Platform.isAndroid) {
       try {
-        final jsonString = payload.toJson();
+        final jsonString = effectivePayload.toJson();
         await _displayManager
             .transferDataToPresentation(jsonString)
             .timeout(const Duration(milliseconds: 800), onTimeout: () => false);
@@ -348,6 +424,57 @@ class PresentationService {
       menuVersion: menuVersion ?? _latestPayload.menuVersion,
     );
     await sendToCustomerDisplay(updated);
+  }
+
+  /// Broadcast store & advertising settings (banners, speed, fit, store name, logo)
+  Future<void> syncStoreSettings(StoreSettingsModel s) async {
+    final updated = _latestPayload.copyWith(
+      gridTemplate: s.gridTemplate,
+      fontSizeScale: s.fontSizeScale,
+      promoBanners: s.promoBanners,
+      promoAutoPlaySeconds: s.promoAutoPlaySeconds,
+      promoMediaFit: s.promoMediaFit,
+      cfdShowAdsWhenIdle: s.cfdShowAdsWhenIdle,
+      storeName: s.storeName,
+      storeAddress: s.storeAddress,
+      logoPath: s.logoPath,
+      cfdIdleMode: s.cfdIdleMode,
+    );
+    await sendToCustomerDisplay(updated);
+
+    if (!kIsWeb) {
+      try {
+        final tempDir = Directory.systemTemp;
+        final file = File('${tempDir.path}/omni_pos_cfd_settings.json');
+        await file.writeAsString(jsonEncode(s.toMap()), flush: true);
+      } catch (_) {}
+    }
+  }
+
+  /// Broadcast active promotion carousel slide index so CDS rotates in exact sync
+  Future<void> syncActivePromoSlide(int index) async {
+    if (_latestPayload.activePromoIndex == index) return;
+    final updated = _latestPayload.copyWith(activePromoIndex: index);
+    await sendToCustomerDisplay(updated);
+  }
+
+  /// Read settings from IPC file (used by standalone CFD when secondary process starts)
+  Future<StoreSettingsModel?> readSettingsForCustomerDisplay() async {
+    if (!kIsWeb) {
+      try {
+        final tempDir = Directory.systemTemp;
+        final file = File('${tempDir.path}/omni_pos_cfd_settings.json');
+        if (await file.exists()) {
+          final content = await file.readAsString();
+          if (content.isNotEmpty) {
+            final map = jsonDecode(content) as Map<String, dynamic>;
+            final stringMap = map.map((k, v) => MapEntry(k, v?.toString() ?? ''));
+            return StoreSettingsModel.fromMap(stringMap);
+          }
+        }
+      } catch (_) {}
+    }
+    return null;
   }
 
   /// Persist latest menu data (categories, subcategories, products) to IPC for standalone CFD window

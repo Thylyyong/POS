@@ -25,6 +25,7 @@ class _PinLoginScreenState extends State<PinLoginScreen> with SingleTickerProvid
   String? _errorMessage;
   late AnimationController _shakeCtrl;
   late Animation<double> _shakeAnim;
+  final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
@@ -40,11 +41,16 @@ class _PinLoginScreenState extends State<PinLoginScreen> with SingleTickerProvid
       TweenSequenceItem(tween: Tween(begin: -8.0, end: 8.0), weight: 2),
       TweenSequenceItem(tween: Tween(begin: 8.0, end: 0.0), weight: 1),
     ]).animate(CurvedAnimation(parent: _shakeCtrl, curve: Curves.easeInOut));
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _focusNode.requestFocus();
+    });
   }
 
   @override
   void dispose() {
     _shakeCtrl.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -54,10 +60,6 @@ class _PinLoginScreenState extends State<PinLoginScreen> with SingleTickerProvid
       _errorMessage = null;
       _enteredPin += digit;
     });
-
-    if (_enteredPin.length == 4) {
-      _verifyPin();
-    }
   }
 
   void _onBackspace() {
@@ -97,11 +99,6 @@ class _PinLoginScreenState extends State<PinLoginScreen> with SingleTickerProvid
     }
   }
 
-  void _loginAsCashierDirectly() {
-    final auth = context.read<AuthController>();
-    auth.loginAsCashier();
-    _routeUserToDashboard(auth.currentUser);
-  }
 
   void _routeUserToDashboard(UserModel user) {
     Navigator.of(context).pushReplacement(
@@ -124,29 +121,50 @@ class _PinLoginScreenState extends State<PinLoginScreen> with SingleTickerProvid
 
     return Scaffold(
       backgroundColor: const Color(0xFF0F172A), // Dark slate enterprise theme
-      body: SafeArea(
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-            child: isKiosk
-                ? Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      _buildBrandSection(storeName, logoPath, isKiosk),
-                      const SizedBox(height: 28),
-                      _buildNumpadSection(isKiosk),
-                    ],
-                  )
-                : Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      _buildBrandSection(storeName, logoPath, isKiosk),
-                      const SizedBox(width: 56),
-                      _buildNumpadSection(isKiosk),
-                    ],
-                  ),
+      body: KeyboardListener(
+        focusNode: _focusNode,
+        onKeyEvent: (event) {
+          if (event is KeyDownEvent) {
+            final key = event.logicalKey;
+            if (key == LogicalKeyboardKey.enter ||
+                key == LogicalKeyboardKey.numpadEnter) {
+              if (_enteredPin.length == 4 && !_isSubmitting) {
+                _verifyPin();
+              }
+            } else if (key == LogicalKeyboardKey.backspace) {
+              _onBackspace();
+            } else {
+              final char = event.character;
+              if (char != null && RegExp(r'^[0-9]$').hasMatch(char)) {
+                _onDigitPressed(char);
+              }
+            }
+          }
+        },
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              child: isKiosk
+                  ? Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        _buildBrandSection(storeName, logoPath, isKiosk),
+                        const SizedBox(height: 28),
+                        _buildNumpadSection(isKiosk),
+                      ],
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        _buildBrandSection(storeName, logoPath, isKiosk),
+                        const SizedBox(width: 56),
+                        _buildNumpadSection(isKiosk),
+                      ],
+                    ),
+            ),
           ),
         ),
       ),
@@ -281,53 +299,31 @@ class _PinLoginScreenState extends State<PinLoginScreen> with SingleTickerProvid
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Instant 1-Tap Cashier Login
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _loginAsCashierDirectly,
-                icon: const Icon(Icons.point_of_sale, size: 20, color: Colors.white),
-                label: const Text(
-                  'Login as Staff Cashier (No PIN Required)',
-                  style: TextStyle(
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF0D9488),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  elevation: 2,
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Divider
-            Row(
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Expanded(child: Divider(color: Color(0xFF334155))),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: Text(
-                    'OR OWNER / ADMIN PIN',
-                    style: TextStyle(
-                      color: const Color(0xFF94A3B8),
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1.0,
-                    ),
+                Icon(Icons.lock_rounded, size: 18, color: Color(0xFF14B8A6)),
+                SizedBox(width: 8),
+                Text(
+                  'ENTER 4-DIGIT PIN TO SIGN IN',
+                  style: TextStyle(
+                    color: Color(0xFFF8FAFC),
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.0,
                   ),
                 ),
-                const Expanded(child: Divider(color: Color(0xFF334155))),
               ],
             ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 4),
+            const Text(
+              'Enter your registered staff or owner PIN code',
+              style: TextStyle(
+                color: Color(0xFF94A3B8),
+                fontSize: 11,
+              ),
+            ),
+            const SizedBox(height: 20),
 
             // PIN Dot Indicators with Shake Animation
             AnimatedBuilder(
@@ -389,6 +385,45 @@ class _PinLoginScreenState extends State<PinLoginScreen> with SingleTickerProvid
 
             // On-Screen Numeric Keypad (4x3)
             _buildNumpadGrid(isKiosk),
+
+            const SizedBox(height: 14),
+
+            // Explicit Confirm Button (No auto login)
+            SizedBox(
+              width: double.infinity,
+              height: isKiosk ? 54 : 48,
+              child: ElevatedButton.icon(
+                onPressed: _enteredPin.length == 4 && !_isSubmitting ? _verifyPin : null,
+                icon: _isSubmitting
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.arrow_forward_rounded, size: 20),
+                label: Text(
+                  _isSubmitting ? 'SIGNING IN...' : 'CONFIRM & SIGN IN',
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF14B8A6),
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: const Color(0xFF334155),
+                  disabledForegroundColor: const Color(0xFF64748B),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  elevation: 0,
+                ),
+              ),
+            ),
           ],
         ),
       ),

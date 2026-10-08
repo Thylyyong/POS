@@ -295,9 +295,10 @@ class ProductDao {
     required String userId,
     required String userName,
     required String userRole,
+    Transaction? transaction,
   }) async {
     final db = await _dbHelper.database;
-    await db.transaction((txn) async {
+    Future<void> apply(Transaction txn) async {
       for (final item in items) {
         final maps = await txn.query(
           'products',
@@ -343,7 +344,13 @@ class ProductDao {
           );
         }
       }
-    });
+    }
+
+    if (transaction != null) {
+      await apply(transaction);
+    } else {
+      await db.transaction(apply);
+    }
   }
 
   /// Retrieves audit logs, ordered from newest to oldest

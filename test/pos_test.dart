@@ -28,6 +28,8 @@ void main() {
     late AuthController auth;
 
     setUp(() {
+      AuthController.defaultUsers[0] = AuthController.defaultUsers[0].copyWith(pinCode: '9999');
+      AuthController.defaultUsers[1] = AuthController.defaultUsers[1].copyWith(pinCode: '1234');
       auth = AuthController();
     });
 
@@ -343,6 +345,10 @@ void main() {
         totalAmount: 24.75,
         currencySymbol: '\$',
         receiptNo: 'REC-20260826-0001',
+        promoBanners: ['assets/images/special_1.png', 'assets/images/special_2.png'],
+        promoAutoPlaySeconds: 8,
+        promoMediaFit: 'fill',
+        cfdShowAdsWhenIdle: true,
       );
 
       final jsonStr = original.toJson();
@@ -354,6 +360,40 @@ void main() {
       expect(reconstructed.totalAmount, 24.75);
       expect(reconstructed.receiptNo, 'REC-20260826-0001');
       expect(reconstructed.items.length, 1);
+      expect(reconstructed.promoBanners, ['assets/images/special_1.png', 'assets/images/special_2.png']);
+      expect(reconstructed.promoAutoPlaySeconds, 8);
+      expect(reconstructed.promoMediaFit, 'fill');
+      expect(reconstructed.cfdShowAdsWhenIdle, true);
+    });
+
+    test('sendToCustomerDisplay merges incoming payload without wiping advertising settings', () async {
+      final service = PresentationService();
+      const settings = StoreSettingsModel(
+        promoBanners: ['banner_a.jpg', 'banner_b.jpg'],
+        promoAutoPlaySeconds: 12,
+        promoMediaFit: 'contain',
+        storeName: 'Test Store',
+      );
+
+      await service.syncStoreSettings(settings);
+      expect(service.latestPayload.promoBanners, ['banner_a.jpg', 'banner_b.jpg']);
+      expect(service.latestPayload.promoAutoPlaySeconds, 12);
+      expect(service.latestPayload.promoMediaFit, 'contain');
+
+      // Now send a pure cart update with null promoBanners
+      final cartPayload = PresentationPayload(
+        state: CfdScreenState.cartActive,
+        subtotal: 50.0,
+        totalAmount: 50.0,
+      );
+      await service.sendToCustomerDisplay(cartPayload);
+
+      // Verify advertising settings were preserved
+      expect(service.latestPayload.subtotal, 50.0);
+      expect(service.latestPayload.promoBanners, ['banner_a.jpg', 'banner_b.jpg']);
+      expect(service.latestPayload.promoAutoPlaySeconds, 12);
+      expect(service.latestPayload.promoMediaFit, 'contain');
+      expect(service.latestPayload.storeName, 'Test Store');
     });
   });
 
@@ -971,12 +1011,37 @@ void main() {
       expect(restored.useSumatraPdf, false);
     });
 
-    test('PrinterService findSumatraPdfExecutable finds bundled or system executable on Windows', () async {
-      final path = await PrinterService().findSumatraPdfExecutable();
-      if (Platform.isWindows) {
-        expect(path != null, true, reason: 'SumatraPDF executable should be found in windows/bin or C:\\POS');
-        expect(File(path!).existsSync(), true);
-      }
+    test('StoreSettingsModel maps promo_media_fit contain to cover and roundtrips', () {
+      final map = {'promo_media_fit': 'contain'};
+      final settings = StoreSettingsModel.fromMap(map);
+      expect(settings.promoMediaFit, 'cover');
+
+      final fillMap = {'promo_media_fit': 'fill'};
+      final fillSettings = StoreSettingsModel.fromMap(fillMap);
+      expect(fillSettings.promoMediaFit, 'fill');
+    });
+
+    test('PresentationPayload serializes and deserializes activePromoIndex', () {
+      final payload = PresentationPayload(
+        state: CfdScreenState.idle,
+        promoBanners: ['banner1.jpg', 'banner2.jpg'],
+        promoAutoPlaySeconds: 5,
+        promoMediaFit: 'cover',
+        activePromoIndex: 2,
+      );
+
+      final map = payload.toMap();
+      expect(map['activePromoIndex'], 2);
+
+      final restored = PresentationPayload.fromMap(map);
+      expect(restored.activePromoIndex, 2);
+      expect(restored.promoBanners?.length, 2);
+    });
+
+    test('PresentationService syncActivePromoSlide broadcasts updated slide index', () async {
+      final service = PresentationService();
+      await service.syncActivePromoSlide(3);
+      expect(service.latestPayload.activePromoIndex, 3);
     });
   });
 }

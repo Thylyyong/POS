@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:printing/printing.dart';
 import 'package:provider/provider.dart';
 
 import '../controllers/settings_controller.dart';
+import '../models/store_settings_model.dart';
 import '../services/printer_service.dart';
 
 /// Modal dialog for diagnosing and testing every installed printer on the machine
@@ -27,6 +30,7 @@ class _PrinterDiagnosticsDialogState extends State<PrinterDiagnosticsDialog> {
   List<Printer> _printers = [];
   bool _isLoading = true;
   bool _isTestingAll = false;
+  bool _isTestingAndroidHardware = false;
   String? _testingPrinterName;
   final Map<String, String> _printerTestStatus = {}; // 'printing', 'success', 'failed'
   String _statusMessage = 'Scanning for installed printers...';
@@ -41,7 +45,7 @@ class _PrinterDiagnosticsDialogState extends State<PrinterDiagnosticsDialog> {
   Future<void> _loadPrinters() async {
     setState(() {
       _isLoading = true;
-      _statusMessage = 'Scanning Windows installed printers...';
+      _statusMessage = 'Scanning printer devices...';
     });
 
     try {
@@ -52,9 +56,13 @@ class _PrinterDiagnosticsDialogState extends State<PrinterDiagnosticsDialog> {
         _printers = list;
         _sumatraPath = sumatra;
         _isLoading = false;
-        _statusMessage = list.isEmpty
-            ? 'No printers found. Please check Windows Settings > Devices > Printers.'
-            : 'Found ${list.length} printer devices. Tap "Test" on any device to verify.';
+        if (!kIsWeb && Platform.isAndroid) {
+          _statusMessage = 'Built-in Android POS Thermal Hardware detected. Tap "Test Built-in Printer" below.';
+        } else {
+          _statusMessage = list.isEmpty
+              ? 'No printers found. Please check OS printer settings or drivers.'
+              : 'Found ${list.length} printer devices. Tap "Test" on any device to verify.';
+        }
       });
     } catch (e) {
       if (!mounted) return;
@@ -63,6 +71,36 @@ class _PrinterDiagnosticsDialogState extends State<PrinterDiagnosticsDialog> {
         _statusMessage = 'Failed to scan printers: $e';
       });
     }
+  }
+
+  Future<void> _testAndroidHardwarePrinter() async {
+    if (_isTestingAndroidHardware) return;
+    setState(() {
+      _isTestingAndroidHardware = true;
+      _statusMessage = 'Sending ESC/POS test receipt to built-in thermal printer...';
+    });
+
+    final settings = context.read<SettingsController>().settings;
+    final success = await _printerService.printTestReceipt(settings: settings);
+
+    if (!mounted) return;
+    setState(() {
+      _isTestingAndroidHardware = false;
+      _statusMessage = success
+          ? '✅ Test slip printed successfully to built-in thermal printer!'
+          : '❌ Could not print to built-in printer. Ensure paper roll is installed and cover closed.';
+    });
+  }
+
+  Future<void> _testKickCashDrawer() async {
+    setState(() {
+      _statusMessage = 'Sending pulse command to kick cash drawer...';
+    });
+    await _printerService.kickCashDrawer();
+    if (!mounted) return;
+    setState(() {
+      _statusMessage = '⚡ Cash drawer pulse command dispatched.';
+    });
   }
 
   Future<void> _testSinglePrinter(Printer printer) async {
@@ -295,58 +333,105 @@ class _PrinterDiagnosticsDialogState extends State<PrinterDiagnosticsDialog> {
                           children: [
                             CircularProgressIndicator(color: Color(0xFF0D9488)),
                             SizedBox(height: 14),
-                            Text('Detecting Windows printer devices...'),
+                            Text('Detecting printer devices...'),
                           ],
                         ),
                       )
-                    : _printers.isEmpty
-                        ? Center(
-                            child: Padding(
-                              padding: const EdgeInsets.all(32),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(
-                                    Icons.print_disabled,
-                                    size: 56,
-                                    color: Color(0xFF94A3B8),
+                    : (!kIsWeb && Platform.isAndroid && _printers.isEmpty)
+                        ? SingleChildScrollView(
+                            padding: const EdgeInsets.all(20),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _buildAndroidHardwareCard(context.watch<SettingsController>().settings),
+                                const SizedBox(height: 16),
+                                Container(
+                                  padding: const EdgeInsets.all(16),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFFF8FAFC),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: const Color(0xFFE2E8F0)),
                                   ),
-                                  const SizedBox(height: 16),
-                                  const Text(
-                                    'No Printer Devices Found',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF1E293B),
-                                    ),
+                                  child: const Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Row(
+                                        children: [
+                                          Icon(Icons.info_outline, color: Color(0xFF0D9488), size: 18),
+                                          SizedBox(width: 8),
+                                          Text(
+                                            'Android Direct Hardware Mode Active',
+                                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF0F172A)),
+                                          ),
+                                        ],
+                                      ),
+                                      SizedBox(height: 8),
+                                      Text(
+                                        'Built-in terminal thermal printers communicate directly through integrated USB Host Bulk Endpoints and /dev character nodes. No external Android Print Service or PDF spooler is needed.',
+                                        style: TextStyle(fontSize: 12, color: Color(0xFF64748B), height: 1.4),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(height: 8),
-                                  const Text(
-                                    'Windows does not see any installed printers.\nFor CA H2 terminals, install the POS-80 / Thermal driver via Windows Device Manager or manufacturer driver installer.',
-                                    textAlign: TextAlign.center,
-                                    style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-                                  ),
-                                  const SizedBox(height: 16),
-                                  ElevatedButton.icon(
-                                    onPressed: _loadPrinters,
-                                    icon: const Icon(Icons.refresh),
-                                    label: const Text('Check Again'),
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: const Color(0xFF0D9488),
-                                      foregroundColor: Colors.white,
-                                    ),
-                                  ),
-                                ],
-                              ),
+                                ),
+                              ],
                             ),
                           )
-                        : ListView.separated(
-                            padding: const EdgeInsets.all(16),
-                            itemCount: _printers.length,
-                            separatorBuilder: (context, index) => const SizedBox(height: 10),
-                            itemBuilder: (context, index) {
-                              final printer = _printers[index];
-                              final isCurrentActive = currentSelectedName.isNotEmpty
+                        : _printers.isEmpty
+                            ? Center(
+                                child: Padding(
+                                  padding: const EdgeInsets.all(32),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(
+                                        Icons.print_disabled,
+                                        size: 56,
+                                        color: Color(0xFF94A3B8),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      const Text(
+                                        'No Printer Devices Found',
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.bold,
+                                          color: Color(0xFF1E293B),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      const Text(
+                                        'No OS printer services detected.\nCheck printer connections or drivers.',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                                      ),
+                                      const SizedBox(height: 16),
+                                      ElevatedButton.icon(
+                                        onPressed: _loadPrinters,
+                                        icon: const Icon(Icons.refresh),
+                                        label: const Text('Check Again'),
+                                        style: ElevatedButton.styleFrom(
+                                          backgroundColor: const Color(0xFF0D9488),
+                                          foregroundColor: Colors.white,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              )
+                            : ListView.separated(
+                                padding: const EdgeInsets.all(16),
+                                itemCount: (!kIsWeb && Platform.isAndroid)
+                                    ? _printers.length + 1
+                                    : _printers.length,
+                                separatorBuilder: (context, index) => const SizedBox(height: 10),
+                                itemBuilder: (context, index) {
+                                  if (!kIsWeb && Platform.isAndroid && index == 0) {
+                                    return _buildAndroidHardwareCard(
+                                      context.watch<SettingsController>().settings,
+                                    );
+                                  }
+                                  final printerIndex = (!kIsWeb && Platform.isAndroid) ? index - 1 : index;
+                                  final printer = _printers[printerIndex];
+                                  final isCurrentActive = currentSelectedName.isNotEmpty
                                   ? printer.name.toLowerCase() == currentSelectedName.toLowerCase()
                                   : printer.isDefault;
                               final testStatus = _printerTestStatus[printer.name];
@@ -618,6 +703,99 @@ class _PrinterDiagnosticsDialogState extends State<PrinterDiagnosticsDialog> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildAndroidHardwareCard(StoreSettingsModel settings) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0FDF4),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF86EFAC), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFDCFCE7),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(Icons.print_rounded, color: Color(0xFF16A34A), size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Text(
+                          'Built-in POS Thermal Printer',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF0F172A)),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF16A34A),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: const Text(
+                            'HARDWARE READY',
+                            style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 3),
+                    const Text(
+                      'Direct hardware pipeline: USB Host Bulk / Linux Character Nodes (/dev/usb/lp0)',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              ElevatedButton.icon(
+                onPressed: _isTestingAndroidHardware ? null : _testAndroidHardwarePrinter,
+                icon: _isTestingAndroidHardware
+                    ? const SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                      )
+                    : const Icon(Icons.receipt_long, size: 16),
+                label: Text(_isTestingAndroidHardware ? 'Printing Test Slip...' : 'Test Built-in Printer'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF0D9488),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                ),
+              ),
+              const SizedBox(width: 10),
+              OutlinedButton.icon(
+                onPressed: _testKickCashDrawer,
+                icon: const Icon(Icons.point_of_sale, size: 16),
+                label: const Text('Kick Cash Drawer'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF0F172A),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../controllers/cart_controller.dart';
+import '../controllers/register_controller.dart';
+import '../views/register/open_register_dialog.dart';
 import '../core/theme/asset_theme.dart';
 import '../models/product_model.dart';
 import 'app_svg_icon.dart';
@@ -347,6 +349,19 @@ class _ProductCustomizerDialogState extends State<ProductCustomizerDialog> {
                         elevation: 0,
                       ),
                       onPressed: () {
+                        final register = context.read<RegisterController>();
+                        if (!register.isSessionOpen) {
+                          Navigator.of(context).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Register is closed. Can't order — please open register first."),
+                              backgroundColor: Color(0xFFDC2626),
+                              duration: Duration(seconds: 3),
+                            ),
+                          );
+                          OpenRegisterDialog.show(context);
+                          return;
+                        }
                         final notes = _buildNotes();
                         final customPrice = _unitPrice;
                         context.read<CartController>().addProduct(

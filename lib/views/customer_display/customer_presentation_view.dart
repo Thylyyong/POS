@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show listEquals, kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -20,7 +22,7 @@ import '../../../services/presentation_service.dart';
 import '../../../widgets/aba_khqr_card.dart';
 import '../../../widgets/app_logo_widget.dart';
 import '../../../widgets/app_svg_icon.dart';
-import '../cashier/widgets/item_grid.dart';
+import '../../../widgets/promo_media_player.dart';
 
 /// Customer-Facing Display (CFD / Dual-Screen Customer View).
 /// Displays:
@@ -42,7 +44,8 @@ class CustomerPresentationView extends StatefulWidget {
   });
 
   @override
-  State<CustomerPresentationView> createState() => _CustomerPresentationViewState();
+  State<CustomerPresentationView> createState() =>
+      _CustomerPresentationViewState();
 }
 
 class _CustomerPresentationViewState extends State<CustomerPresentationView>
@@ -50,12 +53,15 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
   final PresentationService _presentationService = PresentationService();
   final SettingsDao _settingsDao = SettingsDao();
   final TextEditingController _searchCtrl = TextEditingController();
-  final Debouncer _debouncer = Debouncer(duration: const Duration(milliseconds: 300));
+  final Debouncer _debouncer = Debouncer(
+    duration: const Duration(milliseconds: 300),
+  );
 
-  PresentationPayload _payload = PresentationPayload(state: CfdScreenState.idle);
+  PresentationPayload _payload = PresentationPayload(
+    state: CfdScreenState.idle,
+  );
   StoreSettingsModel _settings = const StoreSettingsModel();
   String _currentTime = '';
-  String _currentDate = '';
   Timer? _clockTimer;
   Timer? _menuSyncTimer;
   Timer? _adAutoPlayTimer;
@@ -65,16 +71,21 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
   late PageController _adPageController;
   int _adCurrentPage = 0;
   bool _customerBrowsingMenu = false;
-  late AnimationController _pulseCtrl;
-  late Animation<double> _pulseAnim;
-  int _ipcMenuSyncCount = 0;
 
+  // ignore: unused_field
   List<Category> _ipcCategories = [];
+  // ignore: unused_field
   List<Subcategory> _ipcSubcategories = [];
+  // ignore: unused_field
   List<Product> _ipcProducts = [];
   String _ipcSelectedCategoryId = 'ALL';
   String? _ipcSelectedSubcategoryId;
   final ScrollController _ipcScrollController = ScrollController();
+
+  String _lastMenuFileContent = '';
+  String _lastSettingsFileContent = '';
+  // Force-reload key: incremented every time banners/settings change to bust widget cache
+  int _mediaCacheVersion = 0;
 
   @override
   void initState() {
@@ -82,20 +93,17 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
     _payload = _presentationService.latestPayload;
     _adPageController = PageController();
 
-    _pulseCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    )..repeat(reverse: true);
-
-    _pulseAnim = Tween<double>(begin: 0.88, end: 1.05).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
-    );
-
     _loadSettings();
     _loadIpcMenu();
     _updateClock();
-    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) => _updateClock());
-    _menuSyncTimer = Timer.periodic(const Duration(seconds: 1), (_) => _loadIpcMenu());
+    _clockTimer = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => _updateClock(),
+    );
+    _menuSyncTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+      _loadIpcMenu();
+      _loadSettings();
+    });
 
     _payloadSub = _presentationService.listenOnCustomerDisplay((payload) {
       if (mounted) {
@@ -124,37 +132,51 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
 
   Future<void> _loadIpcMenu() async {
     try {
-      try {
-        final posCtrl = context.read<PosController>();
-        await posCtrl.loadProducts();
-        await posCtrl.loadCategories();
-      } catch (_) {}
-
-      final data = await _presentationService.readMenuForCustomerDisplay();
-      if (data != null && mounted) {
-        final catList = (data['categories'] as List<dynamic>?)
-                ?.map((c) => Category.fromMap(Map<String, dynamic>.from(c as Map)))
-                .toList() ??
-            [];
-        final subList = (data['subcategories'] as List<dynamic>?)
-                ?.map((s) => Subcategory.fromMap(Map<String, dynamic>.from(s as Map)))
-                .toList() ??
-            [];
-        final prodList = (data['products'] as List<dynamic>?)
-                ?.map((p) => Product.fromMap(Map<String, dynamic>.from(p as Map)))
-                .toList() ??
-            [];
-        if (prodList.isNotEmpty && mounted) {
-          setState(() {
-            _ipcCategories = catList;
-            _ipcSubcategories = subList;
-            _ipcProducts = prodList;
-          });
+      if (!kIsWeb) {
+        final menuFile = File(
+          '${Directory.systemTemp.path}/omni_pos_cfd_menu.json',
+        );
+        if (await menuFile.exists()) {
+          final text = await menuFile.readAsString();
+          if (text.isNotEmpty && text != _lastMenuFileContent) {
+            _lastMenuFileContent = text;
+            final data = jsonDecode(text) as Map<String, dynamic>;
+            final catList =
+                (data['categories'] as List<dynamic>?)
+                    ?.map(
+                      (c) =>
+                          Category.fromMap(Map<String, dynamic>.from(c as Map)),
+                    )
+                    .toList() ??
+                [];
+            final subList =
+                (data['subcategories'] as List<dynamic>?)
+                    ?.map(
+                      (s) => Subcategory.fromMap(
+                        Map<String, dynamic>.from(s as Map),
+                      ),
+                    )
+                    .toList() ??
+                [];
+            final prodList =
+                (data['products'] as List<dynamic>?)
+                    ?.map(
+                      (p) =>
+                          Product.fromMap(Map<String, dynamic>.from(p as Map)),
+                    )
+                    .toList() ??
+                [];
+            if (prodList.isNotEmpty && mounted) {
+              PaintingBinding.instance.imageCache.clear();
+              PaintingBinding.instance.imageCache.clearLiveImages();
+              setState(() {
+                _ipcCategories = catList;
+                _ipcSubcategories = subList;
+                _ipcProducts = prodList;
+              });
+            }
+          }
         }
-      }
-      _ipcMenuSyncCount++;
-      if (_ipcMenuSyncCount % 3 == 0) {
-        _loadSettings();
       }
     } catch (_) {}
   }
@@ -165,8 +187,9 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
     _adAutoPlayTimer = Timer.periodic(Duration(seconds: interval), (_) {
       if (!mounted || !_adPageController.hasClients) return;
       final banners = _getEffectiveBanners();
-      if (banners.isEmpty) return;
-      final nextPage = (_adCurrentPage + 1) % banners.length;
+      if (banners.length <= 1) return;
+      final current = _adPageController.page?.round() ?? _adCurrentPage;
+      final nextPage = (current + 1) % banners.length;
       _adPageController.animateToPage(
         nextPage,
         duration: const Duration(milliseconds: 700),
@@ -175,42 +198,98 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
     });
   }
 
-  void _startIdleReturnTimer() {
-    _idleReturnTimer?.cancel();
-    _idleReturnTimer = Timer(const Duration(seconds: 45), () {
-      if (mounted) {
-        setState(() => _customerBrowsingMenu = false);
-      }
-    });
-  }
-
-  List<String> _getEffectiveBanners() {
-    if (_settings.promoBanners.isNotEmpty) {
-      return _settings.promoBanners;
+  List<String> _getEffectiveBanners([StoreSettingsModel? override]) {
+    StoreSettingsModel s = override ?? _settings;
+    if (s.promoBanners.isNotEmpty) {
+      return s.promoBanners;
+    }
+    if (override == null && mounted) {
+      try {
+        final ctrl = context.read<SettingsController?>();
+        if (ctrl != null && ctrl.settings.promoBanners.isNotEmpty) {
+          return ctrl.settings.promoBanners;
+        }
+      } catch (_) {}
     }
     return StoreSettingsModel.defaultPromoBanners;
   }
 
   Future<void> _loadSettings() async {
     try {
-      var s = await _settingsDao.getSettings();
-      if (mounted) {
-        final hadBanners = _settings.promoBanners.isNotEmpty;
+      StoreSettingsModel? s;
+      if (!kIsWeb) {
+        final settingsFile = File(
+          '${Directory.systemTemp.path}/omni_pos_cfd_settings.json',
+        );
+        if (await settingsFile.exists()) {
+          final content = await settingsFile.readAsString();
+          if (content.isNotEmpty && content != _lastSettingsFileContent) {
+            _lastSettingsFileContent = content;
+            final map = jsonDecode(content) as Map<String, dynamic>;
+            final stringMap = map.map(
+              (k, v) => MapEntry(k, v?.toString() ?? ''),
+            );
+            s = StoreSettingsModel.fromMap(stringMap);
+          }
+        }
+      }
 
-        // ── Ensure cfdShowAdsWhenIdle defaults to true on first launch ──
-        // If the DB key is missing or was never explicitly saved, it may be
-        // false from an older DB schema. Force-persist the default=true once.
+      if (s == null) {
+        final dbSettings = await _settingsDao.getSettings();
+        if (!listEquals(_settings.promoBanners, dbSettings.promoBanners) ||
+            _settings.storeName != dbSettings.storeName ||
+            _settings.logoPath != dbSettings.logoPath ||
+            _settings.promoAutoPlaySeconds != dbSettings.promoAutoPlaySeconds ||
+            _settings.promoMediaFit != dbSettings.promoMediaFit) {
+          s = dbSettings;
+        }
+      }
+
+      if (s != null && mounted) {
         if (!s.cfdShowAdsWhenIdle) {
-          // Only override if not explicitly saved. We detect by checking if
-          // a key exists that was saved alongside it (promoAutoPlaySeconds).
-          // This is a one-time migration: save true back to DB.
           await _settingsDao.updateSingleSetting('cfd_show_ads_when_idle', '1');
           s = s.copyWith(cfdShowAdsWhenIdle: true);
         }
 
-        setState(() => _settings = s);
-        if (!hadBanners && s.promoBanners.isNotEmpty) {
-          _startAdAutoPlay();
+        final bool bannersListChanged = !listEquals(
+          _settings.promoBanners,
+          s.promoBanners,
+        );
+        final bool intervalChanged =
+            _settings.promoAutoPlaySeconds != s.promoAutoPlaySeconds;
+        final bool fitChanged = _settings.promoMediaFit != s.promoMediaFit;
+        final bool adsVisibilityChanged =
+            _settings.cfdShowAdsWhenIdle != s.cfdShowAdsWhenIdle;
+        final bool brandingChanged =
+            _settings.storeName != s.storeName ||
+            _settings.storeAddress != s.storeAddress ||
+            _settings.logoPath != s.logoPath;
+
+        final bool settingsChanged =
+            bannersListChanged ||
+            intervalChanged ||
+            fitChanged ||
+            adsVisibilityChanged ||
+            brandingChanged;
+
+        if (settingsChanged) {
+          if (bannersListChanged || brandingChanged) {
+            PaintingBinding.instance.imageCache.clear();
+            PaintingBinding.instance.imageCache.clearLiveImages();
+          }
+          setState(() {
+            _settings = s!;
+            if (bannersListChanged) {
+              _mediaCacheVersion++; // Force all PromoMediaPlayer widgets to rebuild with fresh media
+              _adCurrentPage = 0;
+              if (_adPageController.hasClients) {
+                _adPageController.jumpToPage(0);
+              }
+            }
+          });
+          if (bannersListChanged || intervalChanged) {
+            _startAdAutoPlay();
+          }
         }
       }
     } catch (_) {}
@@ -221,7 +300,6 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
       final now = DateTime.now();
       setState(() {
         _currentTime = DateFormat('hh:mm:ss a').format(now);
-        _currentDate = DateFormat('EEEE, MMMM d, yyyy').format(now);
       });
     }
   }
@@ -236,9 +314,91 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
       }
     }
 
+    // Live synchronization of store settings & advertising from payload
+    bool settingsChanged = false;
+    bool bannersListChanged = false;
+    bool intervalChanged = false;
+    StoreSettingsModel newSettings = _settings;
+
+    if (payload.promoBanners != null &&
+        !listEquals(payload.promoBanners, _settings.promoBanners)) {
+      newSettings = newSettings.copyWith(promoBanners: payload.promoBanners);
+      settingsChanged = true;
+      bannersListChanged = true;
+      // Aggressively bust image/video cache so CDS shows new media immediately
+      PaintingBinding.instance.imageCache.clear();
+      PaintingBinding.instance.imageCache.clearLiveImages();
+    }
+    if (payload.promoAutoPlaySeconds != null &&
+        payload.promoAutoPlaySeconds != _settings.promoAutoPlaySeconds) {
+      newSettings = newSettings.copyWith(
+        promoAutoPlaySeconds: payload.promoAutoPlaySeconds,
+      );
+      settingsChanged = true;
+      intervalChanged = true;
+    }
+    if (payload.promoMediaFit != null &&
+        payload.promoMediaFit != _settings.promoMediaFit) {
+      newSettings = newSettings.copyWith(promoMediaFit: payload.promoMediaFit);
+      settingsChanged = true;
+    }
     if (payload.cfdShowAdsWhenIdle != null &&
         payload.cfdShowAdsWhenIdle != _settings.cfdShowAdsWhenIdle) {
-      _settings = _settings.copyWith(cfdShowAdsWhenIdle: payload.cfdShowAdsWhenIdle);
+      newSettings = newSettings.copyWith(
+        cfdShowAdsWhenIdle: payload.cfdShowAdsWhenIdle,
+      );
+      settingsChanged = true;
+    }
+    if (payload.storeName != null && payload.storeName != _settings.storeName) {
+      newSettings = newSettings.copyWith(storeName: payload.storeName);
+      settingsChanged = true;
+    }
+    if (payload.storeAddress != null &&
+        payload.storeAddress != _settings.storeAddress) {
+      newSettings = newSettings.copyWith(storeAddress: payload.storeAddress);
+      settingsChanged = true;
+    }
+    if (payload.logoPath != null && payload.logoPath != _settings.logoPath) {
+      newSettings = newSettings.copyWith(logoPath: payload.logoPath);
+      settingsChanged = true;
+    }
+
+    if (settingsChanged) {
+      try {
+        final ctrl = context.read<SettingsController?>();
+        if (ctrl != null) {
+          ctrl.updateSettings(newSettings);
+        }
+      } catch (_) {}
+      setState(() {
+        _settings = newSettings;
+        if (bannersListChanged) {
+          _mediaCacheVersion++; // Force all PromoMediaPlayer widgets to rebuild
+          _adCurrentPage = 0;
+          if (_adPageController.hasClients) {
+            _adPageController.jumpToPage(0);
+          }
+        }
+      });
+      if (bannersListChanged || intervalChanged) {
+        _startAdAutoPlay();
+      }
+    }
+
+    if (payload.activePromoIndex != null &&
+        payload.activePromoIndex != _adCurrentPage) {
+      final banners = _getEffectiveBanners(newSettings);
+      if (payload.activePromoIndex! >= 0 &&
+          payload.activePromoIndex! < banners.length) {
+        _adCurrentPage = payload.activePromoIndex!;
+        if (_adPageController.hasClients) {
+          _adPageController.animateToPage(
+            _adCurrentPage,
+            duration: const Duration(milliseconds: 700),
+            curve: Curves.easeInOutCubic,
+          );
+        }
+      }
     }
 
     // 1. Sync category, subcategory & products to local PosController
@@ -246,6 +406,8 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
       final posCtrl = context.read<PosController>();
       if (payload.menuVersion != _lastSyncedMenuVersion) {
         _lastSyncedMenuVersion = payload.menuVersion;
+        PaintingBinding.instance.imageCache.clear();
+        PaintingBinding.instance.imageCache.clearLiveImages();
         posCtrl.loadCategories();
         posCtrl.loadProducts();
         _loadIpcMenu();
@@ -254,7 +416,10 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
         posCtrl.selectCategory(payload.selectedCategoryId, broadcast: false);
       }
       if (payload.selectedSubcategoryId != posCtrl.selectedSubcategoryId) {
-        posCtrl.selectSubcategory(payload.selectedSubcategoryId, broadcast: false);
+        posCtrl.selectSubcategory(
+          payload.selectedSubcategoryId,
+          broadcast: false,
+        );
       }
       if (payload.searchQuery != posCtrl.searchQuery) {
         posCtrl.setSearchQuery(payload.searchQuery, broadcast: false);
@@ -290,6 +455,48 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    try {
+      final ctrl = context.watch<SettingsController>();
+      final s = ctrl.settings;
+      final bool bannersChanged = !listEquals(
+        _settings.promoBanners,
+        s.promoBanners,
+      );
+      final bool intervalChanged =
+          _settings.promoAutoPlaySeconds != s.promoAutoPlaySeconds;
+      final bool fitChanged = _settings.promoMediaFit != s.promoMediaFit;
+      final bool adsVisibilityChanged =
+          _settings.cfdShowAdsWhenIdle != s.cfdShowAdsWhenIdle;
+      final bool brandingChanged =
+          _settings.storeName != s.storeName ||
+          _settings.storeAddress != s.storeAddress ||
+          _settings.logoPath != s.logoPath;
+
+      if (bannersChanged ||
+          intervalChanged ||
+          fitChanged ||
+          adsVisibilityChanged ||
+          brandingChanged) {
+        PaintingBinding.instance.imageCache.clear();
+        PaintingBinding.instance.imageCache.clearLiveImages();
+        _settings = s;
+        if (bannersChanged) {
+          _mediaCacheVersion++;
+          _adCurrentPage = 0;
+          if (_adPageController.hasClients) {
+            _adPageController.jumpToPage(0);
+          }
+        }
+        if (bannersChanged || intervalChanged) {
+          _startAdAutoPlay();
+        }
+      }
+    } catch (_) {}
+  }
+
+  @override
   void dispose() {
     _searchCtrl.dispose();
     _debouncer.cancel();
@@ -299,7 +506,6 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
     _adAutoPlayTimer?.cancel();
     _idleReturnTimer?.cancel();
     _adPageController.dispose();
-    _pulseCtrl.dispose();
     _ipcScrollController.dispose();
     super.dispose();
   }
@@ -312,8 +518,18 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
     try {
       settingsCtrl = context.watch<SettingsController>();
     } catch (_) {}
-    final activeSettings = settingsCtrl?.settings ?? _settings;
-    final storeName = activeSettings.storeName.isNotEmpty ? activeSettings.storeName : 'CA POS';
+    // If _settings has custom promo banners or received updates, prioritize it over stale controller
+    final activeSettings =
+        (_settings.promoBanners.isNotEmpty &&
+            !listEquals(
+              _settings.promoBanners,
+              StoreSettingsModel.defaultPromoBanners,
+            ))
+        ? _settings
+        : (settingsCtrl?.settings ?? _settings);
+    final storeName = activeSettings.storeName.isNotEmpty
+        ? activeSettings.storeName
+        : 'CA POS';
 
     // Reactive check for live CartController in widget tree
     CartController? liveCart;
@@ -326,17 +542,26 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
         ? liveCart.items.map((i) => i.toPresentationMap()).toList()
         : _payload.items;
     final double subtotal = useLiveCart ? liveCart.subtotal : _payload.subtotal;
-    final double discountAmount = useLiveCart ? liveCart.discountAmount : _payload.discountAmount;
-    final double taxAmount = useLiveCart ? liveCart.taxAmount : _payload.taxAmount;
-    final double totalAmount = useLiveCart ? liveCart.totalAmount : _payload.totalAmount;
-    final String currency = useLiveCart ? liveCart.currencySymbol : _payload.currencySymbol;
+    final double discountAmount = useLiveCart
+        ? liveCart.discountAmount
+        : _payload.discountAmount;
+    final double taxAmount = useLiveCart
+        ? liveCart.taxAmount
+        : _payload.taxAmount;
+    final double totalAmount = useLiveCart
+        ? liveCart.totalAmount
+        : _payload.totalAmount;
+    final String currency = useLiveCart
+        ? liveCart.currencySymbol
+        : _payload.currencySymbol;
 
     PosController? posCtrl;
     try {
       posCtrl = context.watch<PosController>();
     } catch (_) {}
 
-    final isQrActive = _payload.state == CfdScreenState.paymentQr ||
+    final isQrActive =
+        _payload.state == CfdScreenState.paymentQr ||
         (_payload.qrData != null && _payload.qrData!.isNotEmpty);
     final isPaymentSuccess = _payload.state == CfdScreenState.paymentSuccess;
 
@@ -348,66 +573,57 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
       }
     }
 
-    // Show fullscreen advertising when:
-    // - Cart is empty (no active order) AND no QR / payment in progress
-    // - Customer hasn't tapped screen to browse menu
-    // - cfdShowAdsWhenIdle is NOT explicitly turned off in settings
-    // NOTE: We default to showing ads (true) so even if DB has a stale value,
-    //       ads still appear. Only explicit admin toggle-off hides them.
-    final bool adsEnabled = activeSettings.cfdShowAdsWhenIdle;
-    final bool shouldShowFullAds = adsEnabled &&
-        itemsList.isEmpty &&
-        !isQrActive &&
-        !isPaymentSuccess &&
-        !_customerBrowsingMenu &&
-        _getEffectiveBanners().isNotEmpty;
+    // Show clean fullscreen promotional slideshow with time and Powered by CA when idle (no items & no QR/payment)
+    final bool isIdle = itemsList.isEmpty && !isQrActive && !isPaymentSuccess;
+    final bool useWelcomeMode =
+        isIdle && activeSettings.cfdIdleMode == 'welcome';
+    final bool useSlideShowMode =
+        isIdle && activeSettings.cfdIdleMode == 'slideshow';
 
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 350),
       switchInCurve: Curves.easeOutCubic,
       switchOutCurve: Curves.easeInCubic,
-      child: shouldShowFullAds
-          ? _buildFullAdvertisingView(context, activeSettings, canPop)
+      child: isIdle
+          ? (useWelcomeMode
+                ? _buildWelcomeIdleView(context, activeSettings, canPop)
+                : (useSlideShowMode || activeSettings.cfdIdleMode == 'mirror'
+                      ? _buildCleanFullscreenAdView(
+                          context,
+                          activeSettings,
+                          canPop,
+                        )
+                      : _buildCleanFullscreenAdView(
+                          context,
+                          activeSettings,
+                          canPop,
+                        )))
           : Scaffold(
               key: const ValueKey('cfd_split_order_screen'),
               backgroundColor: const Color(0xFFF8FAFC),
               body: SafeArea(
                 child: Column(
                   children: [
-                    // ── Top Customer Header Bar (Clean, NO Cashier Admin controls) ──
-                    _buildCustomerHeader(context, storeName, canPop, posCtrl, itemsList, activeSettings),
+                    // ── Top Customer Header Bar (Store Name, Time, Powered by CA) ──
+                    _buildCustomerHeader(
+                      context,
+                      storeName,
+                      canPop,
+                      posCtrl,
+                      itemsList,
+                      activeSettings,
+                    ),
 
-                    // ── Main Dual-Column Content: Menu (Left) + Cart/QR (Right) ──
+                    // ── Main Content: Promotional Slideshow (Left) + Cart/QR (Right) ──
                     Expanded(
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // ── Left Column: POS Menu (Categories, Subcategories, Items Grid) ──
                           Expanded(
-                            flex: isQrActive ? 64 : 68,
-                            child: _ipcProducts.isNotEmpty
-                                ? _buildIpcMenu(context, liveCart, currency)
-                                : (posCtrl != null && posCtrl.products.isNotEmpty)
-                                    ? ItemGrid(
-                                        isCustomerDisplay: true,
-                                        gridTemplateOverride: _payload.gridTemplate,
-                                        scrollController: _ipcScrollController,
-                                      )
-                                    : Container(
-                                        color: ColorTheme.screenBg,
-                                        child: const Center(
-                                          child: Text(
-                                            'Loading menu...',
-                                            style: TextStyle(color: ColorTheme.neutral500, fontSize: 14),
-                                          ),
-                                        ),
-                                      ),
+                            flex: isQrActive ? 55 : 60,
+                            child: _buildPromoSlideshowPanel(activeSettings),
                           ),
-
-                          // Vertical Separator
                           Container(width: 1, color: const Color(0xFFE2E8F0)),
-
-                          // ── Right Column: Live Cart / QR Payment / Payment Success ──
                           Expanded(
                             flex: isQrActive ? 36 : 32,
                             child: AnimatedSwitcher(
@@ -417,15 +633,18 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
                               child: isQrActive
                                   ? _buildQrPaymentView(totalAmount, currency)
                                   : isPaymentSuccess
-                                      ? _buildPaymentSuccessView(totalAmount, currency)
-                                      : _buildCartPanel(
-                                          itemsList,
-                                          subtotal,
-                                          discountAmount,
-                                          taxAmount,
-                                          totalAmount,
-                                          currency,
-                                        ),
+                                  ? _buildPaymentSuccessView(
+                                      totalAmount,
+                                      currency,
+                                    )
+                                  : _buildCartPanel(
+                                      itemsList,
+                                      subtotal,
+                                      discountAmount,
+                                      taxAmount,
+                                      totalAmount,
+                                      currency,
+                                    ),
                             ),
                           ),
                         ],
@@ -460,181 +679,39 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
       ),
       child: Row(
         children: [
-          // Store Logo
-          AppLogoWidget(
-            logoPath: _settings.logoPath,
-            size: 32,
-            borderRadius: 8,
-            fallbackSvg: AssetTheme.store,
-          ),
-          const SizedBox(width: 10),
-
-          // Store Name & Subtitle
-          Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                storeName,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF0F172A),
-                  letterSpacing: -0.3,
-                ),
-              ),
-              Text(
-                _settings.storeAddress.isNotEmpty
-                    ? _settings.storeAddress
-                    : 'Customer Display',
-                style: const TextStyle(
-                  fontSize: 10.5,
-                  color: Color(0xFF64748B),
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 20),
-
-          // Live Search Bar (filters ItemGrid)
-          Flexible(
-            fit: FlexFit.loose,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 320),
-              child: SizedBox(
-                height: 36,
-                child: TextField(
-                  controller: _searchCtrl,
-                  onChanged: (val) {
-                    _debouncer.call(() {
-                      posCtrl?.setSearchQuery(val);
-                    });
-                    setState(() {});
-                  },
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF0F172A),
-                  ),
-                  decoration: InputDecoration(
-                    hintText: 'Search menu items...',
-                    hintStyle: const TextStyle(
-                      color: Color(0xFF94A3B8),
-                      fontSize: 12.5,
-                    ),
-                    prefixIcon: const Padding(
-                      padding: EdgeInsets.only(left: 10, right: 6),
-                      child: AppSvgIcon(
-                        AssetTheme.search,
-                        size: 16,
-                        color: Color(0xFF94A3B8),
-                      ),
-                    ),
-                    prefixIconConstraints: const BoxConstraints(minWidth: 0, minHeight: 0),
-                    suffixIcon: _searchCtrl.text.isNotEmpty
-                        ? IconButton(
-                            icon: const AppSvgIcon(
-                              AssetTheme.close,
-                              size: 14,
-                              color: Color(0xFF94A3B8),
-                            ),
-                            onPressed: () {
-                              _searchCtrl.clear();
-                              _debouncer.cancel();
-                              posCtrl?.clearSearch();
-                              setState(() {});
-                            },
-                          )
-                        : null,
-                    contentPadding: const EdgeInsets.symmetric(vertical: 0),
-                    fillColor: const Color(0xFFF1F5F9),
-                    filled: true,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: BorderSide.none,
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(
-                        color: Color(0xFF0F172A),
-                        width: 1.5,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-
-          const Spacer(),
-
-          // Customer Display Indicator Badge
+          // Powered by CA badge
           Container(
-            margin: const EdgeInsets.only(right: 12),
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(
-              color: const Color(0xFF10B981).withValues(alpha: 0.12),
+              color: const Color(0xFF0F172A).withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(6),
-              border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
-            child: Row(
+            child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Container(
-                  width: 6.5,
-                  height: 6.5,
-                  decoration: const BoxDecoration(color: Color(0xFF10B981), shape: BoxShape.circle),
+                AppLogoWidget(
+                  logoPath: 'assets/images/ca.png',
+                  size: 15,
+                  borderRadius: 3,
+                  fallbackSvg: AssetTheme.store,
                 ),
-                const SizedBox(width: 5),
-                const Text(
-                  'CUSTOMER DISPLAY',
+                SizedBox(width: 6),
+                Text(
+                  'Powered by CA',
                   style: TextStyle(
-                    fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF047857),
-                    letterSpacing: 0.3,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF475569),
                   ),
                 ),
               ],
             ),
           ),
 
-          // Show Ads button (when customer is browsing menu and cart is empty)
-          if (settings.cfdShowAdsWhenIdle && itemsList.isEmpty) ...[
-            InkWell(
-              onTap: () {
-                _idleReturnTimer?.cancel();
-                setState(() => _customerBrowsingMenu = false);
-              },
-              borderRadius: BorderRadius.circular(8),
-              child: Container(
-                margin: const EdgeInsets.only(right: 12),
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF0F766E).withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: const Color(0xFF0D9488).withValues(alpha: 0.3)),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.tv_rounded, size: 14, color: Color(0xFF0D9488)),
-                    SizedBox(width: 4),
-                    Text(
-                      'Show Ads',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF0F766E),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+          const Spacer(),
 
-          // Live Clock
+          // Live Clock Timing
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
@@ -644,11 +721,19 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const AppSvgIcon(AssetTheme.clock, size: 14, color: Color(0xFF64748B)),
+                const AppSvgIcon(
+                  AssetTheme.clock,
+                  size: 14,
+                  color: Color(0xFF64748B),
+                ),
                 const SizedBox(width: 6),
                 Text(
                   _currentTime,
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF475569)),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF475569),
+                  ),
                 ),
               ],
             ),
@@ -661,7 +746,10 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
               onTap: () => Navigator.of(context).pop(),
               borderRadius: BorderRadius.circular(8),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF0F172A),
                   borderRadius: BorderRadius.circular(8),
@@ -673,7 +761,11 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
                     SizedBox(width: 4),
                     Text(
                       'Return to POS',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                   ],
                 ),
@@ -722,7 +814,11 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
             ),
             child: Row(
               children: [
-                const AppSvgIcon(AssetTheme.cart, size: 16, color: Color(0xFF0F172A)),
+                const AppSvgIcon(
+                  AssetTheme.cart,
+                  size: 16,
+                  color: Color(0xFF0F172A),
+                ),
                 const SizedBox(width: 8),
                 const Text(
                   'Current Order',
@@ -734,7 +830,10 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
                 ),
                 const Spacer(),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: const Color(0xFFE2E8F0),
                     borderRadius: BorderRadius.circular(12),
@@ -790,21 +889,29 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
             child: itemsList.isEmpty
                 ? _buildCfdPromotionBanner()
                 : ListView.separated(
-                    physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    physics: const BouncingScrollPhysics(
+                      parent: AlwaysScrollableScrollPhysics(),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 8,
+                    ),
                     itemCount: itemsList.length,
-                    separatorBuilder: (context, index) => const Divider(height: 12, color: Color(0xFFF1F5F9)),
+                    separatorBuilder: (context, index) =>
+                        const Divider(height: 12, color: Color(0xFFF1F5F9)),
                     itemBuilder: (context, index) {
                       final item = itemsList[index];
                       final qty = item['quantity'] ?? 1;
                       final name = item['productName'] ?? '';
-                      final price = (item['totalPrice'] as num?)?.toDouble() ?? 0.0;
+                      final price =
+                          (item['totalPrice'] as num?)?.toDouble() ?? 0.0;
                       final imagePath = (item['imagePath'] as String?)?.trim();
 
-                      final imgProvider = ProductImageHelper.resolveImageProvider(
-                        imagePath: imagePath,
-                        productName: name,
-                      );
+                      final imgProvider =
+                          ProductImageHelper.resolveImageProvider(
+                            imagePath: imagePath,
+                            productName: name,
+                          );
 
                       return Row(
                         crossAxisAlignment: CrossAxisAlignment.center,
@@ -817,7 +924,9 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
                             decoration: BoxDecoration(
                               color: const Color(0xFFF1F5F9),
                               borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: const Color(0xFFE2E8F0)),
+                              border: Border.all(
+                                color: const Color(0xFFE2E8F0),
+                              ),
                             ),
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(7),
@@ -825,15 +934,18 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
                                 image: imgProvider,
                                 fit: BoxFit.cover,
                                 errorBuilder: (_, error, stack) => Image.asset(
-                                  ProductImageHelper.getDefaultAssetFor(productName: name),
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (_, error2, stack2) => const Center(
-                                    child: AppSvgIcon(
-                                      AssetTheme.gallery,
-                                      size: 18,
-                                      color: Color(0xFFCBD5E1),
-                                    ),
+                                  ProductImageHelper.getDefaultAssetFor(
+                                    productName: name,
                                   ),
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, error2, stack2) =>
+                                      const Center(
+                                        child: AppSvgIcon(
+                                          AssetTheme.gallery,
+                                          size: 18,
+                                          color: Color(0xFFCBD5E1),
+                                        ),
+                                      ),
                                 ),
                               ),
                             ),
@@ -854,7 +966,10 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
                                 ),
                                 const SizedBox(width: 8),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 6,
+                                    vertical: 2,
+                                  ),
                                   decoration: BoxDecoration(
                                     color: const Color(0xFFF1F5F9),
                                     borderRadius: BorderRadius.circular(6),
@@ -899,10 +1014,20 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Subtotal', style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
+                    const Text(
+                      'Subtotal',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
                     Text(
                       '$currency${subtotal.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF0F172A),
+                      ),
                     ),
                   ],
                 ),
@@ -910,10 +1035,20 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Tax / VAT', style: TextStyle(fontSize: 12.5, color: Color(0xFF64748B))),
+                    const Text(
+                      'Tax / VAT',
+                      style: TextStyle(
+                        fontSize: 12.5,
+                        color: Color(0xFF64748B),
+                      ),
+                    ),
                     Text(
                       '$currency${taxAmount.toStringAsFixed(2)}',
-                      style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600, color: Color(0xFF0F172A)),
+                      style: const TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF0F172A),
+                      ),
                     ),
                   ],
                 ),
@@ -922,10 +1057,20 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Discount', style: TextStyle(fontSize: 12.5, color: AppConfig.accentRose)),
+                      const Text(
+                        'Discount',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: AppConfig.accentRose,
+                        ),
+                      ),
                       Text(
                         '-$currency${discountAmount.toStringAsFixed(2)}',
-                        style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.bold, color: AppConfig.accentRose),
+                        style: const TextStyle(
+                          fontSize: 13.5,
+                          fontWeight: FontWeight.bold,
+                          color: AppConfig.accentRose,
+                        ),
                       ),
                     ],
                   ),
@@ -936,7 +1081,11 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
                   children: [
                     const Text(
                       'TOTAL DUE',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF0F172A),
+                      ),
                     ),
                     Text(
                       '$currency${totalAmount.toStringAsFixed(2)}',
@@ -961,17 +1110,21 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
   Widget _buildQrPaymentView(double totalAmount, String currency) {
     final qrData = _payload.qrData ?? 'OMNIPOS_PAYMENT_DEFAULT';
 
-    final hasPayloadQrImage = _payload.qrImagePath != null &&
+    final hasPayloadQrImage =
+        _payload.qrImagePath != null &&
         _payload.qrImagePath!.isNotEmpty &&
         File(_payload.qrImagePath!).existsSync();
-    final hasSettingsQrImage = _settings.qrImagePath != null &&
+    final hasSettingsQrImage =
+        _settings.qrImagePath != null &&
         _settings.qrImagePath!.isNotEmpty &&
         File(_settings.qrImagePath!).existsSync();
     final customQrPath = hasPayloadQrImage
         ? _payload.qrImagePath!
         : (hasSettingsQrImage ? _settings.qrImagePath! : null);
 
-    final storeTitle = _settings.storeName.isNotEmpty ? _settings.storeName : 'CA POS';
+    final storeTitle = _settings.storeName.isNotEmpty
+        ? _settings.storeName
+        : 'CA POS';
     final rate = _settings.usdToKhrRate > 0 ? _settings.usdToKhrRate : 4000.0;
     final khrAmount = (totalAmount * rate).round();
 
@@ -982,7 +1135,10 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFF0D9488).withValues(alpha: 0.28), width: 1.5),
+        border: Border.all(
+          color: const Color(0xFF0D9488).withValues(alpha: 0.28),
+          width: 1.5,
+        ),
         boxShadow: [
           BoxShadow(
             color: const Color(0xFF0D9488).withValues(alpha: 0.08),
@@ -1041,7 +1197,8 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
                 ],
               ),
 
-              if (_payload.receiptNo != null && _payload.receiptNo!.isNotEmpty) ...[
+              if (_payload.receiptNo != null &&
+                  _payload.receiptNo!.isNotEmpty) ...[
                 const SizedBox(height: 4),
                 Text(
                   'Bill #${_payload.receiptNo}',
@@ -1168,7 +1325,11 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
                   ],
                 ),
                 child: const Center(
-                  child: AppSvgIcon.sprite(SpriteIcons.check, size: 34, color: Colors.white),
+                  child: AppSvgIcon.sprite(
+                    SpriteIcons.check,
+                    size: 34,
+                    color: Colors.white,
+                  ),
                 ),
               ),
               const SizedBox(height: 14),
@@ -1185,7 +1346,8 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
               ),
               const SizedBox(height: 5),
               Text(
-                (_payload.thankYouNote != null && _payload.thankYouNote!.trim().isNotEmpty)
+                (_payload.thankYouNote != null &&
+                        _payload.thankYouNote!.trim().isNotEmpty)
                     ? _payload.thankYouNote!
                     : 'We truly appreciate your visit! Please come again soon.',
                 textAlign: TextAlign.center,
@@ -1201,7 +1363,10 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
               // 4. Payment Receipt & Amounts Summary Card
               Container(
                 constraints: const BoxConstraints(maxWidth: 380),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 14,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFF8FAFC),
                   borderRadius: BorderRadius.circular(14),
@@ -1215,12 +1380,20 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
                         children: [
                           const Text(
                             'Order Receipt:',
-                            style: TextStyle(fontSize: 12, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2.5),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2.5,
+                            ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF0D9488).withValues(alpha: 0.1),
+                              color: const Color(0xFF0D9488)
+                                  .withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -1243,7 +1416,11 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
                       children: [
                         const Text(
                           'Amount Paid:',
-                          style: TextStyle(fontSize: 13.5, color: Color(0xFF475569), fontWeight: FontWeight.w600),
+                          style: TextStyle(
+                            fontSize: 13.5,
+                            color: Color(0xFF475569),
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                         Text(
                           '$currency${totalAmount.toStringAsFixed(2)}',
@@ -1262,7 +1439,11 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
                         children: [
                           const Text(
                             'Total (KHR):',
-                            style: TextStyle(fontSize: 11.5, color: Color(0xFF64748B), fontWeight: FontWeight.w500),
+                            style: TextStyle(
+                              fontSize: 11.5,
+                              color: Color(0xFF64748B),
+                              fontWeight: FontWeight.w500,
+                            ),
                           ),
                           Text(
                             '${NumberFormat('#,###').format((totalAmount * _settings.usdToKhrRate).round())} KHR',
@@ -1284,7 +1465,11 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
                         children: [
                           const Row(
                             children: [
-                              AppSvgIcon.sprite(SpriteIcons.cash, size: 16, color: Color(0xFF059669)),
+                              AppSvgIcon.sprite(
+                                SpriteIcons.cash,
+                                size: 16,
+                                color: Color(0xFF059669),
+                              ),
                               SizedBox(width: 6),
                               Text(
                                 'Change Returned:',
@@ -1314,7 +1499,10 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
 
               // 5. Friendly Hospitality Bottom Pill
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 7,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFECFDF5),
                   borderRadius: BorderRadius.circular(20),
@@ -1323,7 +1511,11 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    AppSvgIcon.sprite(SpriteIcons.star, size: 16, color: Color(0xFF059669)),
+                    AppSvgIcon.sprite(
+                      SpriteIcons.star,
+                      size: 16,
+                      color: Color(0xFF059669),
+                    ),
                     SizedBox(width: 6),
                     Text(
                       'Have a wonderful day! Please visit us again.',
@@ -1343,543 +1535,480 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
     );
   }
 
-  /// ── Standalone IPC Menu View (Used when secondary process reads synced menu) ──
-  Widget _buildIpcMenu(BuildContext context, CartController? liveCart, String currency) {
-    var displayProducts = _ipcProducts;
-    if (_searchCtrl.text.trim().isNotEmpty) {
-      final q = _searchCtrl.text.trim().toLowerCase();
-      displayProducts = displayProducts.where((p) => p.name.toLowerCase().contains(q)).toList();
-    } else if (_ipcSelectedCategoryId != 'ALL') {
-      displayProducts = displayProducts.where((p) => p.categoryId == _ipcSelectedCategoryId).toList();
-      if (_ipcSelectedSubcategoryId != null) {
-        displayProducts = displayProducts.where((p) => p.subcategoryId == _ipcSelectedSubcategoryId).toList();
-      }
-    }
-
-    final subcatsForSelectedCat = _ipcCategories.isNotEmpty && _ipcSelectedCategoryId != 'ALL'
-        ? _ipcSubcategories.where((s) => s.categoryId == _ipcSelectedCategoryId).toList()
-        : <Subcategory>[];
-
-    return Container(
-      color: ColorTheme.screenBg,
-      child: Column(
-        children: [
-          // Category bar
-          CategoryBar(
-            categories: _ipcCategories,
-            selectedId: _ipcSelectedCategoryId,
-            onSelect: (catId) {
-              setState(() {
-                _ipcSelectedCategoryId = catId;
-                _ipcSelectedSubcategoryId = null;
-              });
-            },
-          ),
-
-          // Subcategory bar
-          if (_ipcSelectedCategoryId != 'ALL' && subcatsForSelectedCat.isNotEmpty)
-            SubcategoryBar(
-              subcategories: subcatsForSelectedCat,
-              selectedId: _ipcSelectedSubcategoryId,
-              onSelect: (subId) {
-                setState(() => _ipcSelectedSubcategoryId = subId);
-              },
-            ),
-
-          // Product cards grid
-          Expanded(
-            child: displayProducts.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        AppSvgIcon(
-                          AssetTheme.allCate,
-                          size: 52,
-                          color: ColorTheme.neutral400.withValues(alpha: 0.7),
-                        ),
-                        const SizedBox(height: 12),
-                        const Text(
-                          'No menu items found',
-                          style: TextStyle(color: ColorTheme.neutral600, fontSize: 15),
-                        ),
-                      ],
-                    ),
-                  )
-                : LayoutBuilder(
-                    builder: (context, constraints) {
-                      final template = _payload.gridTemplate.isNotEmpty
-                          ? _payload.gridTemplate
-                          : _settings.gridTemplate;
-                      final layout = ProductGrid.resolveGridLayout(
-                        maxWidth: constraints.maxWidth,
-                        gridTemplate: template,
-                      );
-
-                      return GridView.builder(
-                        controller: _ipcScrollController,
-                        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-                        padding: const EdgeInsets.all(12),
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: layout.crossAxisCount,
-                          childAspectRatio: layout.childAspectRatio,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                        ),
-                        itemCount: displayProducts.length,
-                        itemBuilder: (ctx, index) {
-                          final p = displayProducts[index];
-                          return ProductCard(
-                            product: p,
-                            currency: currency,
-                            onTap: () {
-                              if (liveCart != null) {
-                                liveCart.addProduct(p);
-                              }
-                            },
-                          );
-                        },
-                      );
-                    },
-                  ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// ── Fullscreen Customer Advertising Presentation ────────────────────────
-  /// Rendered when cashier has no active order items and customer advertising
-  /// is enabled in settings. Displays full-width cinematic food posters,
-  /// store branding, live clock, slide dots, and interactive pulse prompt.
-  Widget _buildFullAdvertisingView(
+  Widget _buildWelcomeIdleView(
     BuildContext context,
     StoreSettingsModel settings,
     bool canPop,
   ) {
-    final banners = _getEffectiveBanners();
-
     return Scaffold(
-      key: const ValueKey('cfd_fullscreen_ads'),
-      backgroundColor: Colors.black,
-      body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () {
-          setState(() {
-            _customerBrowsingMenu = true;
-          });
-          _startIdleReturnTimer();
-        },
+      backgroundColor: const Color(0xFF0F172A),
+      body: SafeArea(
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // ── 1. Fullscreen Promotional Media Slideshow ──
+            Positioned(
+              top: 16,
+              left: 20,
+              right: 20,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AppLogoWidget(
+                          logoPath: settings.logoPath ?? 'assets/images/ca.png',
+                          size: 18,
+                          borderRadius: 5,
+                          monochrome: true,
+                          fallbackSvg: AssetTheme.store,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Powered by CA',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.access_time_rounded,
+                          size: 15,
+                          color: Colors.white70,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          _currentTime,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AppLogoWidget(
+                    logoPath: settings.logoPath ?? 'assets/images/ca.png',
+                    size: 120,
+                    borderRadius: 28,
+                    monochrome: true,
+                    fallbackSvg: AssetTheme.store,
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    settings.storeName.isNotEmpty
+                        ? settings.storeName
+                        : 'Welcome',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 34,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    'Welcome',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (canPop && !widget.isEmbeddedDualScreen)
+              Positioned(
+                top: 18,
+                right: 18,
+                child: InkWell(
+                  onTap: () => Navigator.of(context).pop(),
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    padding: const EdgeInsets.all(7),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.35),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.2),
+                      ),
+                    ),
+                    child: const Icon(
+                      Icons.close_rounded,
+                      color: Colors.white,
+                      size: 16,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// ── Clean Fullscreen Promotional Ads with Time & Powered by CA ──────────
+  /// When idle (no items in cart): shows the promotional image slideshow edge-to-edge
+  /// overlaid only with the live clock (time) and "Powered by CA" logo badge.
+  Widget _buildCleanFullscreenAdView(
+    BuildContext context,
+    StoreSettingsModel settings,
+    bool canPop,
+  ) {
+    final banners = _getEffectiveBanners(settings);
+
+    return Scaffold(
+      key: const ValueKey('cfd_fullscreen_ads_clean'),
+      backgroundColor: Colors.black,
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          // ── Image Slideshow (Full Screen edge-to-edge) ──
+          if (banners.isNotEmpty)
             PageView.builder(
+              key: ValueKey(
+                'cfd_clean_pageview_${banners.join(",")}_${settings.promoMediaFit}_$_mediaCacheVersion',
+              ),
               controller: _adPageController,
               itemCount: banners.length,
               onPageChanged: (idx) => setState(() => _adCurrentPage = idx),
               itemBuilder: (context, index) {
-                final bannerPath = banners[index];
-                return _buildPromoSlide(bannerPath, index);
+                return _buildPromoSlide(banners[index], index, settings);
               },
+            )
+          else
+            Container(
+              color: const Color(0xFF0F172A),
+              child: const Center(
+                child: Icon(
+                  Icons.photo_library_outlined,
+                  color: Colors.white24,
+                  size: 64,
+                ),
+              ),
             ),
 
-            // ── 2. Cinematic Gradient Overlays ──
-            Positioned.fill(
+          // ── Top subtle gradient vignette for text legibility ──
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 90,
+            child: IgnorePointer(
               child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.black.withValues(alpha: 0.68),
+                      Colors.black.withValues(alpha: 0.65),
                       Colors.transparent,
-                      Colors.black.withValues(alpha: 0.25),
-                      Colors.black.withValues(alpha: 0.85),
-                    ],
-                    stops: const [0.0, 0.28, 0.65, 1.0],
-                  ),
-                ),
-              ),
-            ),
-
-            // ── 3. Top Header: Store Branding & Live Clock ──
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 16),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Store Brand Logo & Name
-                      Row(
-                        children: [
-                          AppLogoWidget(
-                            logoPath: settings.logoPath,
-                            size: 46,
-                            borderRadius: 12,
-                            fallbackSvg: AssetTheme.store,
-                          ),
-                          const SizedBox(width: 14),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                settings.storeName.toUpperCase(),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 0.8,
-                                  shadows: [
-                                    Shadow(color: Colors.black87, blurRadius: 10),
-                                  ],
-                                ),
-                              ),
-                              Text(
-                                settings.storeAddress.isNotEmpty
-                                    ? settings.storeAddress
-                                    : 'Welcome to our store',
-                                style: TextStyle(
-                                  color: Colors.white.withValues(alpha: 0.85),
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-
-                      // Clock & Explore Menu Action
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.black.withValues(alpha: 0.55),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.25)),
-                            ),
-                            child: Row(
-                              children: [
-                                const Icon(Icons.access_time_rounded, size: 16, color: Color(0xFF38BDF8)),
-                                const SizedBox(width: 8),
-                                Text(
-                                  _currentTime,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.bold,
-                                    fontFamily: 'monospace',
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          // Explore Menu Button
-                          InkWell(
-                            onTap: () {
-                              setState(() => _customerBrowsingMenu = true);
-                              _startIdleReturnTimer();
-                            },
-                            borderRadius: BorderRadius.circular(12),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF0D9488),
-                                borderRadius: BorderRadius.circular(12),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFF0D9488).withValues(alpha: 0.4),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.restaurant_menu_rounded, color: Colors.white, size: 16),
-                                  SizedBox(width: 6),
-                                  Text(
-                                    'Explore Menu',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                          if (canPop && !widget.isEmbeddedDualScreen) ...[
-                            const SizedBox(width: 12),
-                            InkWell(
-                              onTap: () => Navigator.of(context).pop(),
-                              borderRadius: BorderRadius.circular(12),
-                              child: Container(
-                                padding: const EdgeInsets.all(8),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.5),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                                ),
-                                child: const Icon(Icons.close_rounded, color: Colors.white, size: 20),
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
                     ],
                   ),
                 ),
               ),
             ),
+          ),
 
-            // ── 4. Bottom Section: Slide Dots & Touch to Order ──
-            Positioned(
-              bottom: 0,
-              left: 0,
-              right: 0,
-              child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(28, 0, 28, 28),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Slide Indicators
-                      if (banners.length > 1) ...[
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: List.generate(banners.length, (i) {
-                            final isActive = i == _adCurrentPage;
-                            return AnimatedContainer(
-                              duration: const Duration(milliseconds: 300),
-                              margin: const EdgeInsets.symmetric(horizontal: 4),
-                              height: 6,
-                              width: isActive ? 28 : 8,
-                              decoration: BoxDecoration(
-                                color: isActive
-                                    ? const Color(0xFF0D9488)
-                                    : Colors.white.withValues(alpha: 0.4),
-                                borderRadius: BorderRadius.circular(3),
-                              ),
-                            );
-                          }),
+          // ── Top Overlay Bar: Only Time & Powered by CA (+ Close if preview) ──
+          Positioned(
+            top: 16,
+            left: 20,
+            right: 20,
+            child: SafeArea(
+              child: Row(
+                children: [
+                  // Powered by CA
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.2),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          blurRadius: 8,
                         ),
-                        const SizedBox(height: 20),
                       ],
-
-                      // Animated Call to Action
-                      ScaleTransition(
-                        scale: _pulseAnim,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: [Color(0xFF0D9488), Color(0xFF0284C7)],
-                            ),
-                            borderRadius: BorderRadius.circular(30),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFF0D9488).withValues(alpha: 0.5),
-                                blurRadius: 24,
-                                spreadRadius: 2,
-                                offset: const Offset(0, 4),
-                              ),
-                            ],
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.touch_app_rounded, color: Colors.white, size: 24),
-                              SizedBox(width: 10),
-                              Text(
-                                'TOUCH ANYWHERE TO START ORDER',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w900,
-                                  letterSpacing: 1.2,
-                                ),
-                              ),
-                            ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        AppLogoWidget(
+                          logoPath: settings.logoPath ?? 'assets/images/ca.png',
+                          size: 16,
+                          borderRadius: 4,
+                          monochrome: true,
+                          fallbackSvg: AssetTheme.store,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Powered by CA',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.4,
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 10),
-                      Text(
-                        _currentDate,
-                        style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.75),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
-                ),
+
+                  const Spacer(),
+
+                  // Live Clock (Time)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.55),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: Colors.white.withValues(alpha: 0.2),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.access_time_rounded,
+                          size: 15,
+                          color: Colors.white70,
+                        ),
+                        const SizedBox(width: 7),
+                        Text(
+                          _currentTime,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Close button if modal preview
+                  if (canPop && !widget.isEmbeddedDualScreen) ...[
+                    const SizedBox(width: 10),
+                    InkWell(
+                      onTap: () => Navigator.of(context).pop(),
+                      borderRadius: BorderRadius.circular(20),
+                      child: Container(
+                        padding: const EdgeInsets.all(7),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.55),
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: const Icon(
+                          Icons.close_rounded,
+                          color: Colors.white,
+                          size: 16,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
-          ],
-        ),
+          ),
+
+          // ── Bottom Slide Dots Indicator ──
+          if (banners.length > 1)
+            Positioned(
+              bottom: 20,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(banners.length, (i) {
+                  final isActive = i == _adCurrentPage;
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 300),
+                    margin: const EdgeInsets.symmetric(horizontal: 4),
+                    height: 6,
+                    width: isActive ? 24 : 6,
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.4),
+                      borderRadius: BorderRadius.circular(3),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.3),
+                          blurRadius: 4,
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ),
+            ),
+        ],
       ),
     );
   }
 
-  Widget _buildPromoSlide(String path, int index) {
-    final isAsset = path.startsWith('assets/');
-    final isFile = !isAsset && File(path).existsSync();
-
-    Widget imageWidget;
-    if (isAsset) {
-      imageWidget = Image.asset(
-        path,
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => _buildPlaceholderSlide(index),
+  /// ── Promotional Slideshow Panel for Split Checkout Screen ────────────────
+  Widget _buildPromoSlideshowPanel(StoreSettingsModel settings) {
+    final banners = _getEffectiveBanners(settings);
+    if (banners.isEmpty) {
+      return Container(
+        color: const Color(0xFF0F172A),
+        child: const Center(
+          child: Icon(
+            Icons.storefront_rounded,
+            size: 64,
+            color: Colors.white24,
+          ),
+        ),
       );
-    } else if (isFile) {
-      imageWidget = Image.file(
-        File(path),
-        fit: BoxFit.cover,
-        errorBuilder: (_, _, _) => _buildPlaceholderSlide(index),
-      );
-    } else {
-      imageWidget = _buildPlaceholderSlide(index);
     }
 
     return Stack(
       fit: StackFit.expand,
       children: [
-        imageWidget,
-        // Promotional overlay caption
-        Positioned(
-          left: 36,
-          bottom: 120,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 500),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        PageView.builder(
+          key: ValueKey(
+            'cfd_split_promo_${banners.join(",")}_${settings.promoMediaFit}_$_mediaCacheVersion',
+          ),
+          controller: _adPageController,
+          itemCount: banners.length,
+          onPageChanged: (idx) => setState(() => _adCurrentPage = idx),
+          itemBuilder: (context, index) {
+            return _buildPromoSlide(banners[index], index, settings);
+          },
+        ),
+        if (banners.length > 1)
+          Positioned(
+            bottom: 14,
+            left: 0,
+            right: 0,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: List.generate(banners.length, (i) {
+                final isActive = i == _adCurrentPage;
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 300),
+                  margin: const EdgeInsets.symmetric(horizontal: 3),
+                  height: 4,
+                  width: isActive ? 20 : 5,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF0D9488),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    'SPECIAL PROMOTION',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _getPromoTitle(index),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5,
-                    shadows: [
-                      Shadow(color: Colors.black, blurRadius: 16),
+                    color: isActive
+                        ? Colors.white
+                        : Colors.white.withValues(alpha: 0.45),
+                    borderRadius: BorderRadius.circular(2),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        blurRadius: 3,
+                      ),
                     ],
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _getPromoSubtitle(index),
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    shadows: const [
-                      Shadow(color: Colors.black, blurRadius: 10),
-                    ],
-                  ),
-                ),
-              ],
+                );
+              }),
             ),
           ),
-        ),
       ],
     );
   }
 
-  Widget _buildPlaceholderSlide(int index) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF0F172A), Color(0xFF1E293B), Color(0xFF0F766E)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
+  BoxFit _resolveBoxFit(String fitMode) {
+    switch (fitMode) {
+      case 'fill':
+        return BoxFit.fill;
+      case 'cover':
+      case 'contain':
+      default:
+        return BoxFit.cover;
+    }
+  }
+
+  Widget _buildPromoSlide(
+    String path,
+    int index, [
+    StoreSettingsModel? settingsOverride,
+  ]) {
+    final s = settingsOverride ?? _settings;
+    final fit = _resolveBoxFit(s.promoMediaFit);
+    return PromoMediaPlayer(
+      // Include _mediaCacheVersion in key so widget fully rebuilds when banners change
+      key: ValueKey(
+        'cfd_promo_${path}_${s.promoMediaFit}_${index}_$_mediaCacheVersion',
       ),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.restaurant_rounded, size: 80, color: Colors.white24),
-            const SizedBox(height: 16),
-            Text(
-              'PROMOTION SPECIALS',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.5),
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
-              ),
-            ),
-          ],
-        ),
-      ),
+      mediaPath: path,
+      index: index,
+      showFull: false,
+      fit: fit,
+      autoPlay: true,
+      loop: true,
+      muted: true,
     );
   }
 
-  String _getPromoTitle(int index) {
-    switch (index % 4) {
-      case 0:
-        return 'Fresh Gourmet Selection';
-      case 1:
-        return 'Signature Handcrafted Drinks';
-      case 2:
-        return 'Artisan Burgers & Grills';
-      case 3:
-      default:
-        return 'Delicious Combos & Deals';
-    }
-  }
-
-  String _getPromoSubtitle(int index) {
-    switch (index % 4) {
-      case 0:
-        return 'Made fresh to order with premium culinary ingredients.';
-      case 1:
-        return 'Pair your meal with our refreshing barista beverages.';
-      case 2:
-        return 'Sizzling hot, packed with flavor, and served immediately.';
-      case 3:
-      default:
-        return 'Save more with our daily combos and value set meals.';
-    }
-  }
-
-  Widget _buildCfdPromotionBanner() {
-    final banners = _settings.promoBanners.isNotEmpty
-        ? _settings.promoBanners
-        : StoreSettingsModel.defaultPromoBanners;
+  Widget _buildCfdPromotionBanner([StoreSettingsModel? settingsOverride]) {
+    final s = settingsOverride ?? _settings;
+    final banners = _getEffectiveBanners(s);
 
     return Padding(
       padding: const EdgeInsets.all(16),
@@ -1892,15 +2021,22 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
                 fit: StackFit.expand,
                 children: [
                   _CfdPromoCarousel(
+                    key: ValueKey(
+                      'cfd_promo_banner_${banners.join(",")}_${s.promoAutoPlaySeconds}_${s.promoMediaFit}_$_mediaCacheVersion',
+                    ),
                     banners: banners,
-                    intervalSeconds: _settings.promoAutoPlaySeconds,
+                    intervalSeconds: s.promoAutoPlaySeconds,
+                    fitMode: s.promoMediaFit,
                   ),
                   Positioned(
                     left: 12,
                     right: 12,
                     bottom: 12,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
                         color: Colors.black.withValues(alpha: 0.75),
                         borderRadius: BorderRadius.circular(10),
@@ -1908,11 +2044,19 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.campaign_rounded, color: Color(0xFF38BDF8), size: 18),
+                          Icon(
+                            Icons.campaign_rounded,
+                            color: Color(0xFF38BDF8),
+                            size: 18,
+                          ),
                           SizedBox(width: 8),
                           Text(
                             'Special Promotion • Order at Counter',
-                            style: TextStyle(color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 11.5,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ],
                       ),
@@ -1930,7 +2074,11 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
               SizedBox(width: 6),
               Text(
                 'Browse our menu to start your order',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF64748B)),
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: Color(0xFF64748B),
+                ),
               ),
             ],
           ),
@@ -1943,10 +2091,13 @@ class _CustomerPresentationViewState extends State<CustomerPresentationView>
 class _CfdPromoCarousel extends StatefulWidget {
   final List<String> banners;
   final int intervalSeconds;
+  final String fitMode;
 
   const _CfdPromoCarousel({
+    super.key,
     required this.banners,
     this.intervalSeconds = 5,
+    this.fitMode = 'cover',
   });
 
   @override
@@ -1966,6 +2117,16 @@ class _CfdPromoCarouselState extends State<_CfdPromoCarousel> {
   }
 
   @override
+  void didUpdateWidget(_CfdPromoCarousel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!listEquals(oldWidget.banners, widget.banners) ||
+        oldWidget.intervalSeconds != widget.intervalSeconds ||
+        oldWidget.fitMode != widget.fitMode) {
+      _startTimer();
+    }
+  }
+
+  @override
   void dispose() {
     _timer?.cancel();
     _pageController.dispose();
@@ -1975,15 +2136,29 @@ class _CfdPromoCarouselState extends State<_CfdPromoCarousel> {
   void _startTimer() {
     _timer?.cancel();
     if (widget.banners.length <= 1) return;
-    _timer = Timer.periodic(Duration(seconds: widget.intervalSeconds.clamp(2, 20)), (_) {
-      if (!mounted || !_pageController.hasClients) return;
-      final next = (_current + 1) % widget.banners.length;
-      _pageController.animateToPage(
-        next,
-        duration: const Duration(milliseconds: 600),
-        curve: Curves.easeInOut,
-      );
-    });
+    _timer = Timer.periodic(
+      Duration(seconds: widget.intervalSeconds.clamp(2, 30)),
+      (_) {
+        if (!mounted || !_pageController.hasClients) return;
+        final next = (_current + 1) % widget.banners.length;
+        _pageController.animateToPage(
+          next,
+          duration: const Duration(milliseconds: 600),
+          curve: Curves.easeInOut,
+        );
+      },
+    );
+  }
+
+  BoxFit _resolveBoxFit(String fitMode) {
+    switch (fitMode) {
+      case 'fill':
+        return BoxFit.fill;
+      case 'cover':
+      case 'contain':
+      default:
+        return BoxFit.cover;
+    }
   }
 
   @override
@@ -1992,10 +2167,16 @@ class _CfdPromoCarouselState extends State<_CfdPromoCarousel> {
       return Container(
         color: const Color(0xFFF1F5F9),
         child: const Center(
-          child: Icon(Icons.restaurant_rounded, size: 48, color: Color(0xFF94A3B8)),
+          child: Icon(
+            Icons.restaurant_rounded,
+            size: 48,
+            color: Color(0xFF94A3B8),
+          ),
         ),
       );
     }
+
+    final fit = _resolveBoxFit(widget.fitMode);
 
     return PageView.builder(
       controller: _pageController,
@@ -2003,26 +2184,14 @@ class _CfdPromoCarouselState extends State<_CfdPromoCarousel> {
       onPageChanged: (i) => setState(() => _current = i),
       itemBuilder: (context, index) {
         final path = widget.banners[index];
-        final isAsset = path.startsWith('assets/');
-        final isFile = !isAsset && File(path).existsSync();
-
-        if (isAsset) {
-          return Image.asset(path, fit: BoxFit.cover, errorBuilder: (_, _, _) => _placeholder());
-        } else if (isFile) {
-          return Image.file(File(path), fit: BoxFit.cover, errorBuilder: (_, _, _) => _placeholder());
-        }
-        return _placeholder();
+        return PromoMediaPlayer(
+          key: ValueKey('cfd_carousel_${path}_${widget.fitMode}_$index'),
+          mediaPath: path,
+          index: index,
+          showFull: false,
+          fit: fit,
+        );
       },
     );
   }
-
-  Widget _placeholder() {
-    return Container(
-      color: const Color(0xFF0F172A),
-      child: const Center(
-        child: Icon(Icons.restaurant_menu_rounded, color: Colors.white24, size: 40),
-      ),
-    );
-  }
 }
-

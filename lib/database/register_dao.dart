@@ -177,6 +177,8 @@ class RegisterDao {
     required DateTime openedAt,
     DateTime? closedAt,
     String? branchId,
+    String? cashierId,
+    String? cashierName,
   }) async {
     final db = await _dbHelper.database;
     final startStr = openedAt.toIso8601String();
@@ -188,6 +190,17 @@ class RegisterDao {
     if (branchId != null && branchId.isNotEmpty) {
       where += ' AND branch_id = ?';
       args.add(branchId);
+    }
+
+    if (cashierId != null && cashierId.isNotEmpty) {
+      if (cashierName != null && cashierName.isNotEmpty) {
+        where += ' AND (cashier_id = ? OR cashier_name = ?)';
+        args.add(cashierId);
+        args.add(cashierName);
+      } else {
+        where += ' AND cashier_id = ?';
+        args.add(cashierId);
+      }
     }
 
     final orders = await db.query('orders', where: where, whereArgs: args);

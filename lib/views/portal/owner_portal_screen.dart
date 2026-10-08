@@ -116,7 +116,7 @@ class _OwnerPortalScreenState extends State<OwnerPortalScreen>
                         ),
                       ),
                       Text(
-                        'OmniPOS Enterprise • Multi-Branch Suite',
+                        'OmniPOS Enterprise • Point of Sale Suite',
                         style: TextStyle(
                           fontSize: 11,
                           color: Colors.grey.shade600,
@@ -214,16 +214,20 @@ class _OwnerPortalScreenState extends State<OwnerPortalScreen>
                                 ? Column(
                                     children: [
                                       _buildPosCard(isKiosk: true),
-                                      const SizedBox(height: 20),
+                                      const SizedBox(height: 16),
                                       _buildDashboardCard(isKiosk: true),
+                                      const SizedBox(height: 16),
+                                      _buildStaffCard(isKiosk: true),
                                     ],
                                   )
                                 : Row(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Expanded(child: _buildPosCard(isKiosk: false)),
-                                      const SizedBox(width: 24),
+                                      const SizedBox(width: 20),
                                       Expanded(child: _buildDashboardCard(isKiosk: false)),
+                                      // const SizedBox(width: 20),
+                                      // Expanded(child: _buildStaffCard(isKiosk: false)),
                                     ],
                                   ),
                           ),
@@ -259,6 +263,17 @@ class _OwnerPortalScreenState extends State<OwnerPortalScreen>
       accentColor: const Color(0xFF0F172A),
       gradientColors: const [Color(0xFF1E293B), Color(0xFF0F172A)],
       onTap: () => _navigateToTab(CashierNavTab.dashboard),
+    );
+  }
+
+  // ── Card 3: Staff Management ──
+  Widget _buildStaffCard({required bool isKiosk}) {
+    return _SimpleBigOptionCard(
+      title: 'Staff',
+      icon: Icons.people_alt_rounded,
+      accentColor: const Color(0xFF7C3AED),
+      gradientColors: const [Color(0xFF8B5CF6), Color(0xFF6D28D9)],
+      onTap: () => _navigateToTab(CashierNavTab.staff),
     );
   }
 }

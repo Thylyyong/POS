@@ -59,6 +59,8 @@ class PosController extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  bool _isCheckoutInProgress = false;
+
   String? _error;
   String? get error => _error;
 
@@ -193,8 +195,11 @@ class PosController extends ChangeNotifier {
 
   /// Explicitly broadcast menu changes (including new/edited product images) to CDS
   Future<void> broadcastMenuUpdate() async {
+    PaintingBinding.instance.imageCache.clear();
+    PaintingBinding.instance.imageCache.clearLiveImages();
     _menuVersion++;
     await _syncMenuToCfd();
+    notifyListeners();
   }
 
   // ── Selection & Live CFD Synchronization ──────────────────────────────────
@@ -261,7 +266,8 @@ class PosController extends ChangeNotifier {
   }
 
   // ── Barcode auto-add ──────────────────────────────────────────────────────
-  Future<bool> handleBarcodeAutoAdd(String barcode, CartController cart) async {
+  Future<bool> handleBarcodeAutoAdd(String barcode, CartController cart, {bool isRegisterOpen = true}) async {
+    if (!isRegisterOpen) return false;
     try {
       final product = await _productDao.getProductByBarcode(barcode);
       if (product != null) {
@@ -326,8 +332,15 @@ class PosController extends ChangeNotifier {
     bool clearCartAfter = false,
     bool printBill = false,
     bool showQr = true,
+    String? cashierId,
+    String? cashierName,
   }) async {
-    if (cart.items.isEmpty) return null;
+    if (cart.items.isEmpty || _isCheckoutInProgress) return null;
+    if (!cart.totalAmount.isFinite || cart.totalAmount < 0) {
+      _setError('Order total is invalid. Review the cart before checkout.');
+      return null;
+    }
+    _isCheckoutInProgress = true;
 
     try {
       final orderId =
@@ -361,6 +374,8 @@ class PosController extends ChangeNotifier {
         changeAmount: 0.0,
         status: OrderStatus.pending,
         kitchenStatus: KitchenStatus.pending,
+        cashierId: cashierId,
+        cashierName: cashierName,
         createdAt: DateTime.now(),
       );
 
@@ -382,12 +397,15 @@ class PosController extends ChangeNotifier {
 
       // Print unpaid bill with or without KHQR for customer to review & pay
       if (printBill) {
-        await _printerService.printReceipt(
-          order: savedOrder,
-          settings: settings,
-          isPaid: false,
-          showQr: showQr,
-        );
+        _printerService
+            .printReceipt(
+              order: savedOrder,
+              settings: settings,
+              isPaid: false,
+              showQr: showQr,
+              allowSystemDialog: false,
+            )
+            .catchError((_) => false);
       }
 
       // Reload table states across app
@@ -422,6 +440,8 @@ class PosController extends ChangeNotifier {
     TableController? tableController,
     bool clearCartAfter = false,
     bool showQr = true,
+    String? cashierId,
+    String? cashierName,
   }) async {
     return await saveOrderAsPending(
       cart: cart,
@@ -431,6 +451,8 @@ class PosController extends ChangeNotifier {
       clearCartAfter: clearCartAfter,
       printBill: true,
       showQr: showQr,
+      cashierId: cashierId,
+      cashierName: cashierName,
     );
   }
 
@@ -466,6 +488,7 @@ class PosController extends ChangeNotifier {
     if (cart.items.isEmpty) return null;
 
     _cfdIdleTimer?.cancel();
+    OrderModel? committedOrder;
 
     try {
       final isExistingPending = cart.currentPendingOrderId != null;
@@ -504,6 +527,8 @@ class PosController extends ChangeNotifier {
             : totalAmount,
         changeAmount: changeAmount,
         status: OrderStatus.completed,
+        cashierId: userId,
+        cashierName: userName,
         createdAt: DateTime.now(),
       );
 
@@ -514,21 +539,20 @@ class PosController extends ChangeNotifier {
         order: order,
         items: items,
         action: isExistingPending ? 'PENDING_ORDER_PAID' : 'INITIAL_PRINT',
-      );
-
-      // Automatic Stock Deduction upon sales processing
-      try {
-        await _productDao.deductStockForOrderItems(
+        beforeCommit: (txn) => _productDao.deductStockForOrderItems(
           items: items,
-          orderId: savedOrder.id,
-          receiptNo: savedOrder.receiptNo,
+          orderId: orderId,
+          receiptNo: receiptNo,
           userId: userId,
           userName: userName,
           userRole: userRole,
-        );
-        // Refresh products cache so real-time inventory displays immediately update
-        await loadProducts();
-      } catch (_) {}
+          transaction: txn,
+        ),
+      );
+      committedOrder = savedOrder;
+
+      // Refresh the inventory view after the sale and its stock audit commit.
+      await loadProducts();
 
       if (cart.tableId != null) {
         await _tableDao.freeTable(cart.tableId!);
@@ -570,15 +594,18 @@ class PosController extends ChangeNotifier {
 
       // 2. Hardware: kick cash drawer / print paid receipt
       if (settings.autoPrintOnPayment) {
-        await _printerService.printReceipt(
-          order: savedOrder,
-          settings: settings,
-          isPaid: true,
-          isReprint: false,
-        );
+        _printerService
+            .printReceipt(
+              order: savedOrder,
+              settings: settings,
+              isPaid: true,
+              isReprint: false,
+              allowSystemDialog: false,
+            )
+            .catchError((_) => false);
       } else if (settings.autoKickCashDrawer &&
           paymentMethod == PaymentMethod.cash) {
-        await _printerService.kickCashDrawer();
+        _printerService.kickCashDrawer().catchError((_) => <int>[]);
       }
 
       // 3. Update CFD with Payment Success state
@@ -626,8 +653,17 @@ class PosController extends ChangeNotifier {
 
       return savedOrder;
     } catch (e) {
+      if (committedOrder != null) {
+        // The sale is already durable. Later receipt, printer, or display
+        // failures must not make checkout look unpaid and invite a duplicate.
+        cart.clearCart(syncCfd: false);
+        _lastCompletedOrder = committedOrder;
+        return committedOrder;
+      }
       _setError('Checkout failed: $e');
       return null;
+    } finally {
+      _isCheckoutInProgress = false;
     }
   }
 
@@ -645,6 +681,7 @@ class PosController extends ChangeNotifier {
         isPaid: isPaid,
         showQr: showQr,
         isReprint: true,
+        allowSystemDialog: false,
       );
 
       final saveResult = await _receiptFileService.saveReceiptMarkdown(

@@ -1,6 +1,6 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:path/path.dart' as p;
@@ -44,7 +44,17 @@ class SettingsController extends ChangeNotifier {
       }
       if (_settings.cfdEnabled) {
         await _presentationService.refreshDisplays();
+        if (!kIsWeb && Platform.isAndroid) {
+          try {
+            await _presentationService.showCustomerDisplay();
+          } catch (e) {
+            debugPrint(
+              '[SettingsController] Auto-launch customer display notice: $e',
+            );
+          }
+        }
       }
+      await _presentationService.syncStoreSettings(_settings);
     } catch (e) {
       _error = 'Failed to load settings: $e';
       debugPrint('[SettingsController] $_error');
@@ -59,6 +69,18 @@ class SettingsController extends ChangeNotifier {
   /// Persists [newSettings], updates local state, and notifies listeners.
   Future<void> updateSettings(StoreSettingsModel newSettings) =>
       _save(newSettings);
+
+  Future<void> setCfdIdleMode(String mode) =>
+      _save(_settings.copyWith(cfdIdleMode: mode));
+
+  Future<void> setPromoMediaFit(String fit) =>
+      _save(_settings.copyWith(promoMediaFit: fit));
+
+  Future<void> setPromoAutoPlaySeconds(int seconds) =>
+      _save(_settings.copyWith(promoAutoPlaySeconds: seconds));
+
+  Future<void> setPromoBanners(List<String> banners) =>
+      _save(_settings.copyWith(promoBanners: banners));
 
   Future<void> toggleAutoPrint(bool value) =>
       _save(_settings.copyWith(autoPrintOnPayment: value));
@@ -157,10 +179,7 @@ class SettingsController extends ChangeNotifier {
     try {
       _settings = s;
       await _settingsDao.saveSettings(_settings);
-      _presentationService.syncPosNavigation(
-        gridTemplate: s.gridTemplate,
-        fontSizeScale: s.fontSizeScale,
-      );
+      await _presentationService.syncStoreSettings(_settings);
     } catch (e) {
       _error = 'Failed to save settings: $e';
       debugPrint('[SettingsController] $_error');

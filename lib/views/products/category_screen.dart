@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../app_config.dart';
+import '../../controllers/auth_controller.dart';
 import '../../controllers/pos_controller.dart';
 import '../../database/product_dao.dart';
 import '../../models/product_model.dart';
@@ -51,6 +52,8 @@ class _CategoryScreenState extends State<CategoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = context.watch<AuthController>();
+    final isOwner = auth.isOwner;
     final posCtrl = context.read<PosController>();
 
     final filteredCategories = _categories.where((c) {
@@ -76,14 +79,14 @@ class _CategoryScreenState extends State<CategoryScreen> {
             ),
             child: Row(
               children: [
-                const Row(
+                Row(
                   children: [
-                    AppSvgIcon(AssetTheme.allCate, color: Color(0xFF0F172A), size: 24),
-                    SizedBox(width: 10),
+                    const AppSvgIcon(AssetTheme.allCate, color: Color(0xFF0F172A), size: 24),
+                    const SizedBox(width: 10),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
+                        const Text(
                           'Menu & Categories',
                           style: TextStyle(
                             color: Color(0xFF0F172A),
@@ -93,8 +96,10 @@ class _CategoryScreenState extends State<CategoryScreen> {
                           ),
                         ),
                         Text(
-                          'Organize catalog menu categories and subcategories',
-                          style: TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                          isOwner
+                              ? 'Organize catalog menu categories and subcategories'
+                              : 'Browse menu categories and subcategories',
+                          style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
                         ),
                       ],
                     ),
@@ -129,21 +134,22 @@ class _CategoryScreenState extends State<CategoryScreen> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
-
-                // Add Category Button
-                ElevatedButton.icon(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0D9488),
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                    elevation: 0,
+                if (isOwner) ...[
+                  const SizedBox(width: 12),
+                  // Add Category Button
+                  ElevatedButton.icon(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF0D9488),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      elevation: 0,
+                    ),
+                    onPressed: () => _showCategoryDialog(context, posCtrl, null),
+                    icon: const AppSvgIcon(AssetTheme.plus, size: 16, color: Colors.white),
+                    label: const Text('Add Category', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
                   ),
-                  onPressed: () => _showCategoryDialog(context, posCtrl, null),
-                  icon: const AppSvgIcon(AssetTheme.plus, size: 16, color: Colors.white),
-                  label: const Text('Add Category', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                ),
+                ],
               ],
             ),
           ),
@@ -163,16 +169,18 @@ class _CategoryScreenState extends State<CategoryScreen> {
                               _searchQuery.isEmpty ? 'No menu categories created yet' : 'No categories match "$_searchQuery"',
                               style: const TextStyle(color: Color(0xFF64748B), fontSize: 15, fontWeight: FontWeight.w500),
                             ),
-                            const SizedBox(height: 10),
-                            OutlinedButton.icon(
-                              onPressed: () => _showCategoryDialog(context, posCtrl, null),
-                              style: OutlinedButton.styleFrom(
-                                side: const BorderSide(color: Color(0xFFCBD5E1)),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                            if (isOwner) ...[
+                              const SizedBox(height: 10),
+                              OutlinedButton.icon(
+                                onPressed: () => _showCategoryDialog(context, posCtrl, null),
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: Color(0xFFCBD5E1)),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                icon: const AppSvgIcon(AssetTheme.plus, size: 16, color: Color(0xFF0F172A)),
+                                label: const Text('Create Category'),
                               ),
-                              icon: const AppSvgIcon(AssetTheme.plus, size: 16, color: Color(0xFF0F172A)),
-                              label: const Text('Create Category'),
-                            ),
+                            ],
                           ],
                         ),
                       )
@@ -195,6 +203,7 @@ class _CategoryScreenState extends State<CategoryScreen> {
                             subcategories: subs,
                             productCount: prodCount,
                             isExpanded: isExpanded,
+                            isOwner: isOwner,
                             onToggle: () {
                               setState(() {
                                 if (isExpanded) {
@@ -436,6 +445,7 @@ class _ModernCategoryCard extends StatelessWidget {
   final List<Subcategory> subcategories;
   final int productCount;
   final bool isExpanded;
+  final bool isOwner;
   final VoidCallback onToggle;
   final VoidCallback onEditCategory;
   final VoidCallback onDeleteCategory;
@@ -448,6 +458,7 @@ class _ModernCategoryCard extends StatelessWidget {
     required this.subcategories,
     required this.productCount,
     required this.isExpanded,
+    this.isOwner = false,
     required this.onToggle,
     required this.onEditCategory,
     required this.onDeleteCategory,
@@ -538,30 +549,32 @@ class _ModernCategoryCard extends StatelessWidget {
                     ),
                   ),
 
-                  // Quick Action Buttons
-                  OutlinedButton.icon(
-                    onPressed: onAddSubcategory,
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: Color(0xFFE2E8F0)),
-                      foregroundColor: const Color(0xFF0F172A),
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                  // Quick Action Buttons (Owner only)
+                  if (isOwner) ...[
+                    OutlinedButton.icon(
+                      onPressed: onAddSubcategory,
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFE2E8F0)),
+                        foregroundColor: const Color(0xFF0F172A),
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+                      ),
+                      icon: const AppSvgIcon(AssetTheme.plus, size: 14, color: Color(0xFF0F172A)),
+                      label: const Text('Add Subcategory', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
                     ),
-                    icon: AppSvgIcon(AssetTheme.plus, size: 14, color: Color(0xFF0F172A)),
-                    label: const Text('Add Subcategory', style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600)),
-                  ),
-                  const SizedBox(width: 6),
-                  IconButton(
-                    icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF64748B)),
-                    tooltip: 'Edit Category Name',
-                    onPressed: onEditCategory,
-                  ),
-                  IconButton(
-                    icon: AppSvgIcon(AssetTheme.bin, size: 18, color: Color(0xFF94A3B8)),
-                    tooltip: 'Delete Category',
-                    onPressed: onDeleteCategory,
-                  ),
-                  const SizedBox(width: 4),
+                    const SizedBox(width: 6),
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF64748B)),
+                      tooltip: 'Edit Category Name',
+                      onPressed: onEditCategory,
+                    ),
+                    IconButton(
+                      icon: const AppSvgIcon(AssetTheme.bin, size: 18, color: Color(0xFF94A3B8)),
+                      tooltip: 'Delete Category',
+                      onPressed: onDeleteCategory,
+                    ),
+                    const SizedBox(width: 4),
+                  ],
 
                   // Expand / Collapse Chevron
                   AnimatedRotation(
@@ -590,14 +603,16 @@ class _ModernCategoryCard extends StatelessWidget {
                           'No subcategories yet.',
                           style: TextStyle(fontSize: 12, color: Color(0xFF94A3B8), fontStyle: FontStyle.italic),
                         ),
-                        const SizedBox(width: 10),
-                        InkWell(
-                          onTap: onAddSubcategory,
-                          child: const Text(
-                            '+ Add now',
-                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0D9488)),
+                        if (isOwner) ...[
+                          const SizedBox(width: 10),
+                          InkWell(
+                            onTap: onAddSubcategory,
+                            child: const Text(
+                              '+ Add now',
+                              style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF0D9488)),
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     )
                   : Wrap(
@@ -606,7 +621,7 @@ class _ModernCategoryCard extends StatelessWidget {
                       children: [
                         ...subcategories.map((sub) {
                           return Container(
-                            padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
+                            padding: EdgeInsets.fromLTRB(12, 6, isOwner ? 6 : 12, 6),
                             decoration: BoxDecoration(
                               color: Colors.white,
                               borderRadius: BorderRadius.circular(8),
@@ -623,24 +638,26 @@ class _ModernCategoryCard extends StatelessWidget {
                                     color: Color(0xFF0F172A),
                                   ),
                                 ),
-                                const SizedBox(width: 6),
-                                InkWell(
-                                  onTap: () => onEditSubcategory(sub),
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: const Padding(
-                                    padding: EdgeInsets.all(2),
-                                    child: AppSvgIcon(AssetTheme.files, size: 13, color: Color(0xFF64748B)),
+                                if (isOwner) ...[
+                                  const SizedBox(width: 6),
+                                  InkWell(
+                                    onTap: () => onEditSubcategory(sub),
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(2),
+                                      child: AppSvgIcon(AssetTheme.files, size: 13, color: Color(0xFF64748B)),
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(width: 2),
-                                InkWell(
-                                  onTap: () => onDeleteSubcategory(sub),
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: const Padding(
-                                    padding: EdgeInsets.all(2),
-                                    child: AppSvgIcon(AssetTheme.close, size: 13, color: Color(0xFF94A3B8)),
+                                  const SizedBox(width: 2),
+                                  InkWell(
+                                    onTap: () => onDeleteSubcategory(sub),
+                                    borderRadius: BorderRadius.circular(4),
+                                    child: const Padding(
+                                      padding: EdgeInsets.all(2),
+                                      child: AppSvgIcon(AssetTheme.close, size: 13, color: Color(0xFF94A3B8)),
+                                    ),
                                   ),
-                                ),
+                                ],
                               ],
                             ),
                           );

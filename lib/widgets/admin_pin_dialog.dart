@@ -82,9 +82,6 @@ class _AdminPinDialogState extends State<AdminPinDialog>
         _pin = newPin;
         _errorMessage = null;
       });
-      if (newPin.length == 4) {
-        _verifyPin(newPin);
-      }
     }
   }
 
@@ -287,26 +284,51 @@ class _AdminPinDialogState extends State<AdminPinDialog>
                 ),
               ),
 
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
 
-              // Dialog Cancel Button
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFFCBD5E1)),
-                    foregroundColor: const Color(0xFF64748B),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
+              // Dialog Action Buttons (Cancel & Confirm)
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFCBD5E1)),
+                        foregroundColor: const Color(0xFF64748B),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: const Text(
+                        'Cancel',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
                     ),
                   ),
-                  onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0D9488),
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: const Color(0xFFE2E8F0),
+                        disabledForegroundColor: const Color(0xFF94A3B8),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        elevation: 0,
+                      ),
+                      onPressed: _pin.length == 4 ? () => _verifyPin(_pin) : null,
+                      icon: const Icon(Icons.check_circle_rounded, size: 16),
+                      label: const Text(
+                        'Confirm',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ),
             ],
           ),

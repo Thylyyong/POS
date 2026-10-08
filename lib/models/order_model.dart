@@ -187,6 +187,8 @@ class OrderModel {
   final double changeAmount;
   final OrderStatus status;
   final KitchenStatus kitchenStatus;
+  final String? cashierId;
+  final String? cashierName;
   final DateTime createdAt;
   final List<OrderItemModel> items;
 
@@ -210,6 +212,8 @@ class OrderModel {
     this.changeAmount = 0.0,
     this.status = OrderStatus.completed,
     this.kitchenStatus = KitchenStatus.pending,
+    this.cashierId,
+    this.cashierName,
     DateTime? createdAt,
     this.items = const [],
   }) : createdAt = createdAt ?? DateTime.now();
@@ -241,6 +245,8 @@ class OrderModel {
       'change_amount': changeAmount,
       'status': status.displayName,
       'kitchen_status': kitchenStatus.displayName,
+      'cashier_id': cashierId,
+      'cashier_name': cashierName,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -273,6 +279,8 @@ class OrderModel {
       kitchenStatus: KitchenStatus.fromString(
         map['kitchen_status'] as String? ?? 'PENDING',
       ),
+      cashierId: map['cashier_id'] as String?,
+      cashierName: map['cashier_name'] as String?,
       createdAt: map['created_at'] != null
           ? DateTime.tryParse(map['created_at'] as String) ?? DateTime.now()
           : DateTime.now(),
@@ -300,6 +308,8 @@ class OrderModel {
     double? changeAmount,
     OrderStatus? status,
     KitchenStatus? kitchenStatus,
+    String? cashierId,
+    String? cashierName,
     DateTime? createdAt,
     List<OrderItemModel>? items,
   }) {
@@ -323,6 +333,8 @@ class OrderModel {
       changeAmount: changeAmount ?? this.changeAmount,
       status: status ?? this.status,
       kitchenStatus: kitchenStatus ?? this.kitchenStatus,
+      cashierId: cashierId ?? this.cashierId,
+      cashierName: cashierName ?? this.cashierName,
       createdAt: createdAt ?? this.createdAt,
       items: items ?? this.items,
     );

@@ -330,7 +330,7 @@ class _OpenRegisterDialogState extends State<OpenRegisterDialog> {
                         branchName: auth.currentBranchName,
                         cashierId: auth.currentUser.id,
                         cashierName: auth.currentUser.displayName,
-                        kickDrawer: true,
+                        kickDrawer: false,
                       );
 
                       if (context.mounted) {

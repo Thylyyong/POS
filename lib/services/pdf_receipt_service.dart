@@ -1,6 +1,6 @@
 import 'dart:io';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:intl/intl.dart';
 import 'package:open_filex/open_filex.dart';
@@ -171,10 +171,10 @@ class PdfReceiptService {
         is80mm ? (72.0 * PdfPageFormat.mm) : (48.0 * PdfPageFormat.mm);
     final baseFontSize = is80mm ? 8.0 : 7.0;
 
-    final topMargin = settings.printerMarginTop * PdfPageFormat.mm;
-    final bottomMargin = settings.printerMarginBottom * PdfPageFormat.mm;
-    final leftMargin = settings.printerMarginLeft * PdfPageFormat.mm;
-    final rightMargin = settings.printerMarginRight * PdfPageFormat.mm;
+    final topMargin = is80mm ? (settings.printerMarginTop * PdfPageFormat.mm) : (1.0 * PdfPageFormat.mm);
+    final bottomMargin = is80mm ? (settings.printerMarginBottom * PdfPageFormat.mm) : (2.0 * PdfPageFormat.mm);
+    final leftMargin = is80mm ? (settings.printerMarginLeft * PdfPageFormat.mm) : (0.5 * PdfPageFormat.mm);
+    final rightMargin = is80mm ? (settings.printerMarginRight * PdfPageFormat.mm) : (0.5 * PdfPageFormat.mm);
 
     final rawLogoBytes = await _loadLogoBytes(settings);
     pw.MemoryImage? logoImage;
@@ -184,8 +184,9 @@ class PdfReceiptService {
             (isForRealPrint && settings.monochromeLogoOnRealPrint)
                 ? ThermalImageHelper.convertToMonochromeLogoBytes(
                     rawLogoBytes,
-                    threshold: 210,
-                    targetWidth: is80mm ? 384 : 260,
+                    threshold: 180,
+                    targetWidth: is80mm ? 288 : 192,
+                    useDithering: true,
                   )
                 : rawLogoBytes;
         logoImage = pw.MemoryImage(effectiveLogoBytes);
@@ -200,8 +201,9 @@ class PdfReceiptService {
             (isForRealPrint && settings.monochromeLogoOnRealPrint)
                 ? ThermalImageHelper.convertToMonochromeLogoBytes(
                     rawQrBytes,
-                    threshold: 210,
-                    targetWidth: is80mm ? 384 : 260,
+                    threshold: 180,
+                    targetWidth: is80mm ? 288 : 192,
+                    useDithering: true,
                   )
                 : rawQrBytes;
         qrImage = pw.MemoryImage(effectiveQrBytes);
@@ -235,11 +237,15 @@ class PdfReceiptService {
               // 1. Store Logo at the Top
               if (logoImage != null) ...[
                 pw.Center(
-                  child: pw.Image(
-                    logoImage,
-                    width: is80mm ? 56 : 42,
-                    height: is80mm ? 56 : 42,
-                    fit: pw.BoxFit.contain,
+                  child: pw.ConstrainedBox(
+                    constraints: pw.BoxConstraints(
+                      maxWidth: is80mm ? 120 : 80,
+                      maxHeight: is80mm ? 48 : 36,
+                    ),
+                    child: pw.Image(
+                      logoImage,
+                      fit: pw.BoxFit.contain,
+                    ),
                   ),
                 ),
                 pw.SizedBox(height: 3),
@@ -301,7 +307,7 @@ class PdfReceiptService {
               pw.Row(
                 children: [
                   pw.Expanded(
-                    flex: 5,
+                    flex: is80mm ? 5 : 4,
                     child: pw.Text(
                       'NAME',
                       style: pw.TextStyle(
@@ -311,7 +317,7 @@ class PdfReceiptService {
                     ),
                   ),
                   pw.SizedBox(
-                    width: is80mm ? 26 : 20,
+                    width: is80mm ? 26 : 16,
                     child: pw.Text(
                       'QTY',
                       textAlign: pw.TextAlign.center,
@@ -322,9 +328,9 @@ class PdfReceiptService {
                     ),
                   ),
                   pw.Expanded(
-                    flex: 3,
+                    flex: is80mm ? 3 : 2,
                     child: pw.Text(
-                      'UNIT PRICE',
+                      is80mm ? 'UNIT PRICE' : 'PRICE',
                       textAlign: pw.TextAlign.right,
                       style: pw.TextStyle(
                         fontSize: baseFontSize,
@@ -333,7 +339,7 @@ class PdfReceiptService {
                     ),
                   ),
                   pw.Expanded(
-                    flex: 3,
+                    flex: is80mm ? 3 : 2,
                     child: pw.Text(
                       'AMOUNT',
                       textAlign: pw.TextAlign.right,
@@ -364,14 +370,14 @@ class PdfReceiptService {
                         crossAxisAlignment: pw.CrossAxisAlignment.start,
                         children: [
                           pw.Expanded(
-                            flex: 5,
+                            flex: is80mm ? 5 : 4,
                             child: pw.Text(
                               item.productName,
                               style: pw.TextStyle(fontSize: baseFontSize),
                             ),
                           ),
                           pw.SizedBox(
-                            width: is80mm ? 26 : 20,
+                            width: is80mm ? 26 : 16,
                             child: pw.Text(
                               '${item.quantity}',
                               textAlign: pw.TextAlign.center,
@@ -379,7 +385,7 @@ class PdfReceiptService {
                             ),
                           ),
                           pw.Expanded(
-                            flex: 3,
+                            flex: is80mm ? 3 : 2,
                             child: pw.Text(
                               '$currency${item.unitPrice.toStringAsFixed(2)}',
                               textAlign: pw.TextAlign.right,
@@ -387,7 +393,7 @@ class PdfReceiptService {
                             ),
                           ),
                           pw.Expanded(
-                            flex: 3,
+                            flex: is80mm ? 3 : 2,
                             child: pw.Text(
                               '$currency${item.totalPrice.toStringAsFixed(2)}',
                               textAlign: pw.TextAlign.right,
@@ -889,15 +895,18 @@ class PdfReceiptService {
     bool isReprint = false,
   }) async {
     try {
-      if (Platform.isWindows && settings.useSumatraPdf) {
-        final success = await PrinterService().printReceipt(
-          order: order,
-          settings: settings,
-          isPaid: isPaid,
-          isReprint: isReprint,
-        );
-        if (success) return true;
-      }
+      // 1. First attempt silent hardware / direct thermal print via PrinterService
+      final success = await PrinterService().printReceipt(
+        order: order,
+        settings: settings,
+        isPaid: isPaid,
+        isReprint: isReprint,
+        allowSystemDialog: false,
+      );
+      if (success) return true;
+
+      // 2. Fallback to system layout print dialog ONLY IF not on Android POS terminal
+      if (!kIsWeb && Platform.isAndroid) return false;
 
       final pdfBytes = await generateReceiptPdf(
         order: order,
@@ -1080,4 +1089,51 @@ class PdfReceiptService {
       ),
     );
   }
+
+  /// Generate a simple text-line PDF (for register closing reports, Z-reports etc.)
+  /// Each string in [lines] becomes one line of monospace text on the receipt.
+  Future<Uint8List> generateTextLinePdf({
+    required List<String> lines,
+    required StoreSettingsModel settings,
+  }) async {
+    final doc = pw.Document();
+    final paperWidth = settings.isPaperSize80mm ? 80.0 : 58.0;
+    final pageFormat = PdfPageFormat(
+      paperWidth * PdfPageFormat.mm,
+      double.infinity,
+      marginAll: 4.0 * PdfPageFormat.mm,
+    );
+
+    doc.addPage(
+      pw.Page(
+        pageFormat: pageFormat,
+        margin: const pw.EdgeInsets.all(0),
+        build: (context) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: lines.map((line) {
+            final isSeparator = line.contains('===') || line.contains('---');
+            final isHeader = line.trim().isNotEmpty &&
+                line == line.toUpperCase() &&
+                !isSeparator &&
+                !line.startsWith(' ') &&
+                !line.startsWith('\$');
+            return pw.Padding(
+              padding: const pw.EdgeInsets.symmetric(vertical: 0.5),
+              child: pw.Text(
+                line,
+                style: pw.TextStyle(
+                  font: isHeader ? pw.Font.courierBold() : pw.Font.courier(),
+                  fontSize: isSeparator ? 7 : (isHeader ? 9 : 8),
+                  fontWeight: isHeader ? pw.FontWeight.bold : pw.FontWeight.normal,
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+
+    return doc.save();
+  }
 }
+

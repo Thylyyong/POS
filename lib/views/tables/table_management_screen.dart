@@ -4,6 +4,8 @@ import '../../app_config.dart';
 import '../../controllers/cart_controller.dart';
 import '../../controllers/pos_controller.dart';
 import '../../controllers/table_controller.dart';
+import '../../controllers/register_controller.dart';
+import '../register/open_register_dialog.dart';
 import '../../database/order_dao.dart';
 import '../../models/dining_table_model.dart';
 import '../../core/theme/asset_theme.dart';
@@ -450,6 +452,19 @@ class _TableManagementScreenState extends State<TableManagementScreen> {
                         elevation: 0,
                       ),
                       onPressed: () {
+                        final regCtrl = context.read<RegisterController>();
+                        if (!regCtrl.isSessionOpen) {
+                          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Register is closed. Can't order — please open register first."),
+                              backgroundColor: Color(0xFFDC2626),
+                              duration: Duration(seconds: 3),
+                            ),
+                          );
+                          OpenRegisterDialog.show(context);
+                          return;
+                        }
                         cartCtrl.setTableInfo(
                           tableId: table.id,
                           tableNumber: table.tableNumber,

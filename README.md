@@ -76,7 +76,7 @@ OmniPOS is architected to replicate the renowned modular workflow of **Odoo Ente
 
 OmniPOS supports hierarchical multi-store enterprise management: **1 Enterprise Master Company** with **2 Store Branches (Store A & Store B)**, owned by **1 Main Boss**, managed by **2 Sub Bosses**, and operated on the floor by **1 Staff Cashier**.
 
-### Splash Screen Role Login & PIN Authentication
+### Splash Screen Role Login & ![alt text](image.png) Authentication
 
 Upon app launch, the **Splash Screen** presents a secure **Role Selection & Quick PIN Authentication Gateway**:
 
@@ -255,8 +255,22 @@ The cashier checkout layout replicates the ultra-fast touch ergonomics of the **
 
 ---
 
-### Combos, Product Variants & Attributes
-- **Product Variants**: Attribute options for Size (`Regular`, `Large`), Ice Level (`No Ice`, `50%`, `100%`), and Sweetness (`Sugar-Free`).
+### Combos, Product Variants & Add-ons (Admin Editable)
+- **Smart Product Variants**:
+  - **Drink / Beverage Customization**: Sugar level options (`Normal Sugar (100%)`, `Less Sugar (50%)`, `No Sugar (0%)`), Ice level options (`Normal Ice`, `Less Ice`, `No Ice`).
+  - **Food Customization**: Spiciness level options (`Not Spicy`, `Normal Spicy`, `Extra Spicy`).
+  - **Paid Add-ons with Extra Charges**: E.g., `Extra Cheese (+$0.50)`, `Extra Size / Upsize (+$0.75 / +$1.00)`, extra sauce, or bacon.
+- **Admin Configuration**:
+  - Navigate to **Products** in the navigation menu.
+  - Tap the **Edit (pencil icon)** on any item or click **"+ Add Product"**.
+  - Under the **Product Variants & Add-ons** section, toggle the switches for Sugar, Ice, and Spiciness.
+  - Click **"+ Add Extra"** to define custom paid add-ons with custom names and extra charge prices (or delete existing extras).
+  - Tap **"Save Product"** to persist modifiers in the database.
+- **Cashier POS Customization Modal**:
+  - Tapping a product with configured variants in the POS grid opens the interactive **Product Customization Modal**.
+  - The cashier can select desired sweetness, ice, and spice levels, and check off add-ons.
+  - The unit price updates dynamically in real-time `(Base Price + Add-ons Total) * Quantity`.
+  - Configured modifiers are clearly displayed on cart item badges, kitchen tickets, and printed receipts.
 - **Combo Meals Builder**: Create bundle meals (e.g., *Lunch Combo: 1 Burger + 1 Side + 1 Soft Drink*) with automated combo discount calculation.
 
 ---
@@ -1008,15 +1022,42 @@ CREATE TABLE expenses (
 
 ### Default Credentials & Access PINs
 
-| Role | Username / Identity | Default PIN | Access Level |
-| :--- | :--- | :--- | :--- |
-| 👑 **Main Boss** | `admin` / `main_boss` | `9999` | All Stores, Master P&L, Royalty Engine, Global Settings |
-| 👔 **Sub Boss 1** | `manager_store_a` | `1111` | Store A Only, Store A P&L & Inventory, Shift Approvals |
-| 👔 **Sub Boss 2** | `manager_store_b` | `2222` | Store B Only, Store B P&L & Inventory, Shift Approvals |
-| 🏷️ **Staff (Cashier)** | `cashier_01` | `1234` | Frontline POS Terminal, Register Open/Close, Order Entry |
+| Role / Feature | Account Username | Default PIN | Permissions & Scope |
+| :--- | :--- | :---: | :--- |
+| 👑 **Owner / Main Boss** | `admin` / `main_boss` | **`9999`** | Full System Access: Master Accounting, Product & Variant Editor, Changing Staff PINs, Global Settings |
+| 🏷️ **Staff Cashier** | `cashier_01` | **`1234`** | Frontline POS Terminal, Cash Register Float & Cash Movements, Order Taking & Checkout |
+| 👨‍🍳 **Kitchen Chef** | `chef_01` | **`5555`** | Kitchen Display Screen (KDS), Course Sequencing, Order Preparation Status |
+| 🔒 **Close Register PIN** | *Owner / Supervisor* | **`9999`** | Authorizes physical drawer tally verification, discrepancy logging, and shift closing |
+| ⚙️ **Manager Override** | *Supervisor PIN* | **`9999`** | Line-item discount approval and price overrides |
 
-> [!NOTE]
-> All default PIN codes and royalty percentages can be changed anytime by the **Main Boss** in `Settings > Security & Accounts` and `Settings > Hybrid Royalty Configuration`.
+---
+
+### 🛡️ PIN Entry Behavior: Manual Confirmation Required (No Auto-Login)
+
+To eliminate accidental logins and unauthorized access:
+- **No Automatic Login on 4th Digit**: Entering 4 digits will **NOT** immediately submit or unlock the screen.
+- **Manual Confirm Action**: The user must explicitly tap the **"Confirm & Sign In"** / **"Confirm"** button (or press the **Enter** key on a physical keyboard / barcode scanner).
+- **Clear Action ('C')**: Users can tap **`C`** to clear the PIN pad buffer at any time if a mistake is made.
+
+---
+
+### 🔑 How to Change PINs for Staff and Owner
+
+1. Log into the system using the Owner account (`9999`).
+2. Open **Settings** (`⚙️`) from the left navigation sidebar.
+3. Locate the **Security & Staff Accounts** card.
+4. Each account (`Owner (Boss)`, `Staff Cashier`, `Kitchen Chef`) is listed with its active role.
+5. Tap **"Change PIN"** or choose the desired account from the dropdown selector.
+6. Enter a new 4-digit numeric PIN, re-enter it to confirm, and click **"Save PIN"**.
+7. The PIN is saved instantly to the local SQLite database and becomes active immediately across all authentication dialogs.
+
+---
+
+### 🏪 Single-Store Operation
+
+The application is configured specifically for **Single Store** retail and food & beverage operations:
+- Unnecessary multi-branch dropdown switchers (Store A / Store B / Global) have been removed from the header and accounting views to provide a fast, distraction-free interface.
+- All session reporting, Z-reports, and order receipts represent the unified current store.
 
 ---
 

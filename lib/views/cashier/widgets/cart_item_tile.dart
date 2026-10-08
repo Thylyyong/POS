@@ -182,17 +182,38 @@ class CartItemTile extends StatelessWidget {
             ],
           ),
 
-          // Notes
+          // Variant & Notes badges
           if (item.notes != null && item.notes!.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.only(top: 4),
-              child: Text(
-                'Note: ${item.notes}',
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontStyle: FontStyle.italic,
-                  color: Color(0xFF64748B),
-                ),
+              padding: const EdgeInsets.only(top: 6, left: 46),
+              child: Wrap(
+                spacing: 4,
+                runSpacing: 4,
+                children: item.notes!.split(', ').map((tag) {
+                  final isAddon = tag.contains('(+');
+                  return Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2.5),
+                    decoration: BoxDecoration(
+                      color: isAddon
+                          ? const Color(0xFF0D9488).withValues(alpha: 0.1)
+                          : const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(5),
+                      border: Border.all(
+                        color: isAddon
+                            ? const Color(0xFF0D9488).withValues(alpha: 0.3)
+                            : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Text(
+                      tag,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: isAddon ? FontWeight.bold : FontWeight.w500,
+                        color: isAddon ? const Color(0xFF0D9488) : const Color(0xFF475569),
+                      ),
+                    ),
+                  );
+                }).toList(),
               ),
             ),
         ],

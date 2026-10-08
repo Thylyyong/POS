@@ -26,7 +26,7 @@ class AccountingController extends ChangeNotifier {
   String _selectedPeriod = '2026';
   String get selectedPeriod => _selectedPeriod;
 
-  String _selectedBranch = 'store_a';
+  String _selectedBranch = 'all';
   String get selectedBranch => _selectedBranch;
 
   bool _isLoading = false;

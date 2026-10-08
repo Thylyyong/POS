@@ -6,10 +6,17 @@
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
     <uses-permission android:name="android.permission.USB_PERMISSION" />
 
+    <!-- Storage and Media Permissions for Promotion Banners, Logos, and Media Gallery -->
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+
     <application
         android:label="pos_flutter"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
+        android:requestLegacyExternalStorage="true"
         >
         <activity
             android:name=".MainActivity"

@@ -33,12 +33,14 @@ class SalesMetrics {
 class TopSellingItem {
   final String productId;
   final String productName;
+  final String? imagePath;
   final int totalQuantity;
   final double totalRevenue;
 
   TopSellingItem({
     required this.productId,
     required this.productName,
+    this.imagePath,
     required this.totalQuantity,
     required this.totalRevenue,
   });
@@ -132,6 +134,7 @@ class OrderDao {
     required List<OrderItemModel> items,
     required String action,
     String? receiptFilePath,
+    Future<void> Function(Transaction txn)? beforeCommit,
   }) async {
     final db = await _dbHelper.database;
 
@@ -144,6 +147,12 @@ class OrderDao {
       );
 
       // 2. Insert Order Items
+      // Replacing a pending order must replace its old lines too.
+      await txn.delete(
+        'order_items',
+        where: 'order_id = ?',
+        whereArgs: [order.id],
+      );
       for (var item in items) {
         final itemMap = item.toMap()..['order_id'] = order.id;
         await txn.insert(
@@ -152,6 +161,9 @@ class OrderDao {
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
       }
+
+      // Keep related local bookkeeping in the same commit as the sale.
+      await beforeCommit?.call(txn);
 
       // 3. Free Table if assigned
       if (order.tableId != null && order.tableId!.isNotEmpty) {
@@ -170,7 +182,7 @@ class OrderDao {
 
       // 4. Insert Initial Receipt Log
       final log = ReceiptLogModel(
-        id: 'log_${DateTime.now().millisecondsSinceEpoch}',
+        id: 'log_${DateTime.now().microsecondsSinceEpoch}',
         receiptNo: order.receiptNo,
         orderId: order.id,
         action: action,
@@ -244,7 +256,7 @@ class OrderDao {
   }) async {
     final db = await _dbHelper.database;
     final log = ReceiptLogModel(
-      id: 'log_${DateTime.now().millisecondsSinceEpoch}',
+      id: 'log_${DateTime.now().microsecondsSinceEpoch}',
       receiptNo: receiptNo,
       orderId: orderId,
       action: action,
@@ -501,12 +513,14 @@ class OrderDao {
       SELECT 
         oi.product_id,
         oi.product_name,
+        p.image_path,
         SUM(oi.quantity) as total_qty,
         SUM(oi.total_price) as total_rev
       FROM order_items oi
       JOIN orders o ON oi.order_id = o.id
+      LEFT JOIN products p ON oi.product_id = p.id
       WHERE $whereString
-      GROUP BY oi.product_id, oi.product_name
+      GROUP BY oi.product_id, oi.product_name, p.image_path
       ORDER BY total_qty DESC, total_rev DESC
       LIMIT $limit
     ''', whereArgs);
@@ -516,6 +530,7 @@ class OrderDao {
           (r) => TopSellingItem(
             productId: r['product_id'] as String,
             productName: r['product_name'] as String,
+            imagePath: r['image_path'] as String?,
             totalQuantity: (r['total_qty'] as num?)?.toInt() ?? 0,
             totalRevenue: (r['total_rev'] as num?)?.toDouble() ?? 0.0,
           ),

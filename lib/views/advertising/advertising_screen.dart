@@ -1,15 +1,15 @@
 import 'dart:async';
-import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../controllers/settings_controller.dart';
 import '../../models/store_settings_model.dart';
-import '../../widgets/admin_pin_dialog.dart';
+import '../../services/presentation_service.dart';
 import '../../widgets/app_logo_widget.dart';
+import '../../widgets/promo_media_player.dart';
 import '../splash/splash_screen.dart';
-import 'manage_promotions_dialog.dart';
 
 /// Fullscreen Advertising / Promotion Screen.
 /// 
@@ -31,6 +31,7 @@ class AdvertisingScreen extends StatefulWidget {
 
 class _AdvertisingScreenState extends State<AdvertisingScreen>
     with SingleTickerProviderStateMixin {
+  final PresentationService _presentationService = PresentationService();
   late PageController _pageController;
   Timer? _autoPlayTimer;
   Timer? _clockTimer;
@@ -62,6 +63,23 @@ class _AdvertisingScreenState extends State<AdvertisingScreen>
     });
   }
 
+  int? _lastAutoPlaySeconds;
+  List<String>? _lastBanners;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final settings = context.watch<SettingsController>().settings;
+    if (_lastAutoPlaySeconds != settings.promoAutoPlaySeconds ||
+        !listEquals(_lastBanners, settings.promoBanners)) {
+      _lastAutoPlaySeconds = settings.promoAutoPlaySeconds;
+      _lastBanners = List<String>.from(settings.promoBanners);
+      PaintingBinding.instance.imageCache.clear();
+      PaintingBinding.instance.imageCache.clearLiveImages();
+      _startAutoPlay();
+    }
+  }
+
   @override
   void dispose() {
     _autoPlayTimer?.cancel();
@@ -91,9 +109,10 @@ class _AdvertisingScreenState extends State<AdvertisingScreen>
     _autoPlayTimer = Timer.periodic(Duration(seconds: interval), (_) {
       if (!mounted || !_pageController.hasClients) return;
       final promoBanners = _getEffectiveBanners(settings);
-      if (promoBanners.isEmpty) return;
+      if (promoBanners.length <= 1) return;
 
-      final nextPage = (_currentPage + 1) % promoBanners.length;
+      final current = _pageController.page?.round() ?? _currentPage;
+      final nextPage = (current + 1) % promoBanners.length;
       _pageController.animateToPage(
         nextPage,
         duration: const Duration(milliseconds: 700),
@@ -123,22 +142,6 @@ class _AdvertisingScreenState extends State<AdvertisingScreen>
     );
   }
 
-  Future<void> _openManagePromotions() async {
-    _autoPlayTimer?.cancel();
-    final verified = await AdminPinDialog.show(
-      context,
-      title: 'Admin Verification',
-      subtitle: 'Enter Admin PIN to manage promotional advertisements',
-    );
-
-    if (verified && mounted) {
-      await ManagePromotionsDialog.show(context);
-    }
-
-    if (mounted) {
-      _startAutoPlay();
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -155,10 +158,12 @@ class _AdvertisingScreenState extends State<AdvertisingScreen>
           children: [
             // ── 1. Fullscreen Promotional Media Carousel ──
             PageView.builder(
+              key: ValueKey('main_ads_carousel_${banners.join(",")}_${settings.promoMediaFit}'),
               controller: _pageController,
               itemCount: banners.length,
               onPageChanged: (index) {
                 setState(() => _currentPage = index);
+                _presentationService.syncActivePromoSlide(index);
               },
               itemBuilder: (context, index) {
                 final bannerPath = banners[index];
@@ -168,18 +173,20 @@ class _AdvertisingScreenState extends State<AdvertisingScreen>
 
             // ── 2. Subtle Dark Vignette & Gradient Overlays ──
             Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black.withValues(alpha: 0.65),
-                      Colors.transparent,
-                      Colors.black.withValues(alpha: 0.2),
-                      Colors.black.withValues(alpha: 0.82),
-                    ],
-                    stops: const [0.0, 0.25, 0.65, 1.0],
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withValues(alpha: 0.38),
+                        Colors.transparent,
+                        Colors.transparent,
+                        Colors.black.withValues(alpha: 0.45),
+                      ],
+                      stops: const [0.0, 0.22, 0.70, 1.0],
+                    ),
                   ),
                 ),
               ),
@@ -260,28 +267,6 @@ class _AdvertisingScreenState extends State<AdvertisingScreen>
                                   ),
                                 ),
                               ],
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-
-                          // Admin Gear / Ads Button
-                          Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: _openManagePromotions,
-                              borderRadius: BorderRadius.circular(12),
-                              child: Container(
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.5),
-                                  borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-                                ),
-                                child: const Tooltip(
-                                  message: 'Admin: Manage Promotion Ads',
-                                  child: Icon(Icons.tune_rounded, color: Colors.white, size: 20),
-                                ),
-                              ),
                             ),
                           ),
                         ],
@@ -381,138 +366,31 @@ class _AdvertisingScreenState extends State<AdvertisingScreen>
     );
   }
 
+  BoxFit _resolveBoxFit(String fitMode) {
+    switch (fitMode) {
+      case 'fill':
+        return BoxFit.fill;
+      case 'cover':
+      case 'contain':
+      default:
+        return BoxFit.cover;
+    }
+  }
+
+
   Widget _buildPromoSlide(String path, int index) {
-    final isAsset = path.startsWith('assets/');
-    final isFile = !isAsset && File(path).existsSync();
+    final settings = context.watch<SettingsController>().settings;
+    final fit = _resolveBoxFit(settings.promoMediaFit);
 
-    Widget imageWidget;
-    if (isAsset) {
-      imageWidget = Image.asset(path, fit: BoxFit.cover, errorBuilder: (_, _, _) => _buildPlaceholderSlide(index));
-    } else if (isFile) {
-      imageWidget = Image.file(File(path), fit: BoxFit.cover, errorBuilder: (_, _, _) => _buildPlaceholderSlide(index));
-    } else {
-      imageWidget = _buildPlaceholderSlide(index);
-    }
-
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        imageWidget,
-
-        // Promotional overlay caption
-        Positioned(
-          left: 36,
-          bottom: 120,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 500),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF0D9488),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    'SPECIAL PROMOTION',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  _getPromoTitle(index),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 28,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -0.5,
-                    shadows: [
-                      Shadow(color: Colors.black, blurRadius: 16),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  _getPromoSubtitle(index),
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.9),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    shadows: const [
-                      Shadow(color: Colors.black, blurRadius: 10),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
+    return PromoMediaPlayer(
+      key: ValueKey('main_promo_${path}_${settings.promoMediaFit}_$index'),
+      mediaPath: path,
+      index: index,
+      showFull: false,
+      fit: fit,
+      autoPlay: true,
+      loop: true,
+      muted: true,
     );
-  }
-
-  Widget _buildPlaceholderSlide(int index) {
-    return Container(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF0F172A), Color(0xFF1E293B), Color(0xFF0F766E)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.restaurant_rounded, size: 80, color: Colors.white24),
-            const SizedBox(height: 16),
-            Text(
-              'PROMOTION SPECIALS',
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.5),
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 2,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  String _getPromoTitle(int index) {
-    switch (index % 4) {
-      case 0:
-        return 'Fresh Gourmet Selection';
-      case 1:
-        return 'Signature Handcrafted Drinks';
-      case 2:
-        return 'Artisan Burgers & Grills';
-      case 3:
-      default:
-        return 'Delicious Combos & Deals';
-    }
-  }
-
-  String _getPromoSubtitle(int index) {
-    switch (index % 4) {
-      case 0:
-        return 'Made fresh to order with premium culinary ingredients.';
-      case 1:
-        return 'Pair your meal with our refreshing barista beverages.';
-      case 2:
-        return 'Sizzling hot, packed with flavor, and served immediately.';
-      case 3:
-      default:
-        return 'Save more with our daily combos and value set meals.';
-    }
   }
 }

@@ -7,6 +7,9 @@ import '../../../controllers/settings_controller.dart';
 import 'product_card.dart';
 import '../../../core/theme/asset_theme.dart';
 import '../../../widgets/app_svg_icon.dart';
+import '../../../widgets/product_variant_dialog.dart';
+import '../../../controllers/register_controller.dart';
+import '../../register/open_register_dialog.dart';
 
 class ProductGrid extends StatefulWidget {
   final PosController posCtrl;
@@ -195,21 +198,59 @@ class _ProductGridState extends State<ProductGrid> {
                             onTap: widget.isCustomerDisplay
                                 ? () {}
                                 : () {
-                                    final added = cart.addProduct(product);
-                                    if (!added && context.mounted) {
+                                    final register = context.read<RegisterController>();
+                                    if (!register.isSessionOpen) {
                                       ScaffoldMessenger.of(context).hideCurrentSnackBar();
                                       ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(
-                                          content: Text(
-                                            product.stockQuantity <= 0
-                                                ? '${product.name} is OUT OF STOCK'
-                                                : 'Cannot add more. Only ${product.stockQuantity} in stock.',
+                                          content: const Row(
+                                            children: [
+                                              Icon(Icons.lock_clock_rounded, color: Colors.white, size: 20),
+                                              SizedBox(width: 10),
+                                              Expanded(
+                                                child: Text(
+                                                  "Register is closed. Can't order — please open register first.",
+                                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                           backgroundColor: const Color(0xFFDC2626),
-                                          duration: const Duration(seconds: 2),
+                                          duration: const Duration(seconds: 3),
                                           behavior: SnackBarBehavior.floating,
+                                          action: SnackBarAction(
+                                            label: 'OPEN',
+                                            textColor: Colors.white,
+                                            onPressed: () => OpenRegisterDialog.show(context),
+                                          ),
                                         ),
                                       );
+                                      OpenRegisterDialog.show(context);
+                                      return;
+                                    }
+
+                                    if (product.hasVariants) {
+                                      ProductVariantDialog.show(
+                                        context,
+                                        product: product,
+                                      );
+                                    } else {
+                                      final added = cart.addProduct(product);
+                                      if (!added && context.mounted) {
+                                        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(
+                                              product.stockQuantity <= 0
+                                                  ? '${product.name} is OUT OF STOCK'
+                                                  : 'Cannot add more. Only ${product.stockQuantity} in stock.',
+                                            ),
+                                            backgroundColor: const Color(0xFFDC2626),
+                                            duration: const Duration(seconds: 2),
+                                            behavior: SnackBarBehavior.floating,
+                                          ),
+                                        );
+                                      }
                                     }
                                   },
                           );

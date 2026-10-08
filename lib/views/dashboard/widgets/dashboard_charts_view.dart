@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 
 import '../../../controllers/dashboard_controller.dart';
+import '../../../core/product_image_helper.dart';
 import '../../../core/theme/asset_theme.dart';
 import '../../../widgets/app_svg_icon.dart';
 import 'metrics_card.dart';
@@ -133,18 +134,34 @@ class DashboardChartsView extends StatelessWidget {
 
                             return Row(
                               children: [
-                                Container(
-                                  width: 38,
-                                  height: 38,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFFF1F5F9),
-                                    borderRadius: BorderRadius.circular(8),
-                                  ),
-                                  child: const Center(
-                                    child: AppSvgIcon(
-                                      AssetTheme.box,
-                                      size: 19,
-                                      color: Color(0xFF64748B),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    width: 40,
+                                    height: 40,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFF1F5F9),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                                    ),
+                                    child: Image(
+                                      key: ValueKey('${item.productId}_${item.imagePath}'),
+                                      image: ProductImageHelper.resolveImageProvider(
+                                        imagePath: item.imagePath,
+                                        productName: name,
+                                      ),
+                                      fit: BoxFit.cover,
+                                      errorBuilder: (context, error, stackTrace) => Image.asset(
+                                        ProductImageHelper.getDefaultAssetFor(productName: name),
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) => const Center(
+                                          child: AppSvgIcon(
+                                            AssetTheme.gallery,
+                                            size: 18,
+                                            color: Color(0xFF94A3B8),
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ),
